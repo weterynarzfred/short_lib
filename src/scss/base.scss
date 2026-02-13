@@ -1,0 +1,157 @@
+@use "variables" as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: none;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+  border-radius: 0;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+body {
+  @include fontDefault();
+
+  margin: 0;
+  min-height: calc(var(--vh, 1vh) * 100);
+  background-color: $colorBg !important;
+  color: $colorContent !important;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.r-double {
+  height: $spacingDouble;
+}
+
+.r {
+  height: $spacing;
+}
+
+.r-two-thirds {
+  height: $spacingTwoThirds;
+}
+
+.r-half {
+  height: $spacingHalf;
+}
+
+.r-third {
+  height: $spacingThird;
+}
+
+.r-quarter {
+  height: $spacingQuarter;
+}
+
+.gap-double {
+  gap: $spacingDouble;
+}
+
+.gap {
+  gap: $spacing;
+}
+
+.gap-two-thirds {
+  gap: $spacingTwoThirds;
+}
+
+.gap-half {
+  gap: $spacingHalf;
+}
+
+.gap-third {
+  gap: $spacingThird;
+}
+
+.gap-quarter {
+  gap: $spacingQuarter;
+}
+
+.rel {
+  position: relative;
+}
+
+.no-overflow {
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: inherit;
+}
+
+.text {
+  :first-child {
+    margin-top: 0;
+  }
+
+  :last-child {
+    margin-bottom: 0;
+  }
+
+  a {
+    text-decoration: underline;
+  }
+}
+
+.text-justify {
+  text-align: justify;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}

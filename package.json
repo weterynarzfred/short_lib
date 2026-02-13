@@ -1,0 +1,22 @@
+{
+  "name": "short_lib",
+  "version": "0.1.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "formidable": "^3.5.4",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "babel-plugin-react-compiler": "1.0.0",
+    "sass": "^1.97.3"
+  }
+}
