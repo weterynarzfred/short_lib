@@ -1,12 +1,27 @@
-import ffprobe from "@/app/api/upload/ffprobe";
-import mimetypeToType from "@/app/api/upload/mimetypeToType";
+import ffprobe from "./ffprobe";
+import mimetypeToType from "./mimetypeToType";
 import sharp from "sharp";
+import { fileTypeFromFile } from "file-type";
+import { stat } from "fs/promises";
 
-export default async function extractMetadata(filepath, mimetype) {
-  const type = mimetypeToType(mimetype);
+export default async function extractMetadata(filepath) {
+  let detectedMime = null;
+
+  try {
+    const result = await fileTypeFromFile(filepath);
+    detectedMime = result?.mime ?? null;
+  } catch { }
+
+  const type = mimetypeToType(detectedMime);
 
   let dimensions = null;
   let duration = null;
+  let size = null;
+
+  try {
+    const fileStats = await stat(filepath);
+    size = fileStats.size;
+  } catch { }
 
   if (type === "image") {
     try {
@@ -43,5 +58,11 @@ export default async function extractMetadata(filepath, mimetype) {
     } catch { }
   }
 
-  return { type, dimensions, duration };
+  return {
+    mimetype: detectedMime,
+    type,
+    dimensions,
+    duration,
+    size,
+  };
 }

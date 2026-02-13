@@ -12,7 +12,6 @@ db.exec(`
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     file_size INTEGER,
     mime_type TEXT,
-    type TEXT,
     width INTEGER,
     height INTEGER,
     duration_ms INTEGER,
@@ -40,7 +39,6 @@ db.exec(`
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_media_created_at ON media(created_at);
-  CREATE INDEX IF NOT EXISTS idx_media_type ON media(type);
   CREATE INDEX IF NOT EXISTS idx_media_dimensions ON media(width,height);
   CREATE INDEX IF NOT EXISTS idx_media_duration ON media(duration_ms);
   CREATE INDEX IF NOT EXISTS idx_media_checksum ON media(checksum);

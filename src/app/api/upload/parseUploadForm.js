@@ -74,11 +74,10 @@ export default async function parseUploadForm(req) {
   for (const file of fileData.values()) {
     file.checksum = file.hash.digest("hex");
 
-    const meta = await extractMetadata(
-      file.filepath,
-      file.mimetype
-    );
+    const meta = await extractMetadata(file.filepath);
 
+    file.size = meta.size;
+    file.mimetype = meta.mimetype;
     file.type = meta.type;
     file.dimensions = meta.dimensions;
     file.duration = meta.duration;
