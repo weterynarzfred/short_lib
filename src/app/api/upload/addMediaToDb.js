@@ -1,6 +1,7 @@
 import path from "path";
 
 import db from "@/lib/db";
+import addTags from "@/lib/addTags";
 
 export default async function addMediaToDb(fileData) {
   const insert = db.prepare(`
@@ -9,35 +10,33 @@ export default async function addMediaToDb(fileData) {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const results = [];
-  const rows = [];
+  const insertMany = db.transaction(fileData => {
+    for (const fileMeta of fileData.values()) {
+      const relativePath = path
+        .relative(process.cwd(), fileMeta.filepath)
+        .replace(/\\/g, "/");
 
-  for (const [filename, meta] of fileData.entries()) {
-    const relativePath = path
-      .relative(process.cwd(), meta.filepath)
-      .replace(/\\/g, "/");
+      const result = insert.run(
+        relativePath,
+        fileMeta.size,
+        fileMeta.mimetype,
+        fileMeta.dimensions?.width,
+        fileMeta.dimensions?.height,
+        fileMeta.duration,
+        fileMeta.checksum
+      );
 
-    rows.push([
-      relativePath,
-      meta.size,
-      meta.mimetype,
-      meta.dimensions?.width,
-      meta.dimensions?.height,
-      meta.duration,
-      meta.checksum,
-    ]);
-
-    results.push({
-      filename,
-      size: meta.size,
-      mime: meta.mimetype,
-    });
-  }
-
-  const insertMany = db.transaction(rows => {
-    for (const row of rows)
-      insert.run(...row);
+      if (fileMeta.type) {
+        const mediaId = result.lastInsertRowid;
+        addTags(mediaId, [
+          {
+            name: fileMeta.type,
+            type: "meta",
+          },
+        ]);
+      }
+    }
   });
 
-  insertMany(rows);
+  insertMany(fileData);
 }
