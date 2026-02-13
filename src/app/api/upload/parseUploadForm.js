@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { Readable, Transform } from "stream";
 import path from "path";
 
-import extractMetadata from "@/lib/extractMetadata";
+import extractMetadata from "@/app/api/upload/extractMetadata";
 
 const uploadDir = path.join(process.cwd(), "storage", "full");
 await fs.mkdir(uploadDir, { recursive: true });

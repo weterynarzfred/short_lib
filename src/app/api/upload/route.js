@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 
 import db from "@/lib/db";
-import parseUploadForm from "@/lib/parseUploadForm";
+import parseUploadForm from "@/app/api/upload/parseUploadForm";
 
 export const runtime = "nodejs";
 

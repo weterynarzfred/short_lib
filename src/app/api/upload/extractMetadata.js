@@ -1,5 +1,5 @@
-import ffprobe from "@/lib/ffprobe";
-import mimetypeToType from "@/lib/mimetypeToType";
+import ffprobe from "@/app/api/upload/ffprobe";
+import mimetypeToType from "@/app/api/upload/mimetypeToType";
 import sharp from "sharp";
 
 export default async function extractMetadata(filepath, mimetype) {
