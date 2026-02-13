@@ -1,0 +1,14 @@
+@use "/src/scss/variables" as *;
+
+.page-listing .Search {
+  input {
+    border: 1px solid #aaa;
+    border-radius: 0.4rem;
+    padding: 0 0.4rem;
+
+    &:focus {
+      background-color: #fff;
+      outline: none;
+    }
+  }
+}

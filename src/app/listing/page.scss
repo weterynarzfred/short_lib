@@ -1,0 +1,16 @@
+@use "/src/scss/variables" as *;
+
+.page-listing {
+  .media-listing {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+    gap: 0.5rem;
+    margin-top: $spacingQuarter;
+
+    &__item {
+      box-shadow: 0 0 0 1px #aaa;
+      border-radius: 0.5rem;
+      padding: 0.5rem;
+    }
+  }
+}

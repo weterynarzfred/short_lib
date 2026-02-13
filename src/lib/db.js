@@ -38,4 +38,15 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_media_created_at ON media(created_at);
+  CREATE INDEX IF NOT EXISTS idx_media_type ON media(type);
+  CREATE INDEX IF NOT EXISTS idx_media_dimensions ON media(width,height);
+  CREATE INDEX IF NOT EXISTS idx_media_duration ON media(duration_ms);
+  CREATE INDEX IF NOT EXISTS idx_media_checksum ON media(checksum);
+  CREATE INDEX IF NOT EXISTS idx_media_tags_media ON media_tags(media_id);
+  CREATE INDEX IF NOT EXISTS idx_media_tags_tag ON media_tags(tag_id);
+  CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+`);
+
 export default db;
