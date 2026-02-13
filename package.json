@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
+    "classnames": "^2.5.1",
     "formidable": "^3.5.4",
     "next": "16.1.6",
     "react": "19.2.3",

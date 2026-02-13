@@ -26,6 +26,8 @@ export default async function parseUploadForm(req) {
   const form = formidable({
     multiples: true,
     keepExtensions: true,
+    maxFileSize: 1024 * 1024 * 1024 * 80,
+    maxTotalFileSize: 1024 * 1024 * 1024 * 80,
     filename: (_name, ext, part) =>
       getSafeFilename(part.originalFilename || "file", ext),
     fileWriteStreamHandler: file => {

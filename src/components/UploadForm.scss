@@ -1,0 +1,47 @@
+@use "/src/scss/variables" as *;
+
+.UploadForm {
+  .dropzone {
+    text-align: center;
+    font-style: italic;
+    padding: $spacing;
+    border: 2px dashed #aaa;
+    border-radius: $spacingQuarter;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &--dragging {
+      background-color: #ccc;
+    }
+
+    &:hover {
+      background-color: #ddd;
+    }
+  }
+
+  .upload-list {
+    margin-top: $spacingHalf;
+
+    &__item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: $spacingQuarter;
+    }
+
+    &__progress {
+      width: 12rem;
+      max-width: 100%;
+      height: 0.4rem;
+      box-shadow: 0 0 0 1px #aaa;
+      border-radius: 0.2rem;
+      overflow: hidden;
+      margin-bottom: 0.2rem;
+    }
+
+    &__progress-bar {
+      height: 100%;
+      background-color: #ccc;
+    }
+  }
+}
