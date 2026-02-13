@@ -38,11 +38,6 @@ export default function buildQuery(parsed) {
     params.push(tag);
   }
 
-  if (filters.type) {
-    where.push("m.type = ?");
-    params.push(filters.type);
-  }
-
   if (where.length) {
     sql += " WHERE " + where.join(" AND ");
   }

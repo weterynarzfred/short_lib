@@ -86,6 +86,5 @@ export default async function parseUploadForm(req) {
     delete file.finished;
   }
 
-
   return fileData;
 };

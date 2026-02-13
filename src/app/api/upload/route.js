@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import parseUploadForm from "@/app/api/upload/parseUploadForm";
-import addMediaToDb from "@/app/api/upload/addMediaToDb";
+
+import parseUploadForm from "./parseUploadForm";
+import addMediaToDb from "./addMediaToDb";
+import generateMediaDerivatives from "./generateMediaDerivatives";
 
 export const runtime = "nodejs";
 
@@ -11,9 +13,10 @@ export async function POST(req) {
     if (!fileData || typeof fileData.entries !== "function")
       throw new Error("Invalid upload parser result");
 
-    const results = addMediaToDb(fileData);
+    await generateMediaDerivatives(fileData);
+    await addMediaToDb(fileData);
 
-    return NextResponse.json({ files: results });
+    return NextResponse.json({ status: "Upload finished" });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });

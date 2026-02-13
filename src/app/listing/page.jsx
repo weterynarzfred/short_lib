@@ -1,6 +1,8 @@
-import buildQuery from "@/app/listing/buildQuery";
-import parseSearch from "@/app/listing/parseSearch";
-import Search from "@/app/listing/Search";
+import Image from "next/image";
+
+import buildQuery from "./buildQuery";
+import parseSearch from "./parseSearch";
+import Search from "./Search";
 import Nav from "@/components/Nav";
 import db from "@/lib/db";
 
@@ -21,7 +23,9 @@ export default async function ListingPage({ searchParams }) {
         <Search initialValue={search} />
         <div className="media-listing">
           {posts.map((post) => (
-            <div key={post.id} className="media-listing__item">{post.file_path}</div>
+            <div key={post.id} className="media-listing__item">
+              <Image src={"/api/storage/thumbs/" + post.file_path.split('/').slice(2).join('/') + ".jpg"} width="256" height="256" alt="" />
+            </div>
           ))}
         </div>
       </div>
