@@ -4,4 +4,8 @@
   max-width: $contentWidthSlim;
   margin: 0 auto;
   padding: $spacing;
+
+  &--full {
+    max-width: none;
+  }
 }

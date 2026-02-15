@@ -18,7 +18,7 @@ export default async function ListingPage({ searchParams }) {
   return (
     <div className="page-listing">
       <Nav />
-      <div className="content">
+      <div className="content content--full">
         <h1>media listing</h1>
         <Search initialValue={search} />
         <div className="media-listing">
