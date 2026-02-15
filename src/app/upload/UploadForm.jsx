@@ -1,8 +1,8 @@
 "use client";
 import { useState, useRef } from "react";
-
-import "./UploadForm.scss";
 import classNames from "classnames";
+
+import styles from "./UploadForm.module.scss";
 
 export default function UploadForm() {
   const [uploads, setUploads] = useState([]);
@@ -60,9 +60,12 @@ export default function UploadForm() {
   }
 
   return (
-    <div className="UploadForm">
+    <div className={styles.UploadForm}>
       <div
-        className={classNames("dropzone", { "dropzone--dragging": dragDepth > 0 })}
+        className={classNames(
+          styles.dropzone,
+          { [styles["dropzone--dragging"]]: dragDepth > 0 }
+        )}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
         onDragOver={onDragOver}
@@ -79,12 +82,12 @@ export default function UploadForm() {
         hidden
       />
 
-      <div className="upload-list">
+      <div className={styles.uploadList}>
         {uploads.map(file => (
-          <div key={file.id} className="upload-list__item">
-            <div className="upload-list__progress">
+          <div key={file.id} className={styles.uploadList__item}>
+            <div className={styles.uploadList__progress}>
               <div
-                className="upload-list__progress-bar"
+                className={styles.uploadList__progressBar}
                 style={{ width: file.progress + '%' }}
               ></div>
             </div>

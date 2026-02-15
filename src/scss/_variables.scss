@@ -29,8 +29,13 @@ $resLarge: 1280px;
 $resTablet: 900px;
 $resPhone: 450px;
 
-$colorContent: #111;
-$colorBg: #eee;
+$colorContent: #eee;
+
+$colorBg: #111;
+$colorBg2: #000;
+
+$colorBorder: #333;
+$colorBorder2: #555;
 
 @mixin fontDefault() {
   font-family: "Lato", sans-serif;

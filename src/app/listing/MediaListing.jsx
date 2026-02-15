@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import PostItem from "./PostItem";
 
-import "./MediaListing.scss";
+import styles from "./MediaListing.module.scss";
 
 export default function MediaListing({ posts }) {
   const mediaRef = useRef(null);
@@ -48,18 +48,18 @@ export default function MediaListing({ posts }) {
 
   return (
     <>
-      <div className="media-listing">
+      <div className={styles.MediaListing}>
         {posts.map(post =>
           <PostItem key={post.id} post={post} openLightbox={open} />
         )}
       </div>
 
       {active && (
-        <div className="lightbox">
-          <button className="lightbox__close" onClick={close}>×</button>
-          <button className="lightbox__prev" onClick={prev}>←</button>
+        <div className={styles.lightbox}>
+          <button className={styles.lightbox__close} onClick={close}>×</button>
+          <button className={styles.lightbox__prev} onClick={prev}>←</button>
 
-          <div className="lightbox__content">
+          <div className={styles.lightbox__content}>
             {active.mime_type.startsWith("image") && (
               <img
                 src={`/api/media/${active.file_path}`}
@@ -91,7 +91,7 @@ export default function MediaListing({ posts }) {
             )}
           </div>
 
-          <button className="lightbox__next" onClick={next}>→</button>
+          <button className={styles.lightbox__next} onClick={next}>→</button>
         </div>
       )}
     </>

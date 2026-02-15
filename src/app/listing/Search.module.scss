@@ -1,13 +1,13 @@
 @use "/src/scss/variables" as *;
 
-.page-listing .Search {
+.Search {
   input {
-    border: 1px solid #aaa;
+    border: 1px solid $colorBorder;
     border-radius: 0.4rem;
     padding: 0 0.4rem;
 
     &:focus {
-      background-color: #fff;
+      background-color: $colorBg2;
       outline: none;
     }
   }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import './Search.scss';
+import styles from "./Search.module.scss";
 
 export default function Search({ initialValue = "" }) {
   const [value, setValue] = useState(initialValue);
@@ -23,7 +23,7 @@ export default function Search({ initialValue = "" }) {
   }, [value, router]);
 
   return (
-    <div className="Search">
+    <div className={styles.Search}>
       <input
         value={value}
         onChange={e => setValue(e.target.value)}
