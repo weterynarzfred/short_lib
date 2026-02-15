@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import PostItem from "./PostItem";
 
 import "./MediaListing.scss";
 
 export default function MediaListing({ posts }) {
+  const mediaRef = useRef(null);
+
   const supported = useMemo(
     () => posts.filter(p => ["image", "video", "audio"]
       .includes(p.mime_type.split('/')[0])),
@@ -38,23 +41,17 @@ export default function MediaListing({ posts }) {
 
   const active = index !== null ? supported[index] : null;
 
+  useEffect(() => {
+    if (active && mediaRef.current)
+      mediaRef.current.focus();
+  }, [active]);
+
   return (
     <>
       <div className="media-listing">
-        {posts.map(post => (
-          <div
-            key={post.id}
-            className="media-listing__item"
-            onClick={() => open(post.id)}
-          >
-            <Image
-              src={`/api/media/${post.file_path}?size=thumb`}
-              width={post.variants.thumb.width}
-              height={post.variants.thumb.height}
-              alt=""
-            />
-          </div>
-        ))}
+        {posts.map(post =>
+          <PostItem key={post.id} post={post} openLightbox={open} />
+        )}
       </div>
 
       {active && (
@@ -64,15 +61,21 @@ export default function MediaListing({ posts }) {
 
           <div className="lightbox__content">
             {active.mime_type.startsWith("image") && (
-              <img src={`/api/media/${active.file_path}`} />
+              <img
+                src={`/api/media/${active.file_path}`}
+                ref={mediaRef}
+                tabIndex={0}
+              />
             )}
 
             {active.mime_type.startsWith("video") && (
               <video
                 src={`/api/media/${active.file_path}`}
                 autoPlay
-                loop
                 controls
+                onEnded={next}
+                ref={mediaRef}
+                tabIndex={0}
               />
             )}
 
@@ -80,8 +83,10 @@ export default function MediaListing({ posts }) {
               <audio
                 src={`/api/media/${active.file_path}`}
                 autoPlay
-                loop
                 controls
+                onEnded={next}
+                ref={mediaRef}
+                tabIndex={0}
               />
             )}
           </div>

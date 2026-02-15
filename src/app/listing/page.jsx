@@ -3,8 +3,6 @@ import Search from "./Search";
 import getPosts from "./getPosts";
 import MediaListing from "./MediaListing";
 
-import "./page.scss";
-
 export default async function ListingPage({ searchParams }) {
   const search = (await searchParams)?.search ?? "";
   const posts = getPosts(search);

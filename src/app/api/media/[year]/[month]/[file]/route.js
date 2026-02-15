@@ -27,28 +27,50 @@ export async function GET(req, { params }) {
     filename = `${checksum}.jpg`;
   }
 
-  const filePath = path.join(
-    STORAGE_DIR,
-    baseDir,
-    year,
-    month,
-    filename
-  );
+  const filePath = path.join(STORAGE_DIR, baseDir, year, month, filename);
 
-  if (!filePath.startsWith(path.join(STORAGE_DIR))) {
-    return new Response("Forbidden", { status: 403 });
+  if (!fs.existsSync(filePath)) return new Response("Not found", { status: 404 });
+
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  const contentType = mime.lookup(filePath) || "application/octet-stream";
+
+  const range = req.headers.get("range");
+
+  if (!range) {
+    const stream = fs.createReadStream(filePath);
+    return new Response(stream, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Length": fileSize.toString(),
+        "Accept-Ranges": "bytes",
+      },
+    });
   }
 
-  if (!fs.existsSync(filePath)) {
-    return new Response("Not found", { status: 404 });
+  const parts = range.replace(/bytes=/, "").split("-");
+  const start = parseInt(parts[0], 10);
+  const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+  if (start >= fileSize || end >= fileSize) {
+    return new Response(null, {
+      status: 416,
+      headers: {
+        "Content-Range": `bytes */${fileSize}`,
+      },
+    });
   }
 
-  const stream = fs.createReadStream(filePath);
+  const chunkSize = end - start + 1;
+  const stream = fs.createReadStream(filePath, { start, end });
 
   return new Response(stream, {
+    status: 206,
     headers: {
-      "Content-Type": mime.lookup(filePath) || "application/octet-stream",
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Content-Type": contentType,
+      "Content-Length": chunkSize.toString(),
+      "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+      "Accept-Ranges": "bytes",
     },
   });
 }

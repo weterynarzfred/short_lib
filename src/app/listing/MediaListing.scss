@@ -1,6 +1,14 @@
 @use "/src/scss/variables" as *;
 
 .page-listing {
+  .media-listing {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: $spacingQuarter;
+  }
+
   .lightbox {
     position: fixed;
     inset: 0;
