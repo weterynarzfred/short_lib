@@ -14,6 +14,8 @@ db.exec(`
     width INTEGER,
     height INTEGER,
     duration_ms INTEGER,
+    original_filename TEXT,
+    variants TEXT CHECK (variants IS NULL OR json_valid(variants)),
     checksum TEXT
   );
 `);

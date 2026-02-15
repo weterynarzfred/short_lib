@@ -1,19 +1,14 @@
 import Image from "next/image";
 
-import buildQuery from "./buildQuery";
-import parseSearch from "./parseSearch";
-import Search from "./Search";
 import Nav from "@/components/Nav";
-import db from "@/lib/db";
+import Search from "./Search";
+import getPosts from "./getPosts";
 
 import "./page.scss";
 
 export default async function ListingPage({ searchParams }) {
   const search = (await searchParams)?.search ?? "";
-  const parsed = parseSearch(search);
-  const { sql, params } = buildQuery(parsed);
-
-  const posts = db.prepare(sql).all(...params);
+  const posts = getPosts(search);
 
   return (
     <div className="page-listing">
@@ -22,9 +17,14 @@ export default async function ListingPage({ searchParams }) {
         <h1>media listing</h1>
         <Search initialValue={search} />
         <div className="media-listing">
-          {posts.map((post) => (
+          {posts.map(post => (
             <div key={post.id} className="media-listing__item">
-              <Image src={"/api/storage/thumbs/" + post.file_path.split('/').slice(2).join('/') + ".jpg"} width="256" height="256" alt="" />
+              <Image
+                src={`/api/media/${post.file_path}?size=thumb`}
+                width={post.variants.thumb.width}
+                height={post.variants.thumb.height}
+                alt=""
+              />
             </div>
           ))}
         </div>

@@ -3,34 +3,39 @@ import path from "path";
 import db from "@/lib/db";
 import addTags from "@/lib/addTags";
 
+const STORAGE_DIR = process.env.STORAGE_DIR;
+
 export default async function addMediaToDb(fileData) {
   const insert = db.prepare(`
     INSERT INTO media
-    (file_path, file_size, mime_type, width, height, duration_ms, checksum)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    (file_path, created_at, file_size, mime_type, width, height, duration_ms, original_filename, variants, checksum)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction(fileData => {
-    for (const fileMeta of fileData.values()) {
+    for (const metadata of fileData.values()) {
       const relativePath = path
-        .relative(process.cwd(), fileMeta.filepath)
+        .relative(path.join(STORAGE_DIR, "full"), metadata.filepath)
         .replace(/\\/g, "/");
 
       const result = insert.run(
         relativePath,
-        fileMeta.size,
-        fileMeta.mimetype,
-        fileMeta.dimensions?.width,
-        fileMeta.dimensions?.height,
-        fileMeta.duration,
-        fileMeta.checksum
+        metadata.uploadDate.getTime(),
+        metadata.size,
+        metadata.mimetype,
+        metadata.dimensions?.width,
+        metadata.dimensions?.height,
+        metadata.duration,
+        metadata.originalFilename,
+        JSON.stringify(metadata.variants),
+        metadata.checksum
       );
 
-      if (fileMeta.type) {
+      if (metadata.type) {
         const mediaId = result.lastInsertRowid;
         addTags(mediaId, [
           {
-            name: fileMeta.type,
+            name: metadata.type,
             type: "meta",
           },
         ]);

@@ -1,24 +1,12 @@
 import { createWriteStream } from "fs";
 import fs from "fs/promises";
+import path from "path";
 import formidable from "formidable";
 import crypto from "crypto";
 import { Readable, Transform } from "stream";
-import path from "path";
 
-import extractMetadata from "@/app/api/upload/extractMetadata";
-
-const uploadDir = path.join(process.cwd(), "storage", "full");
-await fs.mkdir(uploadDir, { recursive: true });
-
-function getSafeFilename(filename, ext) {
-  const base = path.parse(filename).name;
-
-  const safe = base
-    .replace(/[^\w.-]/g, "_")
-    .substring(0, 64);
-
-  return `${Date.now()}_${safe}${ext}`;
-}
+import extractMetadata from "./extractMetadata";
+import { getFinalPath, getTempPath } from "@/app/api/upload/path_helpers";
 
 export default async function parseUploadForm(req) {
   const fileData = new Map();
@@ -28,11 +16,11 @@ export default async function parseUploadForm(req) {
     keepExtensions: true,
     maxFileSize: 1024 * 1024 * 1024 * 80,
     maxTotalFileSize: 1024 * 1024 * 1024 * 80,
-    filename: (_name, ext, part) =>
-      getSafeFilename(part.originalFilename || "file", ext),
+    filename: (_name, ext) =>
+      `${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`,
     fileWriteStreamHandler: file => {
       const hash = crypto.createHash("sha256");
-      const filepath = path.join(uploadDir, file.newFilename);
+      const filepath = getTempPath(file.newFilename);
       const writeStream = createWriteStream(filepath);
 
       const finished = new Promise((resolve, reject) => {
@@ -52,6 +40,7 @@ export default async function parseUploadForm(req) {
 
       fileData.set(file.newFilename, {
         filepath,
+        originalFilename: file.originalFilename,
         mimetype: file.mimetype,
         hash,
         finished,
@@ -73,6 +62,19 @@ export default async function parseUploadForm(req) {
 
   for (const file of fileData.values()) {
     file.checksum = file.hash.digest("hex");
+    file.uploadDate = new Date();
+
+    const ext = path.extname(file.filepath);
+    const finalPath = getFinalPath(file, ext);
+
+    try {
+      await fs.rename(file.filepath, finalPath);
+    } catch (err) {
+      if (err.code === "EEXIST") await fs.unlink(file.filepath);
+      else throw err;
+    }
+
+    file.filepath = finalPath;
 
     const meta = await extractMetadata(file.filepath);
 
