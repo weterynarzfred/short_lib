@@ -4,6 +4,8 @@ import path from "path";
 const dbPath = path.join(process.cwd(), "shortlib.db");
 const db = new Database(dbPath);
 
+db.pragma("foreign_keys = ON");
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS media (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
