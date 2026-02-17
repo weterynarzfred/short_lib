@@ -1,5 +1,3 @@
-"use server";
-
 import db from "@/lib/db";
 import fs from "fs";
 import path from "path";
