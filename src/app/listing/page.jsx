@@ -9,9 +9,9 @@ export default async function ListingPage({ searchParams }) {
   return (
     <div className="page-listing">
       <Nav />
-      <div className="wrapper">
+      <main className="wrapper">
         <MediaListing posts={posts} search={search} />
-      </div>
+      </main>
     </div>
   );
 }
