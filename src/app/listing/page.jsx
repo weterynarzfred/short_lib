@@ -1,5 +1,4 @@
 import Nav from "@/components/Nav";
-import Search from "./Search";
 import getPosts from "./getPosts";
 import MediaListing from "./MediaListing";
 
@@ -10,10 +9,8 @@ export default async function ListingPage({ searchParams }) {
   return (
     <div className="page-listing">
       <Nav />
-      <div className="content content--full">
-        <h1>media listing</h1>
-        <Search initialValue={search} />
-        <MediaListing posts={posts} />
+      <div className="wrapper">
+        <MediaListing posts={posts} search={search} />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 @use "/src/scss/variables" as *;
 
 nav {
+  position: fixed;
   display: flex;
   flex-wrap: wrap;
   padding: 0 $spacingQuarter;

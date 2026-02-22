@@ -1,0 +1,90 @@
+@use "/src/scss/variables" as *;
+
+.MediaPanel {
+  position: relative;
+  height: 100%;
+  background-color: $colorBg;
+  display: flex;
+  flex-direction: column;
+  gap: $spacingQuarter;
+  z-index: 22;
+  padding: $spacingQuarter;
+
+  &__media {
+    border: 1px solid $colorBorder;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  img,
+  video {
+    width: 100%;
+    height: auto;
+  }
+
+  &__close {
+    position: absolute;
+    width: 1.5rem;
+    height: 1.5rem;
+    background-color: $colorBg;
+    opacity: 0;
+    transition: 0.2s;
+
+    @at-root body:hover & {
+      opacity: 1;
+    }
+
+    &:hover {
+      background-color: $colorBg2;
+    }
+  }
+
+  &__prev,
+  &__next {
+    width: 1.5rem;
+    height: 1.5rem;
+    background-color: $colorBg;
+    transition: 0.2s;
+
+    &:hover {
+      background-color: $colorBg2;
+    }
+  }
+
+  &__close {
+    top: $spacingHalf;
+    right: $spacingHalf;
+  }
+
+  .navigation {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: $spacingQuarter;
+
+  .button {
+    padding: 0.2rem $spacingQuarter;
+    border: 1px solid $colorBorder;
+    width: 100%;
+
+    &:hover {
+      background-color: $colorBg2;
+    }
+  }
+
+  .deleteButton {
+    padding: 0.2rem $spacingQuarter;
+    color: $colorWarning;
+    border: 1px solid $colorWarning;
+    width: 100%;
+
+    &:hover {
+      background-color: $colorWarningBg;
+    }
+  }
+}

@@ -1,65 +1,31 @@
 @use "/src/scss/variables" as *;
 
 .MediaListing {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-  gap: 1rem;
-  margin-top: $spacingQuarter;
-}
-
-.lightbox {
-  position: fixed;
-  inset: 0;
-  background: $colorBg;
-  align-items: center;
-  z-index: 22;
   display: flex;
-  justify-content: center;
-  align-items: center;
 
-  &__content {
+  .content {
     width: 100%;
-    height: 100%;
-  }
+    height: 100vh;
+    overflow: scroll;
 
-  img,
-  video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  &__prev,
-  &__next,
-  &__close {
-    position: absolute;
-    width: 1.5rem;
-    height: 1.5rem;
-    background-color: $colorBg;
-    opacity: 0;
-    transition: 0.2s;
-
-    @at-root body:hover & {
-      opacity: 1;
-    }
-
-    &:hover {
-      background-color: $colorBg2;
+    .list {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+      gap: 1rem;
+      margin-top: $spacingQuarter;
     }
   }
 
-  &__prev {
-    top: 50%;
-    left: $spacingHalf;
-  }
+  .sidebar {
+    flex: 1 0 auto;
+    width: 0;
+    max-width: 70%;
+    height: 100vh;
+    overflow: scroll;
 
-  &__next {
-    top: 50%;
-    right: $spacingHalf;
-  }
-
-  &__close {
-    top: $spacingHalf;
-    right: $spacingHalf;
+    &.sidebarActive {
+      width: 40rem;
+    }
   }
 }
