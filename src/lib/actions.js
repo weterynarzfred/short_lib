@@ -1,8 +1,9 @@
 "use server";
 
-import deletePost from "@/lib/deletePost";
-import { updatePostTags } from "@/lib/updatePostTags";
 import { revalidatePath } from "next/cache";
+
+import addTags, { parseTagString } from "@/lib/addTags";
+import deletePost from "@/lib/deletePost";
 
 export async function deletePostAction(postId) {
   await deletePost(postId);
@@ -10,6 +11,7 @@ export async function deletePostAction(postId) {
 }
 
 export async function updatePostTagsAction(postId, rawTagString) {
-  await updatePostTags(postId, rawTagString);
+  const tags = parseTagString(rawTagString);
+  addTags(postId, tags, { replace: true });
   revalidatePath("/listing");
 }
