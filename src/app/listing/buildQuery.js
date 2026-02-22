@@ -5,8 +5,23 @@ export default function buildQuery(parsed) {
   const params = [];
 
   let sql = `
-    SELECT DISTINCT m.*
+    SELECT
+      m.*,
+      COALESCE(
+        json_group_array(
+          DISTINCT json_object(
+            'id', t_all.id,
+            'name', t_all.name,
+            'type', t_all.type
+          )
+        ),
+        '[]'
+      ) AS tags
     FROM media m
+    LEFT JOIN media_tags mt_all
+      ON mt_all.media_id = m.id
+    LEFT JOIN tags t_all
+      ON t_all.id = mt_all.tag_id
   `;
 
   let tagJoinIndex = 0;
@@ -42,8 +57,11 @@ export default function buildQuery(parsed) {
     sql += " WHERE " + where.join(" AND ");
   }
 
-  sql += ` ORDER BY ${filters.order}`;
-  sql += ` LIMIT ${filters.limit}`;
+  sql += `
+    GROUP BY m.id
+    ORDER BY ${filters.order}
+    LIMIT ${filters.limit}
+  `;
 
   return { sql, params };
 }

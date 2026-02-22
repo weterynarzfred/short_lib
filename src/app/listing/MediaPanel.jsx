@@ -1,11 +1,37 @@
-import { useState } from "react";
-
-import { deletePostAction } from "@/lib/actions";
-
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { deletePostAction, updatePostTagsAction } from "@/lib/actions";
 import styles from "./MediaPanel.module.scss";
+import classNames from "classnames";
 
 export default function MediaPanel({ post, close, prev, next, mediaRef }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [tagsValue, setTagsValue] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const originalTags = useMemo(
+    () => post.tags.map((t) => t.name).join(" ").trim(),
+    [post]
+  );
+
+  useEffect(() => {
+    setTagsValue(originalTags);
+  }, [originalTags]);
+
+  const isDirty = tagsValue.trim() !== originalTags;
+
+  const saveTags = () => {
+    if (!isDirty) return;
+
+    const nextValue = tagsValue.trim();
+
+    startTransition(() => {
+      updatePostTagsAction(post.id, nextValue);
+    });
+  };
+
+  const resetTags = () => {
+    setTagsValue(originalTags);
+  };
 
   return (
     <div className={styles.MediaPanel}>
@@ -55,6 +81,34 @@ export default function MediaPanel({ post, close, prev, next, mediaRef }) {
         </button>
       </div>
 
+      <div className={styles.edit}>
+        <textarea
+          className={classNames(styles.tagList, { [styles.tagListDirty]: isDirty })}
+          value={tagsValue}
+          onChange={(e) => setTagsValue(e.target.value)}
+        />
+
+        <div className={styles.buttonList}>
+          <button
+            className={styles.button}
+            type="button"
+            onClick={saveTags}
+            disabled={!isDirty || isPending}
+          >
+            {isPending ? "saving…" : "save tags"}
+          </button>
+
+          <button
+            className={styles.button}
+            type="button"
+            onClick={resetTags}
+            disabled={!isDirty || isPending}
+          >
+            reset
+          </button>
+        </div>
+      </div>
+
       <div className={styles.actions}>
         {!confirmingDelete && (
           <button
@@ -67,13 +121,19 @@ export default function MediaPanel({ post, close, prev, next, mediaRef }) {
 
         {confirmingDelete && (
           <>
-            <button className={styles.button} onClick={() => setConfirmingDelete(true)}>
+            <button
+              className={styles.button}
+              onClick={() => setConfirmingDelete(false)}
+            >
               cancel
             </button>
-            <button className={styles.deleteButton} onClick={async () => {
-              await deletePostAction(post.id);
-              setConfirmingDelete(false);
-            }}>
+            <button
+              className={styles.deleteButton}
+              onClick={async () => {
+                await deletePostAction(post.id);
+                setConfirmingDelete(false);
+              }}
+            >
               confirm
             </button>
           </>
