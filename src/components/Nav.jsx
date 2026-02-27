@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-import './Nav.scss';
+import styles from './Nav.module.scss';
 
 export default function Nav() {
-  return <nav>
-    <Link href="/">home</Link>
-    <Link href="/listing">listing</Link>
-    <Link href="/upload">upload</Link>
-    <Link href="/tags">tags</Link>
+  return <nav className={styles.nav}>
+    <Link className={styles.navLink} href="/">home</Link>
+    <Link className={styles.navLink} href="/listing">listing</Link>
+    <Link className={styles.navLink} href="/upload">upload</Link>
+    <Link className={styles.navLink} href="/tags">tags</Link>
   </nav>;
 };

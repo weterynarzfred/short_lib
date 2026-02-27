@@ -1,12 +1,17 @@
 @use "/src/scss/variables" as *;
 
-nav {
+.nav {
   position: fixed;
   display: flex;
   flex-wrap: wrap;
   padding: 0 $spacingQuarter;
 
-  a {
+  .navLink {
     padding: $spacingQuarter;
+    color: $colorLink;
+
+    &:hover {
+      color: $colorContent;
+    }
   }
 }

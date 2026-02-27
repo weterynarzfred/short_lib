@@ -1,0 +1,19 @@
+@use "/src/scss/variables" as *;
+
+.pagination {
+  display: flex;
+  gap: $spacingQuarter;
+}
+
+.link {
+  color: $colorLink;
+
+  &:hover {
+    color: $colorContent;
+  }
+
+  &.linkCurrent {
+    font-weight: 700;
+    color: $colorContent;
+  }
+}
