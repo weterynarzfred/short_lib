@@ -102,14 +102,15 @@ export default function Search({ initialValue = "" }) {
   const listId = useMemo(() => `tag-suggest-${Math.random().toString(36).slice(2)}`, []);
 
   function chooseTag(tag) {
-    suppressSuggestRef.current = true;
+    const isOperator = tag.type === "operator";
+    if (!isOperator) suppressSuggestRef.current = true;
 
     setValue(prev => {
       const trimmed = prev.trimEnd();
       const parts = trimmed.split(/\s+/);
       const isNegative = parts[parts.length - 1].startsWith("-");
       parts[parts.length - 1] = (isNegative ? "-" : "") + tag.name;
-      return parts.join(" ") + " ";
+      return parts.join(" ") + (isOperator ? "" : " ");
     });
 
     setIsOpen(false);
