@@ -1,25 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import TagSuggestions from "@/components/TagSuggestions";
+import useTagSuggestions from "@/components/useTagSuggestions";
+import useCombobox from "@/components/useCombobox";
 
 import styles from "./Search.module.scss";
 
 export default function Search({ initialValue = "" }) {
-  const [value, setValue] = useState(initialValue);
-  const [isOpen, setIsOpen] = useState(false);
-  const [items, setItems] = useState([]);
-  const [activeIndex, setActiveIndex] = useState(-1);
-
   const router = useRouter();
-  const rootRef = useRef(null);
-  const suppressSuggestRef = useRef(false);
 
-  useEffect(() => {
-    setValue(initialValue);
-  }, [initialValue]);
+  const [value, setValue] = useState(initialValue);
+  const { items, isLoading } = useTagSuggestions(value);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -36,79 +30,34 @@ export default function Search({ initialValue = "" }) {
 
   function chooseTag(tag) {
     const isOperator = tag.type === "operator";
-    if (!isOperator) suppressSuggestRef.current = true;
 
     setValue(prev => {
       const trimmed = prev.trimEnd();
       const parts = trimmed.split(/\s+/);
-      const isNegative = parts[parts.length - 1].startsWith("-");
+      const isNegative = parts[parts.length - 1]?.startsWith("-");
       parts[parts.length - 1] = (isNegative ? "-" : "") + tag.name;
       return parts.join(" ") + (isOperator ? "" : " ");
     });
-
-    setIsOpen(false);
-    setActiveIndex(-1);
   }
 
-  function onKeyDown(e) {
-    if (!isOpen) {
-      if (e.key === "ArrowDown" && items.length > 0) {
-        setIsOpen(true);
-        setActiveIndex(0);
-        e.preventDefault();
-      }
-      return;
-    }
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIndex(i => Math.min(i + 1, items.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex(i => Math.max(i - 1, 0));
-    } else if (e.key === "Enter") {
-      if (activeIndex >= 0 && activeIndex < items.length) {
-        e.preventDefault();
-        chooseTag(items[activeIndex]);
-      }
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setIsOpen(false);
-      setActiveIndex(-1);
-    }
-  }
-
-  const listId = useMemo(() => `tag-suggest-${Math.random().toString(36).slice(2)}`, []);
+  const combobox = useCombobox({ items, onSelect: chooseTag });
 
   return (
-    <div className={styles.Search} ref={rootRef}>
+    <div ref={combobox.rootRef} className={styles.Search}>
       <input
         value={value}
         onChange={e => setValue(e.target.value)}
-        onFocus={() => { if (items.length > 0) setIsOpen(true); }}
-        onKeyDown={onKeyDown}
-        placeholder="Search…"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={isOpen}
-        aria-controls={isOpen ? listId : undefined}
-        aria-activedescendant={
-          isOpen && activeIndex >= 0 ? `${listId}-opt-${items[activeIndex].id}` : undefined
-        }
+        onFocus={combobox.openIfHasItems}
+        {...combobox.getInputProps()}
       />
 
       <TagSuggestions
-        value={value}
-        setValue={setValue}
+        isOpen={combobox.isOpen}
+        listId={combobox.listId}
         items={items}
-        setItems={setItems}
-        activeIndex={activeIndex}
-        setActiveIndex={setActiveIndex}
-        isOpen={isOpen}
-        setIsOpen={setIsOpen}
-        rootRef={rootRef}
-        suppressSuggestRef={suppressSuggestRef}
-        listId={listId}
+        isLoading={isLoading}
+        activeIndex={combobox.activeIndex}
+        getItemProps={combobox.getItemProps}
       />
     </div>
   );
