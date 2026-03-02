@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export default function useTagSuggestions(value) {
+export default function useTagSuggestions(value, options = {}) {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,7 +30,7 @@ export default function useTagSuggestions(value) {
 
       try {
         const res = await fetch(
-          `/api/tags/suggest?q=${encodeURIComponent(query)}`,
+          `/api/tags/suggest?q=${encodeURIComponent(query)}&is_edit=${options.mode === 'edit'}`,
           { signal: controller.signal }
         );
         if (!res.ok) throw new Error();

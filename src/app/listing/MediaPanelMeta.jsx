@@ -4,6 +4,7 @@ import classNames from "classnames";
 import { deletePostAction, updatePostTagsAction } from "@/lib/actions";
 
 import styles from "./MediaPanelMeta.module.scss";
+import TagEditor from "@/components/TagEditor";
 
 export default function MediaPanelMeta({ post, prev, next }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -46,10 +47,10 @@ export default function MediaPanelMeta({ post, prev, next }) {
     </div>
 
     <div className={styles.edit}>
-      <textarea
-        className={classNames(styles.tagList, { [styles.tagListDirty]: isDirty })}
+      <TagEditor
         value={tagsValue}
-        onChange={(e) => setTagsValue(e.target.value)}
+        onChange={setTagsValue}
+        className={classNames(styles.tagList, { [styles.tagListDirty]: isDirty })}
       />
 
       <div className={styles.buttonList}>

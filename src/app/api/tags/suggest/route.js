@@ -41,12 +41,12 @@ export function GET(req) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") ?? "").trim();
   if (!q) return NextResponse.json({ tags: [] });
-  const operatorsEnabled = searchParams.get("noOps") !== "1";
+  const isEdit = searchParams.get("is_edit") === "true";
   const colonIndex = q.indexOf(":");
 
   let suggestions = [];
 
-  if (operatorsEnabled) {
+  if (!isEdit) {
     if (colonIndex === -1) {
       const matchingOps = OPERATORS.filter(op => op.label.startsWith(q));
 
