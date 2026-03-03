@@ -51,7 +51,7 @@ export function GET(req) {
       const matchingOps = OPERATORS.filter(op => op.label.startsWith(q));
 
       suggestions.push(
-        ...matchingOps.map((op) => ({
+        ...matchingOps.map(op => ({
           id: `op_${op.key}`,
           name: op.label,
           type: "operator",
@@ -71,7 +71,7 @@ export function GET(req) {
         );
 
         suggestions.push(
-          ...matchingValues.map((v) => ({
+          ...matchingValues.map(v => ({
             id: `op_${operator.key}_${v}`,
             name: `${operator.label}${v}`,
             type: "value",
@@ -85,7 +85,7 @@ export function GET(req) {
   }
 
   const rows = stmt.all(q);
-  const tagSuggestions = rows.map((r) => ({
+  const tagSuggestions = rows.map(r => ({
     id: r.id,
     name: r.name,
     type: r.type,

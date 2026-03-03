@@ -10,7 +10,9 @@ export default function useTagSuggestions(value, options = {}) {
     const trimmed = value.trim();
 
     if (!trimmed) {
+      if (abortRef.current) abortRef.current.abort();
       setItems([]);
+      setIsLoading(false);
       return;
     }
 
@@ -18,7 +20,9 @@ export default function useTagSuggestions(value, options = {}) {
     const query = parts[parts.length - 1].replace(/^-/, "");
 
     if (!query) {
+      if (abortRef.current) abortRef.current.abort();
       setItems([]);
+      setIsLoading(false);
       return;
     }
 
@@ -42,12 +46,15 @@ export default function useTagSuggestions(value, options = {}) {
       } catch (e) {
         if (e.name !== "AbortError") setItems([]);
       } finally {
-        setIsLoading(false);
+        if (abortRef.current === controller) setIsLoading(false);
       }
     }, 150);
 
-    return () => clearTimeout(id);
-  }, [value]);
+    return () => {
+      clearTimeout(id);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [value, options.mode]);
 
   return { items, isLoading };
 }
