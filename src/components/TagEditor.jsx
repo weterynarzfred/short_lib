@@ -18,29 +18,18 @@ export default function TagEditor({ value, onChange, className }) {
     });
   }
 
-  const combobox = useCombobox({
-    items,
-    onSelect: chooseTag
-  });
+  const combobox = useCombobox({ items, onSelect: chooseTag });
 
   return (
     <div ref={combobox.rootRef} className={styles.TagEditor}>
       <textarea
         value={value}
         onChange={e => onChange(e.target.value)}
-        onFocus={combobox.openIfHasItems}
         className={className}
         {...combobox.getInputProps()}
       />
 
-      <TagSuggestions
-        isOpen={combobox.isOpen}
-        listId={combobox.listId}
-        items={items}
-        isLoading={isLoading}
-        activeIndex={combobox.activeIndex}
-        getItemProps={combobox.getItemProps}
-      />
+      <TagSuggestions items={items} isLoading={isLoading} combobox={combobox} />
     </div>
   );
 }

@@ -47,18 +47,10 @@ export default function Search({ initialValue = "" }) {
       <input
         value={value}
         onChange={e => setValue(e.target.value)}
-        onFocus={combobox.openIfHasItems}
         {...combobox.getInputProps()}
       />
 
-      <TagSuggestions
-        isOpen={combobox.isOpen}
-        listId={combobox.listId}
-        items={items}
-        isLoading={isLoading}
-        activeIndex={combobox.activeIndex}
-        getItemProps={combobox.getItemProps}
-      />
+      <TagSuggestions items={items} isLoading={isLoading} combobox={combobox} />
     </div>
   );
 }

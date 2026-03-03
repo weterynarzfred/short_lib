@@ -6,7 +6,7 @@ export default function useCombobox({ items, onSelect }) {
   const rootRef = useRef(null);
   const listId = useMemo(() => `cb-${Math.random().toString(36).slice(2)}`, []);
 
-  const openIfHasItems = useCallback(() => {
+  const onFocus = useCallback(() => {
     if (items.length > 0) setIsOpen(true);
   }, [items.length]);
 
@@ -66,6 +66,7 @@ export default function useCombobox({ items, onSelect }) {
     const active = isOpen && activeIndex >= 0 ? items[activeIndex] : null;
     return {
       onKeyDown,
+      onFocus,
       role: "combobox",
       "aria-autocomplete": "list",
       "aria-expanded": isOpen,
@@ -98,7 +99,7 @@ export default function useCombobox({ items, onSelect }) {
     activeIndex,
     setIsOpen,
     setActiveIndex,
-    openIfHasItems,
+    openIfHasItems: onFocus,
     close,
     getInputProps,
     getItemProps,
