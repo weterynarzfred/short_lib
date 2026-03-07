@@ -6,11 +6,19 @@ export default function useTagSuggestions(value, options = {}) {
 
   const abortRef = useRef(null);
   const didMountRef = useRef(false);
+  const prevKey = useRef(undefined);
 
   useEffect(() => {
-    if (!value) return;
-    if (!didMountRef.current) {
+    if (!value || value.endsWith(' ')) {
+      setItems([]);
       didMountRef.current = true;
+      return;
+    }
+
+    if (prevKey.current !== options.key || !didMountRef.current) {
+      didMountRef.current = true;
+      prevKey.current = options.key;
+      setItems([]);
       return;
     }
 

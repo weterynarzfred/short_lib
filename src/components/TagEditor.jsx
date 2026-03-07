@@ -6,8 +6,8 @@ import useCombobox from "./useCombobox";
 
 import styles from "./TagEditor.module.scss";
 
-export default function TagEditor({ value, onChange, saveTags, className }) {
-  const { items, isLoading } = useTagSuggestions(value, { mode: "edit" });
+export default function TagEditor({ postId, value, onChange, saveTags, className }) {
+  const { items, isLoading } = useTagSuggestions(value, { mode: "edit", key: postId });
 
   function chooseTag(tag) {
     onChange(prev => {

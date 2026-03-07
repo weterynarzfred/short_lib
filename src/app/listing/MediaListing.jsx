@@ -46,6 +46,11 @@ export default function MediaListing({ posts, search }) {
     if (active && mediaRef.current) mediaRef.current.focus();
   }, [active]);
 
+  useEffect(() => {
+    setIndex(null);
+    mediaRef.current = null;
+  }, [search]);
+
   return (
     <>
       <div className={styles.MediaListing}>

@@ -16,20 +16,14 @@ export default function MediaPanelMeta({ post, prev, next }) {
     [post]
   );
 
-  useEffect(() => {
-    setTagsValue(originalTags);
-  }, [originalTags]);
+  useEffect(() => { setTagsValue(originalTags); }, [originalTags]);
 
   const isDirty = tagsValue.trim() !== originalTags;
-
   const saveTags = () => {
     if (!isDirty) return;
 
     const nextValue = tagsValue.trim();
-
-    startTransition(() => {
-      updatePostTagsAction(post.id, nextValue);
-    });
+    startTransition(() => { updatePostTagsAction(post.id, nextValue); });
   };
 
   const resetTags = () => {
@@ -48,6 +42,7 @@ export default function MediaPanelMeta({ post, prev, next }) {
 
     <div className={styles.edit}>
       <TagEditor
+        postId={post.id}
         value={tagsValue}
         onChange={setTagsValue}
         saveTags={saveTags}
