@@ -6,7 +6,7 @@ import useCombobox from "./useCombobox";
 
 import styles from "./TagEditor.module.scss";
 
-export default function TagEditor({ value, onChange, className }) {
+export default function TagEditor({ value, onChange, saveTags, className }) {
   const { items, isLoading } = useTagSuggestions(value, { mode: "edit" });
 
   function chooseTag(tag) {
@@ -19,6 +19,7 @@ export default function TagEditor({ value, onChange, className }) {
   }
 
   const combobox = useCombobox({ items, onSelect: chooseTag });
+  const inputProps = combobox.getInputProps();
 
   return (
     <div ref={combobox.rootRef} className={styles.TagEditor}>
@@ -26,7 +27,15 @@ export default function TagEditor({ value, onChange, className }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         className={className}
-        {...combobox.getInputProps()}
+        {...inputProps}
+        onKeyDown={event => {
+          inputProps.onKeyDown(event);
+
+          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            event.preventDefault();
+            saveTags();
+          }
+        }}
       />
 
       <TagSuggestions items={items} isLoading={isLoading} combobox={combobox} />

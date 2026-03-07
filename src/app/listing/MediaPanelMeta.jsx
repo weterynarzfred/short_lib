@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import classNames from "classnames";
 
 import { deletePostAction, updatePostTagsAction } from "@/lib/actions";
+import TagEditor from "@/components/TagEditor";
 
 import styles from "./MediaPanelMeta.module.scss";
-import TagEditor from "@/components/TagEditor";
 
 export default function MediaPanelMeta({ post, prev, next }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -50,6 +50,7 @@ export default function MediaPanelMeta({ post, prev, next }) {
       <TagEditor
         value={tagsValue}
         onChange={setTagsValue}
+        saveTags={saveTags}
         className={classNames(styles.tagList, { [styles.tagListDirty]: isDirty })}
       />
 
@@ -71,6 +72,8 @@ export default function MediaPanelMeta({ post, prev, next }) {
         >
           reset
         </button>
+
+        <div className={styles.saveNote}>ctrl + enter to save</div>
       </div>
     </div>
 

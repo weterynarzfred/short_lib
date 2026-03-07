@@ -35,9 +35,13 @@ export default function useCombobox({ items, onSelect }) {
   }, [close]);
 
   const onKeyDown = useCallback(event => {
+    if (["ArrowLeft", "ArrowRight"].includes(event.key))
+      event.stopPropagation();
+
     if (!isOpen) {
       if (event.key === "ArrowDown" && items.length) {
         event.preventDefault();
+        event.stopPropagation();
         setIsOpen(true);
         setActiveIndex(0);
       }
@@ -46,18 +50,22 @@ export default function useCombobox({ items, onSelect }) {
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
+      event.stopPropagation();
       setActiveIndex(i => Math.min(i + 1, items.length - 1));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
+      event.stopPropagation();
       setActiveIndex(i => Math.max(i - 1, 0));
     } else if (event.key === "Enter") {
       if (activeIndex >= 0 && activeIndex < items.length) {
         event.preventDefault();
+        event.stopPropagation();
         onSelect(items[activeIndex]);
         close();
       }
     } else if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       close();
     }
   }, [isOpen, items, activeIndex, onSelect, close]);

@@ -54,6 +54,13 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+
+    .saveNote {
+      margin-left: auto;
+      font-size: 0.8rem;
+      font-style: italic;
+      color: $colorContent2;
+    }
   }
 }
 
