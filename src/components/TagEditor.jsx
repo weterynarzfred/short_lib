@@ -29,12 +29,13 @@ export default function TagEditor({ value, onChange, saveTags, className }) {
         className={className}
         {...inputProps}
         onKeyDown={event => {
-          inputProps.onKeyDown(event);
-
           if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
             event.preventDefault();
             saveTags();
+            return;
           }
+
+          inputProps.onKeyDown(event);
         }}
       />
 
