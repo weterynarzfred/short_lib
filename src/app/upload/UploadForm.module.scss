@@ -10,7 +10,7 @@
     cursor: pointer;
     transition: 0.2s;
 
-    &--dragging {
+    &.dropzoneDragging {
       background-color: $colorBg2;
     }
 
@@ -22,26 +22,53 @@
   .uploadList {
     margin-top: $spacingHalf;
 
-    &__item {
+    .item {
       display: flex;
       flex-direction: column;
       align-items: center;
       margin-top: $spacingQuarter;
-    }
 
-    &__progress {
-      width: 12rem;
-      max-width: 100%;
-      height: 0.4rem;
-      box-shadow: 0 0 0 1px $colorBorder;
-      border-radius: 0.2rem;
-      overflow: hidden;
-      margin-bottom: 0.3rem;
-    }
+      .progressWrapper {
+        display: flex;
+        align-items: center;
+        gap: $spacingQuarter;
 
-    &__progressBar {
-      height: 100%;
-      background-color: $colorContent;
+        .progressDone,
+        .progressFailed {
+          line-height: 0;
+        }
+
+        .progress {
+          width: 12rem;
+          max-width: 100%;
+          height: 0.4rem;
+          box-shadow: 0 0 0 1px $colorBorder;
+          border-radius: 0.2rem;
+          overflow: hidden;
+          margin-bottom: 0.3rem;
+
+          .progressBar {
+            height: 100%;
+            background-color: $colorContent;
+          }
+        }
+      }
+
+      &.itemDone {
+        color: $colorSuccess;
+
+        .progress .progressBar {
+          background-color: $colorSuccess;
+        }
+      }
+
+      &.itemFailed {
+        color: $colorWarning;
+
+        .progress .progressBar {
+          background-color: $colorWarning;
+        }
+      }
     }
   }
 }

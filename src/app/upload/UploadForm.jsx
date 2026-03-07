@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useRef } from "react";
 import classNames from "classnames";
 
@@ -9,10 +10,21 @@ export default function UploadForm() {
   const [dragDepth, setDragDepth] = useState(0);
   const inputRef = useRef(null);
 
+  function markFailed(id) {
+    setUploads(prev =>
+      prev.map(upload =>
+        upload.id === id ? { ...upload, failed: true } : upload
+      )
+    );
+  }
+
   function uploadFile(file) {
     const id = crypto.randomUUID();
 
-    setUploads(prev => [...prev, { id, name: file.name, progress: 0 }]);
+    setUploads(prev => [
+      ...prev,
+      { id, name: file.name, progress: 0, done: false, failed: false }
+    ]);
 
     const form = new FormData();
     form.append("file", file);
@@ -23,19 +35,38 @@ export default function UploadForm() {
     xhr.upload.onprogress = e => {
       if (!e.lengthComputable) return;
 
-      const percent = Math.round((e.loaded / e.total) * 100);
+      const progress = Math.round((e.loaded / e.total) * 100);
 
       setUploads(prev =>
-        prev.map(u => (u.id === id ? { ...u, progress: percent } : u))
+        prev.map(upload =>
+          upload.id === id ? { ...upload, progress } : upload
+        )
       );
     };
 
     xhr.onload = () => {
-      setUploads(prev =>
-        prev.map(u => (u.id === id ? { ...u, progress: 100 } : u))
-      );
+      if (xhr.status < 200 || xhr.status >= 300) {
+        markFailed(id);
+        return;
+      }
+
+      try {
+        const res = JSON.parse(xhr.responseText);
+
+        if (res.status === "Upload finished") {
+          setUploads(prev =>
+            prev.map(upload =>
+              upload.id === id ?
+                { ...upload, progress: 100, done: true } :
+                upload
+            )
+          );
+        } else markFailed(id);
+      } catch { markFailed(id); }
     };
 
+    xhr.onerror = () => markFailed(id);
+    xhr.onabort = () => markFailed(id);
     xhr.send(form);
   }
 
@@ -45,55 +76,45 @@ export default function UploadForm() {
     setDragDepth(0);
   }
 
-  function onDragEnter(e) {
-    e.preventDefault();
-    setDragDepth(d => d + 1);
-  }
-
-  function onDragLeave(e) {
-    e.preventDefault();
-    setDragDepth(d => d - 1);
-  }
-
-  function onDragOver(e) {
-    e.preventDefault();
-  }
-
   return (
     <div className={styles.UploadForm}>
       <div
         className={classNames(
           styles.dropzone,
-          { [styles["dropzone--dragging"]]: dragDepth > 0 }
+          { [styles.dropzoneDragging]: dragDepth > 0 }
         )}
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
-        onDragOver={onDragOver}
+        onDragEnter={e => { e.preventDefault(); setDragDepth(d => d + 1); }}
+        onDragLeave={e => { e.preventDefault(); setDragDepth(d => d - 1); }}
+        onDragOver={e => { e.preventDefault(); }}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
       >
         drop files here or click to upload
       </div>
 
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        hidden
-      />
+      <input ref={inputRef} type="file" multiple hidden />
 
       <div className={styles.uploadList}>
-        {uploads.map(file => (
-          <div key={file.id} className={styles.uploadList__item}>
-            <div className={styles.uploadList__progress}>
-              <div
-                className={styles.uploadList__progressBar}
-                style={{ width: file.progress + '%' }}
-              ></div>
+        {uploads.map(file =>
+          <div key={file.id} className={classNames(styles.item, {
+            [styles.itemDone]: file.done,
+            [styles.itemFailed]: file.failed,
+          })}>
+            <div className={styles.progressWrapper}>
+              {file.done && <div className={styles.progressDone}>✓</div>}
+              {file.failed && <div className={styles.progressFailed}>✗</div>}
+              <div className={styles.progress}>
+                <div
+                  className={styles.progressBar}
+                  style={{ width: file.progress + "%" }}
+                />
+              </div>
             </div>
-            <div>{file.name}</div>
+            <div>
+              {file.name}
+            </div>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

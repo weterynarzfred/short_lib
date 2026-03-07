@@ -7,6 +7,7 @@ import generateMediaDerivatives from "./generateMediaDerivatives";
 export const runtime = "nodejs";
 
 export async function POST(req) {
+
   try {
     const fileData = await parseUploadForm(req);
 
