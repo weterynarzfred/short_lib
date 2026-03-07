@@ -5,8 +5,15 @@ export default function useTagSuggestions(value, options = {}) {
   const [isLoading, setIsLoading] = useState(false);
 
   const abortRef = useRef(null);
+  const didMountRef = useRef(false);
 
   useEffect(() => {
+    if (!value) return;
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+
     const trimmed = value.trim();
 
     if (!trimmed) {
