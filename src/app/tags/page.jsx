@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
-import getTagStats from "./getTagStats";
-import Pagination from "./Pagination";
-import TagTable from "./TagTable";
+import getTagStats from "./lib/getTagStats";
+import Pagination from "./components/Pagination";
+import TagTable from "./components/TagTable";
 
 import styles from "./page.module.scss";
 

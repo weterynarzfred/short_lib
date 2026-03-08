@@ -1,6 +1,6 @@
 import Nav from "@/components/Nav";
-import getPosts from "./getPosts";
-import MediaListing from "./MediaListing";
+import getPosts from "./lib/getPosts";
+import MediaListing from "./components/MediaListing";
 
 export default async function ListingPage({ searchParams }) {
   const search = (await searchParams)?.search ?? "";

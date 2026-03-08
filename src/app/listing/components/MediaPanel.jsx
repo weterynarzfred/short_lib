@@ -1,4 +1,4 @@
-import MediaPanelMeta from "@/app/listing/MediaPanelMeta";
+import MediaPanelMeta from "@/app/listing/components/MediaPanelMeta";
 import styles from "./MediaPanel.module.scss";
 
 export default function MediaPanel({ post, close, prev, next, mediaRef }) {
@@ -24,7 +24,8 @@ export default function MediaPanel({ post, close, prev, next, mediaRef }) {
             src={`/api/media/${post.file_path}`}
             autoPlay
             controls
-            onEnded={next}
+            // onEnded={next}
+            loop
             ref={mediaRef}
             tabIndex={0}
           />
@@ -35,7 +36,8 @@ export default function MediaPanel({ post, close, prev, next, mediaRef }) {
             src={`/api/media/${post.file_path}`}
             autoPlay
             controls
-            onEnded={next}
+            // onEnded={next}
+            loop
             ref={mediaRef}
             tabIndex={0}
           />
