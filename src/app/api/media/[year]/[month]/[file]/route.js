@@ -49,6 +49,7 @@ function parseRange(rangeHeader, fileSize) {
   return { start, end };
 }
 
+// TODO: potentially remux mkv -> mp4 on the fly using ffmpeg pipe
 export async function GET(req, { params }) {
   const { year, month, file } = await params;
 
