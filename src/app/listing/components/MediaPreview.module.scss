@@ -1,0 +1,7 @@
+@use "/src/scss/variables" as *;
+
+.MediaPreview {
+  border: 1px solid $colorBorder;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}

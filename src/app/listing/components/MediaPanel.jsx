@@ -1,48 +1,94 @@
-import MediaPanelMeta from "@/app/listing/components/MediaPanelMeta";
+import { useState } from "react";
+import MediaPanelMeta from "./MediaPanelMeta";
+import MediaPreview from "./MediaPreview";
+
 import styles from "./MediaPanel.module.scss";
 
 export default function MediaPanel({ post, close, prev, next, mediaRef }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // TODO: load the settings from the DB
+  // TODO: make the settings actually do something
+  const [toggles, setToggles] = useState({
+    autoplay: false,
+    loop: false,
+    slideshow: false,
+    muted: false,
+    fullscreen: false
+  });
+
+  function toggleOption(key) {
+    setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+  }
 
   return (
     <div className={styles.MediaPanel}>
-      <button className={styles.MediaPanel__close} onClick={close}>
-        ×
-      </button>
+      <div className={styles.MediaPanel__controls}>
+        <button
+          className={styles.MediaPanel__burger}
+          onClick={() => setMenuOpen((v) => !v)}
+        >☰</button>
 
-      <div className={styles.MediaPanel__media}>
-        {post.mime_type.startsWith("image") && (
-          <img
-            src={`/api/media/${post.file_path}`}
-            ref={mediaRef}
-            tabIndex={0}
-            alt=""
-          />
-        )}
+        <button
+          className={styles.MediaPanel__close}
+          onClick={close}
+        >×</button>
 
-        {post.mime_type.startsWith("video") && (
-          <video
-            src={`/api/media/${post.file_path}`}
-            autoPlay
-            controls
-            // onEnded={next}
-            loop
-            ref={mediaRef}
-            tabIndex={0}
-          />
-        )}
+        {menuOpen && (
+          <div className={styles.MediaPanel__menu}>
+            <label>
+              <input
+                type="checkbox"
+                checked={toggles.autoplay}
+                onChange={() => toggleOption("autoplay")}
+              />
+              <div className={styles.button}>autoplay</div>
+            </label>
 
-        {post.mime_type.startsWith("audio") && (
-          <audio
-            src={`/api/media/${post.file_path}`}
-            autoPlay
-            controls
-            // onEnded={next}
-            loop
-            ref={mediaRef}
-            tabIndex={0}
-          />
+            <label>
+              <input
+                type="checkbox"
+                checked={toggles.loop}
+                onChange={() => toggleOption("loop")}
+              />
+              <div className={styles.button}>loop</div>
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={toggles.slideshow}
+                onChange={() => toggleOption("slideshow")}
+              />
+              <div className={styles.button}>slideshow</div>
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={toggles.muted}
+                onChange={() => toggleOption("muted")}
+              />
+              <div className={styles.button}>muted</div>
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={toggles.fullscreen}
+                onChange={() => toggleOption("fullscreen")}
+              />
+              <div className={styles.button}>fullscreen</div>
+            </label>
+          </div>
         )}
       </div>
+
+      <MediaPreview
+        src={post.file_path}
+        mime_type={post.mime_type}
+        mediaRef={mediaRef}
+      />
 
       <MediaPanelMeta
         post={post}
