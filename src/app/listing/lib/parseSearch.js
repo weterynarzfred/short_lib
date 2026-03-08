@@ -11,7 +11,11 @@ export default function parseSearch(searchString = "") {
 
   for (const token of tokens) {
     if (token.startsWith("limit:")) {
-      filters.limit = Math.min(Number(token.slice(6)) || 100, 500);
+      const parsedLimit = Number(token.slice(6));
+      if (Number.isFinite(parsedLimit) && parsedLimit > 0)
+        filters.limit = Math.min(Math.floor(parsedLimit), 500);
+      else
+        filters.limit = 100;
       continue;
     }
 
