@@ -25,6 +25,30 @@ describe("search parser and query builder", () => {
     expect(sql).toContain("NOT EXISTS");
     expect(sql).toContain("LIMIT 25");
   });
+
+  it("parses operator filters and applies them to SQL", () => {
+    const parsed = parseSearch("mime_type:video/mp4 file_size:>10mb age:<7d order:file_size");
+    const { sql, params } = buildQuery(parsed);
+
+    expect(parsed.filters.orderBy).toBe("m.file_size DESC");
+    expect(parsed.filters.mimeTypes).toEqual(["video/mp4"]);
+    expect(parsed.filters.fileSize).toEqual({ op: ">", value: 10485760 });
+    expect(parsed.filters.age).toEqual({ op: "<", value: 604800 });
+
+    expect(sql).toContain("LOWER(m.mime_type) IN (?)");
+    expect(sql).toContain("m.file_size > ?");
+    expect(sql).toContain("ORDER BY m.file_size DESC");
+    expect(params).toEqual(["video/mp4", 10485760, 604800]);
+  });
+
+  it("ignores malformed operator tokens", () => {
+    const parsed = parseSearch("file_size:abc age:-- order:nope tag1");
+
+    expect(parsed.includeTags).toEqual(["tag1"]);
+    expect(parsed.filters.fileSize).toBeNull();
+    expect(parsed.filters.age).toBeNull();
+    expect(parsed.filters.orderBy).toBe("m.created_at DESC");
+  });
 });
 
 describe("getPosts", () => {

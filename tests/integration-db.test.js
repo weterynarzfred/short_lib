@@ -126,4 +126,25 @@ describe("integration: addTags + getPosts", () => {
       { id: dbTags[1].id, name: "car", type: "general", postCount: 2 },
     ]);
   });
+
+  it("supports age filters when created_at is stored as unix milliseconds", async () => {
+    const insertMedia = db.prepare(`
+      INSERT INTO media (file_path, created_at, variants, checksum)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const nowMs = Date.now();
+    const recent = insertMedia.run("2026/03/recent.jpg", nowMs, null, "recent").lastInsertRowid;
+    insertMedia.run("2026/03/old.jpg", nowMs - (2 * 24 * 60 * 60 * 1000), null, "old");
+
+    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+
+    const recentPosts = getPosts("age:<1h");
+    expect(recentPosts).toHaveLength(1);
+    expect(recentPosts[0].id).toBe(recent);
+
+    const oldEnoughPosts = getPosts("age:>=1d");
+    expect(oldEnoughPosts).toHaveLength(1);
+    expect(oldEnoughPosts[0].checksum).toBe("old");
+  });
 });

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 
-// TODO: add more operators and actually implement them
 const OPERATORS = [
   {
     key: "mime_type",
@@ -20,6 +19,10 @@ const OPERATORS = [
   {
     key: "age",
     label: "age:",
+  },
+  {
+    key: "limit",
+    label: "limit:",
   },
 ];
 

@@ -53,13 +53,29 @@ export default function buildQuery(parsed) {
     params.push(tag);
   }
 
+  if (filters.mimeTypes.length) {
+    const placeholders = filters.mimeTypes.map(() => "?").join(", ");
+    where.push(`LOWER(m.mime_type) IN (${placeholders})`);
+    params.push(...filters.mimeTypes);
+  }
+
+  if (filters.fileSize) {
+    where.push(`m.file_size ${filters.fileSize.op} ?`);
+    params.push(filters.fileSize.value);
+  }
+
+  if (filters.age) {
+    where.push(`(unixepoch() * 1000 - (? * 1000)) ${filters.age.op} m.created_at`);
+    params.push(filters.age.value);
+  }
+
   if (where.length) {
     sql += " WHERE " + where.join(" AND ");
   }
 
   sql += `
     GROUP BY m.id
-    ORDER BY ${filters.order}
+    ORDER BY ${filters.orderBy}
     LIMIT ${filters.limit}
   `;
 
