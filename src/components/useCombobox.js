@@ -62,7 +62,7 @@ export default function useCombobox({
       event.preventDefault();
       event.stopPropagation();
       setActiveIndex(i => Math.max(i - 1, 0));
-    } else if (event.key === "Enter") {
+    } else if (["Enter", "Tab"].includes(event.key)) {
       if (activeIndex >= 0 && activeIndex < items.length) {
         event.preventDefault();
         event.stopPropagation();
