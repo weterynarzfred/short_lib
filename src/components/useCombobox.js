@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-export default function useCombobox({ items, onSelect }) {
+export default function useCombobox({
+  items,
+  setValue,
+  cursor,
+  moveCursorTo,
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+
   const rootRef = useRef(null);
   const listId = useMemo(() => `cb-${Math.random().toString(36).slice(2)}`, []);
 
@@ -60,7 +66,7 @@ export default function useCombobox({ items, onSelect }) {
       if (activeIndex >= 0 && activeIndex < items.length) {
         event.preventDefault();
         event.stopPropagation();
-        onSelect(items[activeIndex]);
+        chooseTag(items[activeIndex]);
         close();
       }
     } else if (event.key === "Escape") {
@@ -68,7 +74,31 @@ export default function useCombobox({ items, onSelect }) {
       event.stopPropagation();
       close();
     }
-  }, [isOpen, items, activeIndex, onSelect, close]);
+  }, [isOpen, items, activeIndex, chooseTag, close]);
+
+  function chooseTag(tag) {
+    const isOperator = tag.type === "operator";
+
+    setValue(prev => {
+      const pos = typeof cursor === "number" ? cursor : prev.length;
+      const start = prev.slice(0, pos).lastIndexOf(" ") + 1;
+      const endRel = prev.slice(pos).indexOf(" ");
+      const end = endRel === -1 ? prev.length : pos + endRel;
+      const isNegative = prev.slice(start, end).startsWith("-");
+      const isAtTheEnd = end === prev.length;
+      const insertion = (isNegative ? "-" : "") +
+        tag.name +
+        ((isOperator || !isAtTheEnd) ? "" : " ");
+      const next =
+        prev.slice(0, start) +
+        insertion +
+        prev.slice(end);
+
+      moveCursorTo(start + insertion.length + (isAtTheEnd ? 0 : 1));
+      return next;
+    });
+  }
+
 
   function getInputProps() {
     const active = isOpen && activeIndex >= 0 ? items[activeIndex] : null;
@@ -90,7 +120,7 @@ export default function useCombobox({ items, onSelect }) {
       "aria-selected": index === activeIndex,
       onMouseDown: e => e.preventDefault(),
       onMouseEnter: () => setActiveIndex(index),
-      onClick: () => { onSelect(items[index]); close(); },
+      onClick: () => { chooseTag(items[index]); close(); },
     };
   }
 
@@ -102,13 +132,8 @@ export default function useCombobox({ items, onSelect }) {
   return {
     rootRef,
     listId,
-    items,
     isOpen,
     activeIndex,
-    setIsOpen,
-    setActiveIndex,
-    openIfHasItems: onFocus,
-    close,
     getInputProps,
     getItemProps,
   };

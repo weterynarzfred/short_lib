@@ -31,7 +31,7 @@ export default function useTagSuggestions(value, options = {}) {
     const endRel = after.indexOf(" ");
     const end = endRel === -1 ? value.length : pos + endRel;
     const query = value.slice(start, end).replace(/^-/, "");
-    const parts = value.trim().split(/\s+/);
+    const parts = value.trim().replace(/(^| )-/, "").split(/\s+/);
 
     if (!query) {
       if (abortRef.current) abortRef.current.abort();

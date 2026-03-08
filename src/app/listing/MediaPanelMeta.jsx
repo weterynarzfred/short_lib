@@ -44,7 +44,7 @@ export default function MediaPanelMeta({ post, prev, next }) {
       <TagEditor
         postId={post.id}
         value={tagsValue}
-        onChange={setTagsValue}
+        setValue={setTagsValue}
         saveTags={saveTags}
         className={classNames(styles.tagList, { [styles.tagListDirty]: isDirty })}
       />
