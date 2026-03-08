@@ -7,6 +7,7 @@ export default function buildQuery(parsed) {
   let sql = `
     SELECT
       m.*,
+      COUNT(DISTINCT t_all.id) AS tag_count,
       COALESCE(
         json_group_array(
           DISTINCT json_object(
@@ -67,6 +68,26 @@ export default function buildQuery(parsed) {
   if (filters.age) {
     where.push(`(unixepoch() * 1000 - (? * 1000)) ${filters.age.op} m.created_at`);
     params.push(filters.age.value);
+  }
+
+  if (filters.mpixels) {
+    where.push(`(CAST(m.width AS REAL) * CAST(m.height AS REAL)) ${filters.mpixels.op} ?`);
+    params.push(filters.mpixels.value);
+  }
+
+  if (filters.duration) {
+    where.push(`m.duration_ms ${filters.duration.op} ?`);
+    params.push(filters.duration.value);
+  }
+
+  if (filters.imageRatio) {
+    where.push(`
+      m.width IS NOT NULL
+      AND m.height IS NOT NULL
+      AND m.height > 0
+      AND (CAST(m.width AS REAL) / m.height) ${filters.imageRatio.op} ?
+    `);
+    params.push(filters.imageRatio.value);
   }
 
   if (where.length) {

@@ -14,11 +14,23 @@ const OPERATORS = [
   {
     key: "order",
     label: "order:",
-    values: ["age", "duration", "file_size"],
+    values: ["age", "duration", "file_size", "pixelcount", "image_ratio", "tag_count"],
   },
   {
     key: "age",
     label: "age:",
+  },
+  {
+    key: "mpixels",
+    label: "mpixels:",
+  },
+  {
+    key: "duration",
+    label: "duration:",
+  },
+  {
+    key: "image_ratio",
+    label: "image_ratio:",
   },
   {
     key: "limit",

@@ -48,18 +48,16 @@ describe("tags suggest route", () => {
     expect(all).not.toHaveBeenCalled();
   });
 
-  it("returns values for numeric operators", async () => {
+  it("returns order values for extended sort options", async () => {
     const all = vi.fn(() => []);
     const db = { prepare: vi.fn(() => ({ all })) };
     vi.doMock("@/lib/db", () => ({ default: db }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
-    const res = GET(new Request("http://localhost/api/tags/suggest?q=file_size:>"));
+    const res = GET(new Request("http://localhost/api/tags/suggest?q=order:im"));
     const body = await res.json();
 
-    expect(body.tags.length).toBeGreaterThan(0);
-    expect(body.tags.every(tag => tag.type === "value")).toBe(true);
-    expect(body.tags.some(tag => tag.name.startsWith("file_size:>"))).toBe(true);
+    expect(body.tags.some(tag => tag.name === "order:image_ratio")).toBe(true);
     expect(all).not.toHaveBeenCalled();
   });
 

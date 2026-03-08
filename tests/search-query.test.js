@@ -27,27 +27,42 @@ describe("search parser and query builder", () => {
   });
 
   it("parses operator filters and applies them to SQL", () => {
-    const parsed = parseSearch("mime_type:video/mp4 file_size:>10mb age:<7d order:file_size");
+    const parsed = parseSearch(
+      "mime_type:video/mp4 file_size:>10mb age:<7d mpixels:>=2 duration:<90s image_ratio:16/9 order:pixelcount"
+    );
     const { sql, params } = buildQuery(parsed);
 
-    expect(parsed.filters.orderBy).toBe("m.file_size DESC");
+    expect(parsed.filters.orderBy).toContain("COALESCE(m.width, 0) * COALESCE(m.height, 0)");
     expect(parsed.filters.mimeTypes).toEqual(["video/mp4"]);
     expect(parsed.filters.fileSize).toEqual({ op: ">", value: 10485760 });
     expect(parsed.filters.age).toEqual({ op: "<", value: 604800 });
+    expect(parsed.filters.mpixels).toEqual({ op: ">=", value: 2000000 });
+    expect(parsed.filters.duration).toEqual({ op: "<", value: 90000 });
+    expect(parsed.filters.imageRatio).toEqual({ op: "=", value: 16 / 9 });
 
     expect(sql).toContain("LOWER(m.mime_type) IN (?)");
     expect(sql).toContain("m.file_size > ?");
-    expect(sql).toContain("ORDER BY m.file_size DESC");
-    expect(params).toEqual(["video/mp4", 10485760, 604800]);
+    expect(sql).toContain("m.duration_ms < ?");
+    expect(sql).toContain("CAST(m.width AS REAL) / m.height");
+    expect(sql).toContain("ORDER BY (COALESCE(m.width, 0) * COALESCE(m.height, 0)) DESC");
+    expect(params).toEqual(["video/mp4", 10485760, 604800, 2000000, 90000, 16 / 9]);
   });
 
   it("ignores malformed operator tokens", () => {
-    const parsed = parseSearch("file_size:abc age:-- order:nope tag1");
+    const parsed = parseSearch("file_size:abc age:-- order:nope mpixels:x duration:- image_ratio:1/0 tag1");
 
     expect(parsed.includeTags).toEqual(["tag1"]);
     expect(parsed.filters.fileSize).toBeNull();
     expect(parsed.filters.age).toBeNull();
+    expect(parsed.filters.mpixels).toBeNull();
+    expect(parsed.filters.duration).toBeNull();
+    expect(parsed.filters.imageRatio).toBeNull();
     expect(parsed.filters.orderBy).toBe("m.created_at DESC");
+  });
+
+  it("supports additional order modes", () => {
+    expect(parseSearch("order:image_ratio").filters.orderBy).toContain("CAST(m.width AS REAL) / m.height");
+    expect(parseSearch("order:tag_count").filters.orderBy).toBe("tag_count DESC");
   });
 });
 

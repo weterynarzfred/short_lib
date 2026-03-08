@@ -147,4 +147,60 @@ describe("integration: addTags + getPosts", () => {
     expect(oldEnoughPosts).toHaveLength(1);
     expect(oldEnoughPosts[0].checksum).toBe("old");
   });
+
+  it("supports pixel, ratio, duration filters and related ordering", async () => {
+    const insertMedia = db.prepare(`
+      INSERT INTO media (file_path, created_at, variants, checksum, width, height, duration_ms, mime_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const nowMs = Date.now();
+    const p1 = insertMedia.run(
+      "2026/03/p1.jpg",
+      nowMs,
+      null,
+      "p1",
+      4000,
+      2000,
+      120000,
+      "image/jpeg"
+    ).lastInsertRowid; // 8MP, ratio 2.0, 2m
+
+    const p2 = insertMedia.run(
+      "2026/03/p2.jpg",
+      nowMs,
+      null,
+      "p2",
+      1920,
+      1080,
+      30000,
+      "image/jpeg"
+    ).lastInsertRowid; // ~2.07MP, ratio ~1.78, 30s
+
+    const p3 = insertMedia.run(
+      "2026/03/p3.jpg",
+      nowMs,
+      null,
+      "p3",
+      1000,
+      1000,
+      5000,
+      "image/jpeg"
+    ).lastInsertRowid; // 1MP, ratio 1.0, 5s
+
+    const { default: addTags } = await import("../src/lib/addTags");
+    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+
+    addTags(p1, [{ name: "a" }, { name: "b" }, { name: "c" }]);
+    addTags(p2, [{ name: "a" }, { name: "b" }]);
+    addTags(p3, [{ name: "a" }]);
+
+    expect(getPosts("mpixels:>=2").map(p => p.checksum).sort()).toEqual(["p1", "p2"]);
+    expect(getPosts("duration:<1m").map(p => p.checksum).sort()).toEqual(["p2", "p3"]);
+    expect(getPosts("image_ratio:>=16/9").map(p => p.checksum).sort()).toEqual(["p1", "p2"]);
+
+    expect(getPosts("order:pixelcount limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
+    expect(getPosts("order:image_ratio limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
+    expect(getPosts("order:tag_count limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
+  });
 });
