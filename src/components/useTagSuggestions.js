@@ -9,7 +9,12 @@ export default function useTagSuggestions(value, options = {}) {
   const prevKey = useRef(undefined);
 
   useEffect(() => {
-    if (!value || value.endsWith(' ')) {
+    const pos = typeof options.position === "number" ? options.position : value.length;
+    const before = value.slice(0, pos);
+    const after = value.slice(pos);
+    const lastChar = before.slice(-1);
+
+    if (!value || lastChar === " ") {
       setItems([]);
       didMountRef.current = true;
       return;
@@ -22,17 +27,11 @@ export default function useTagSuggestions(value, options = {}) {
       return;
     }
 
-    const trimmed = value.trim();
-
-    if (!trimmed) {
-      if (abortRef.current) abortRef.current.abort();
-      setItems([]);
-      setIsLoading(false);
-      return;
-    }
-
-    const parts = trimmed.split(/\s+/);
-    const query = parts[parts.length - 1].replace(/^-/, "");
+    const start = before.lastIndexOf(" ") + 1;
+    const endRel = after.indexOf(" ");
+    const end = endRel === -1 ? value.length : pos + endRel;
+    const query = value.slice(start, end).replace(/^-/, "");
+    const parts = value.trim().split(/\s+/);
 
     if (!query) {
       if (abortRef.current) abortRef.current.abort();
@@ -49,13 +48,16 @@ export default function useTagSuggestions(value, options = {}) {
 
       try {
         const res = await fetch(
-          `/api/tags/suggest?q=${encodeURIComponent(query)}&is_edit=${options.mode === 'edit'}`,
+          `/api/tags/suggest?q=${encodeURIComponent(query)}&is_edit=${options.mode === "edit"}`,
           { signal: controller.signal }
         );
+
         if (!res.ok) throw new Error();
+
         const data = await res.json();
-        const tags = (Array.isArray(data.tags) ? data.tags : [])
-          .filter(tag => !parts.includes(tag.name));
+        const tags = (Array.isArray(data.tags) ? data.tags : []).filter(
+          tag => !parts.includes(tag.name)
+        );
 
         setItems(tags);
       } catch (e) {
@@ -69,7 +71,7 @@ export default function useTagSuggestions(value, options = {}) {
       clearTimeout(id);
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [value, options.mode]);
+  }, [value, options.mode, options.position]);
 
   return { items, isLoading };
 }
