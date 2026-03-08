@@ -6,6 +6,8 @@ const db = new Database(dbPath);
 
 db.pragma("foreign_keys = ON");
 
+// TODO: add additional column for storing transcribed text from images or video
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS media (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,6 +41,8 @@ db.exec(`
     FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
   );
 `);
+
+// TODO: add a table for storing user settings
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_media_created_at ON media(created_at);

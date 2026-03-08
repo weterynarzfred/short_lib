@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 
+// TODO: add more operators and actually implement them
 const OPERATORS = [
   {
     key: "mime_type",
@@ -22,6 +23,7 @@ const OPERATORS = [
   },
 ];
 
+// TODO: move post counts per tag to the db and update on tag changes
 const stmt = db.prepare(`
   SELECT
     t.id,

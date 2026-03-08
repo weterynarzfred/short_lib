@@ -16,6 +16,7 @@ export default async function TagStatsPage({ searchParams }) {
   const currentPage = Math.max(page || 1, 1);
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
 
+  // TODO: implement tag editing and removal
   return (
     <div className="page-tags">
       <Nav />
