@@ -6,6 +6,7 @@ import TagEditor from "@/components/TagEditor";
 
 import styles from "./MediaPanelMeta.module.scss";
 
+// TODO: add an input for changing the original_filename value
 export default function MediaPanelMeta({ post, prev, next }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");
