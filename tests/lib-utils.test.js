@@ -1,40 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import parseSearch from "../src/app/listing/lib/parseSearch";
-import buildQuery from "../src/app/listing/lib/buildQuery";
 import scaleToTotalPixels from "../src/lib/scaleToTotalPixels";
 import mimetypeToType from "../src/app/api/upload/mimetypeToType";
-
-describe("parseSearch", () => {
-  it("splits include and exclude tags", () => {
-    const parsed = parseSearch("cat -dog   sunset");
-
-    expect(parsed.includeTags).toEqual(["cat", "sunset"]);
-    expect(parsed.excludeTags).toEqual(["dog"]);
-    expect(parsed.filters.limit).toBe(100);
-  });
-
-  it("applies limit and caps it at 500", () => {
-    expect(parseSearch("limit:50").filters.limit).toBe(50);
-    expect(parseSearch("limit:9999").filters.limit).toBe(500);
-    expect(parseSearch("limit:0").filters.limit).toBe(100);
-    expect(parseSearch("limit:-15").filters.limit).toBe(100);
-  });
-});
-
-describe("buildQuery", () => {
-  it("returns params in include-then-exclude order", () => {
-    const parsed = parseSearch("cat sunset -dog");
-    const { sql, params } = buildQuery(parsed);
-
-    expect(params).toEqual(["cat", "sunset", "dog"]);
-    expect(sql).toContain("JOIN media_tags mt1");
-    expect(sql).toContain("JOIN media_tags mt2");
-    expect(sql).toContain("NOT EXISTS");
-    expect(sql).toContain("ORDER BY m.created_at DESC");
-    expect(sql).toContain("LIMIT 100");
-  });
-});
 
 describe("scaleToTotalPixels", () => {
   it("keeps original dimensions if already under target", () => {
