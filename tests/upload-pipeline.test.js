@@ -40,6 +40,7 @@ describe("generateMediaDerivatives", () => {
   });
 });
 
+// TODO: make this test work outside Windows
 describe("addMediaToDb", () => {
   beforeEach(() => {
     vi.resetModules();
