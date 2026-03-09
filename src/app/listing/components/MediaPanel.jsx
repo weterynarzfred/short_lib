@@ -1,24 +1,39 @@
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import MediaPanelMeta from "./MediaPanelMeta";
 import MediaPreview from "./MediaPreview";
+import { updateMediaSettingsAction } from "@/lib/actions";
 
 import styles from "./MediaPanel.module.scss";
 
-export default function MediaPanel({ post, close, prev, next, mediaRef }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+// TODO: make slideshow option move to the next post when the current
+// audio/video ends, in case of images, move after 4 seconds. Don't move if the
+// tag editor textarea (or other inputs once implemented) is focused.
+// TODO: make fullscreen switch the media panel to take the whole screen, in
+// this case the media preview should take the entire screen with
+// object-fit: contain. Meta should still be there, accessible after scrolling
+const DEFAULT_TOGGLES = {
+  autoplay: false,
+  loop: false,
+  slideshow: false,
+  muted: false,
+  fullscreen: false
+};
 
-  // TODO: load the settings from the DB
-  // TODO: make the settings actually do something
+export default function MediaPanel({ post, close, prev, next, mediaRef, initialSettings }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [, startTransition] = useTransition();
   const [toggles, setToggles] = useState({
-    autoplay: false,
-    loop: false,
-    slideshow: false,
-    muted: false,
-    fullscreen: false
+    ...DEFAULT_TOGGLES,
+    ...initialSettings,
   });
 
   function toggleOption(key) {
-    setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+    const nextValue = !toggles[key];
+    setToggles(prev => ({ ...prev, [key]: nextValue }));
+
+    startTransition(() => {
+      updateMediaSettingsAction({ [key]: nextValue });
+    });
   }
 
   return (
@@ -26,7 +41,7 @@ export default function MediaPanel({ post, close, prev, next, mediaRef }) {
       <div className={styles.MediaPanel__controls}>
         <button
           className={styles.MediaPanel__burger}
-          onClick={() => setMenuOpen((v) => !v)}
+          onClick={() => setMenuOpen(v => !v)}
         >☰</button>
 
         <button
@@ -88,6 +103,7 @@ export default function MediaPanel({ post, close, prev, next, mediaRef }) {
         src={post.file_path}
         mime_type={post.mime_type}
         mediaRef={mediaRef}
+        settings={toggles}
       />
 
       <MediaPanelMeta

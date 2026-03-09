@@ -43,7 +43,13 @@ db.exec(`
   );
 `);
 
-// TODO: add a table for storing user settings
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME NOT NULL
+  );
+`);
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_media_created_at ON media(created_at);
@@ -54,6 +60,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_media_tags_tag ON media_tags(tag_id);
   CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
   CREATE INDEX IF NOT EXISTS idx_tags_post_count ON tags(post_count);
+  CREATE INDEX IF NOT EXISTS idx_user_settings_updated_at ON user_settings(updated_at);
 `);
 
 export default db;

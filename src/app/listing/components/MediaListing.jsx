@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import classNames from "classnames";
 
 import PostItem from "./PostItem";
 import Search from "./Search";
 import MediaPanel from "./MediaPanel";
 
 import styles from "./MediaListing.module.scss";
-import classNames from "classnames";
 
 // TODO: fix side panel switching to a different post when the edits change the
 // order of posts or remove the post entirely. If the post is no longer shown,
 // close the panel. Otherwise keep the same post displayed.
-export default function MediaListing({ posts, search }) {
+export default function MediaListing({ posts, search, mediaSettings }) {
   const mediaRef = useRef(null);
 
   const supported = useMemo(
@@ -74,6 +74,7 @@ export default function MediaListing({ posts, search }) {
             prev={prev}
             next={next}
             mediaRef={mediaRef}
+            initialSettings={mediaSettings}
           />}
         </div>
       </div>

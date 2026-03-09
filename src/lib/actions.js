@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import addTags, { parseTagString } from "@/lib/addTags";
 import deletePost from "@/lib/deletePost";
 import { deleteTagById, updateTagById } from "@/lib/manageTag";
+import { setMediaSettings } from "@/lib/userSettings";
 
 export async function deletePostAction(postId) {
   await deletePost(postId);
@@ -29,4 +30,10 @@ export async function deleteTagAction(tagId) {
   revalidatePath("/tags");
   revalidatePath("/listing");
   return { deleted };
+}
+
+export async function updateMediaSettingsAction(partialSettings) {
+  const media = setMediaSettings(partialSettings);
+  revalidatePath("/listing");
+  return media;
 }

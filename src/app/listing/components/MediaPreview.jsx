@@ -1,6 +1,6 @@
 import styles from "./MediaPreview.module.scss";
 
-export default function MediaPreview({ src, mime_type, mediaRef }) {
+export default function MediaPreview({ src, mime_type, mediaRef, settings }) {
   return <div className={styles.MediaPreview}>
     {mime_type.startsWith("image") && (
       <img
@@ -14,10 +14,11 @@ export default function MediaPreview({ src, mime_type, mediaRef }) {
     {mime_type.startsWith("video") && (
       <video
         src={`/api/media/${src}`}
-        autoPlay
+        autoPlay={settings.autoplay}
         controls
         // onEnded={next}
-        loop
+        loop={settings.loop}
+        muted={settings.muted}
         ref={mediaRef}
         tabIndex={0}
       />
@@ -26,10 +27,11 @@ export default function MediaPreview({ src, mime_type, mediaRef }) {
     {mime_type.startsWith("audio") && (
       <audio
         src={`/api/media/${src}`}
-        autoPlay
+        autoPlay={settings.autoplay}
         controls
         // onEnded={next}
-        loop
+        loop={settings.loop}
+        muted={settings.muted}
         ref={mediaRef}
         tabIndex={0}
       />
