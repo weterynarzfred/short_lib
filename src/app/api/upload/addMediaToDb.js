@@ -2,6 +2,7 @@ import path from "path";
 
 import db from "@/lib/db";
 import addTags from "@/lib/addTags";
+import { TAG_ORDER_SQL } from "@/app/listing/lib/buildQuery";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
 
@@ -17,14 +18,7 @@ export default async function addMediaToDb(fileData) {
     JOIN tags t ON t.id = mt.tag_id
     WHERE mt.media_id = ?
     ORDER BY
-      CASE t.type
-        WHEN 'meta' THEN 0
-        WHEN 'creator' THEN 1
-        WHEN 'copyright' THEN 2
-        WHEN 'character' THEN 3
-        WHEN 'general' THEN 4
-        ELSE 5
-      END,
+      ${TAG_ORDER_SQL},
       t.name COLLATE NOCASE
   `);
 

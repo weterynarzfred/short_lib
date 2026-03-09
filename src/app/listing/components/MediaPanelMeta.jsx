@@ -7,8 +7,6 @@ import TagEditor from "@/components/TagEditor";
 import styles from "./MediaPanelMeta.module.scss";
 
 // TODO: add an input for changing the original_filename value
-// TODO: order tags in the tag editor by type ("meta", "creator", "copyright",
-// "character", "general", everything else) and then alphabetically
 export default function MediaPanelMeta({ post, prev, next }) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");

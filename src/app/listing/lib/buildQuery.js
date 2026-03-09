@@ -1,3 +1,14 @@
+export const TAG_ORDER_SQL = `
+  CASE t.type
+    WHEN 'meta' THEN 0
+    WHEN 'creator' THEN 1
+    WHEN 'copyright' THEN 2
+    WHEN 'character' THEN 3
+    WHEN 'general' THEN 4
+    ELSE 5
+  END
+`;
+
 export default function buildQuery(parsed) {
   const { includeTags, excludeTags, filters } = parsed;
 
@@ -7,22 +18,33 @@ export default function buildQuery(parsed) {
   let sql = `
     SELECT
       m.*,
-      COUNT(DISTINCT t_all.id) AS tag_count,
-      COALESCE(
-        json_group_array(
-          DISTINCT json_object(
-            'id', t_all.id,
-            'name', t_all.name,
-            'type', t_all.type
+
+      (
+        SELECT COUNT(*)
+        FROM media_tags mt
+        WHERE mt.media_id = m.id
+      ) AS tag_count,
+
+      COALESCE((
+        SELECT json_group_array(
+          json_object(
+            'id', t.id,
+            'name', t.name,
+            'type', t.type
           )
-        ),
-        '[]'
-      ) AS tags
+        )
+        FROM (
+          SELECT t.id, t.name, t.type
+          FROM media_tags mt
+          JOIN tags t ON t.id = mt.tag_id
+          WHERE mt.media_id = m.id
+          ORDER BY
+            ${TAG_ORDER_SQL},
+            t.name COLLATE NOCASE
+        ) t
+      ), '[]') AS tags
+
     FROM media m
-    LEFT JOIN media_tags mt_all
-      ON mt_all.media_id = m.id
-    LEFT JOIN tags t_all
-      ON t_all.id = mt_all.tag_id
   `;
 
   let tagJoinIndex = 0;
@@ -95,7 +117,6 @@ export default function buildQuery(parsed) {
   }
 
   sql += `
-    GROUP BY m.id
     ORDER BY ${filters.orderBy}
     LIMIT ${filters.limit}
   `;

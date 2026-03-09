@@ -7,6 +7,7 @@ import db from "@/lib/db";
 import deletePost from "@/lib/deletePost";
 import { deleteTagById, updateTagById } from "@/lib/manageTag";
 import { setMediaSettings } from "@/lib/userSettings";
+import { TAG_ORDER_SQL } from "@/app/listing/lib/buildQuery";
 
 export async function deletePostAction(postId) {
   await deletePost(postId);
@@ -54,12 +55,7 @@ export async function getPostTagValuesAction(postIds) {
     WHERE mt.media_id IN (${placeholders})
     ORDER BY
       mt.media_id,
-      CASE t.type
-        WHEN 'meta' THEN 0
-        WHEN 'creator' THEN 1
-        WHEN 'general' THEN 2
-        ELSE 3
-      END,
+      ${TAG_ORDER_SQL},
       t.name COLLATE NOCASE
   `).all(...ids);
 
