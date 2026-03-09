@@ -11,7 +11,6 @@ export default function useTagSuggestions(value, options = {}) {
   useEffect(() => {
     const pos = typeof options.position === "number" ? options.position : value.length;
     const before = value.slice(0, pos);
-    const after = value.slice(pos);
     const lastChar = before.slice(-1);
 
     if (!value || lastChar === " ") {
@@ -29,9 +28,7 @@ export default function useTagSuggestions(value, options = {}) {
     }
 
     const start = before.lastIndexOf(" ") + 1;
-    const endRel = after.indexOf(" ");
-    const end = endRel === -1 ? value.length : pos + endRel;
-    const query = value.slice(start, end).replace(/^-/, "");
+    const query = value.slice(start, pos).replace(/^-/, "");
     const parts = value.trim().replace(/(^| )-/, "").split(/\s+/);
 
     if (!query) {
