@@ -5,6 +5,8 @@ import TagTable from "./components/TagTable";
 
 import styles from "./page.module.scss";
 
+// TODO: add filtering by tag name, no suggestions
+// TODO: add filtering by tag type, tag types need to be checked in the DB
 export default async function TagStatsPage({ searchParams }) {
   const page = Number((await searchParams)?.page ?? 1);
   const limit = Number((await searchParams)?.limit ?? 50);

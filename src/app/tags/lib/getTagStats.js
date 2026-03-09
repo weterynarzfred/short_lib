@@ -32,11 +32,8 @@ export default function getTagStats({ page, limit, order } = {}) {
       t.id,
       t.name,
       t.type,
-      COUNT(mt.media_id) AS post_count
+      t.post_count
     FROM tags t
-    LEFT JOIN media_tags mt
-      ON mt.tag_id = t.id
-    GROUP BY t.id, t.name, t.type
     ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
   `);

@@ -38,19 +38,15 @@ const OPERATORS = [
   },
 ];
 
-// TODO: move post counts per tag to the db and update on tag changes
 const stmt = db.prepare(`
   SELECT
     t.id,
     t.name,
     t.type,
-    COUNT(mt.media_id) AS post_count
+    t.post_count
   FROM tags t
-  LEFT JOIN media_tags mt
-    ON mt.tag_id = t.id
   WHERE t.name LIKE ? || '%'
-  GROUP BY t.id, t.name, t.type
-  ORDER BY post_count DESC, t.id ASC
+  ORDER BY t.post_count DESC, t.id ASC
   LIMIT 16
 `);
 

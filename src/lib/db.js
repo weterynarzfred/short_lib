@@ -28,7 +28,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    type TEXT NOT NULL DEFAULT 'general'
+    type TEXT NOT NULL DEFAULT 'general',
+    post_count INTEGER NOT NULL DEFAULT 0
   );
 `);
 
@@ -52,6 +53,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_media_tags_media ON media_tags(media_id);
   CREATE INDEX IF NOT EXISTS idx_media_tags_tag ON media_tags(tag_id);
   CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+  CREATE INDEX IF NOT EXISTS idx_tags_post_count ON tags(post_count);
 `);
 
 export default db;

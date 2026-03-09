@@ -25,7 +25,25 @@ export default async function deletePost(id) {
     fs.renameSync(src, dst);
   };
 
+  const getMediaTagIds = db.prepare(`
+    SELECT tag_id
+    FROM media_tags
+    WHERE media_id = ?
+  `);
+
+  const decrementTagPostCount = db.prepare(`
+    UPDATE tags
+    SET post_count = CASE
+      WHEN post_count > 0 THEN post_count - 1
+      ELSE 0
+    END
+    WHERE id = ?
+  `);
+
   const tx = db.transaction(() => {
+    const linkedTags = getMediaTagIds.all(id);
+    for (const row of linkedTags) decrementTagPostCount.run(row.tag_id);
+
     moveIfExists(["full", yearMonthDir, `${checksum}${ext}`]);
     moveIfExists(["thumbs", yearMonthDir, `${checksum}.jpg`]);
     moveIfExists(["prevs", yearMonthDir, `${checksum}.jpg`]);

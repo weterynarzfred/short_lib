@@ -24,6 +24,7 @@ function createFakeDb() {
               tags.set(name, {
                 id: nextTagId++,
                 type: type ?? "general",
+                post_count: 0,
               });
             }
           },
@@ -32,6 +33,38 @@ function createFakeDb() {
       if (sql.includes("SELECT id, type FROM tags"))
         return {
           get: name => tags.get(name),
+        };
+
+      if (sql.includes("SELECT tag_id"))
+        return {
+          all: mediaId =>
+            Array.from(ensureMediaSet(mediaId)).map(tagId => ({ tag_id: tagId })),
+        };
+
+      if (sql.includes("SET post_count = post_count + 1"))
+        return {
+          run: tagId => {
+            for (const tag of tags.values()) {
+              if (tag.id === tagId) {
+                tag.post_count += 1;
+                return { changes: 1 };
+              }
+            }
+            return { changes: 0 };
+          },
+        };
+
+      if (sql.includes("SET post_count = CASE"))
+        return {
+          run: tagId => {
+            for (const tag of tags.values()) {
+              if (tag.id === tagId) {
+                tag.post_count = Math.max(0, tag.post_count - 1);
+                return { changes: 1 };
+              }
+            }
+            return { changes: 0 };
+          },
         };
 
       if (sql.includes("UPDATE tags"))
@@ -56,8 +89,11 @@ function createFakeDb() {
       if (sql.includes("INSERT OR IGNORE INTO media_tags"))
         return {
           run: (mediaId, tagId) => {
+            const before = ensureMediaSet(mediaId).size;
             ensureMediaSet(mediaId).add(tagId);
             calls.linkMediaTag.push({ mediaId, tagId });
+            const after = ensureMediaSet(mediaId).size;
+            return { changes: after > before ? 1 : 0 };
           },
         };
 
@@ -88,7 +124,7 @@ describe("addTags", () => {
 
   it("replaces existing media tags and updates type when needed", async () => {
     const fake = createFakeDb();
-    fake.tags.set("cat", { id: 9, type: "general" });
+    fake.tags.set("cat", { id: 9, type: "general", post_count: 0 });
 
     vi.doMock("@/lib/db", () => ({ default: fake.db }));
     const { default: addTags } = await import("../src/lib/addTags");

@@ -28,7 +28,8 @@ function createTempDb() {
     CREATE TABLE tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
-      type TEXT NOT NULL DEFAULT 'general'
+      type TEXT NOT NULL DEFAULT 'general',
+      post_count INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE media_tags (

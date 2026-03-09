@@ -51,12 +51,12 @@ function updateNameAndType(id, name, type) {
 }
 
 function moveLinks(fromId, toId) {
-  db.prepare(`
+  return db.prepare(`
     INSERT OR IGNORE INTO media_tags (media_id, tag_id)
     SELECT media_id, ?
     FROM media_tags
     WHERE tag_id = ?
-  `).run(toId, fromId);
+  `).run(toId, fromId).changes;
 }
 
 function deleteTag(id) {
@@ -64,6 +64,14 @@ function deleteTag(id) {
     DELETE FROM tags
     WHERE id = ?
   `).run(id);
+}
+
+function incrementTagPostCount(id, by = 1) {
+  db.prepare(`
+    UPDATE tags
+    SET post_count = post_count + ?
+    WHERE id = ?
+  `).run(by, id);
 }
 
 function applyUpdate(source, desiredType) {
@@ -77,7 +85,8 @@ function applyRename(id, name, type) {
 }
 
 function applyMerge(sourceId, target) {
-  moveLinks(sourceId, target.id);
+  const movedCount = moveLinks(sourceId, target.id);
+  if (movedCount > 0) incrementTagPostCount(target.id, movedCount);
   deleteTag(sourceId);
   return { mode: "merged", id: target.id };
 }
