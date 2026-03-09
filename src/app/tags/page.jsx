@@ -7,7 +7,7 @@ import styles from "./page.module.scss";
 
 export default async function TagStatsPage({ searchParams }) {
   const page = Number((await searchParams)?.page ?? 1);
-  const limit = Number((await searchParams)?.limit ?? 20);
+  const limit = Number((await searchParams)?.limit ?? 50);
   const order = String((await searchParams)?.order ?? "count_desc");
 
   const { rows, total } = getTagStats({ page, limit, order });
@@ -16,7 +16,6 @@ export default async function TagStatsPage({ searchParams }) {
   const currentPage = Math.max(page || 1, 1);
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
 
-  // TODO: implement tag editing and removal
   return (
     <div className="page-tags">
       <Nav />

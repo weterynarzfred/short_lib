@@ -7,6 +7,7 @@
   th,
   td {
     padding: 0.1em 1rem;
+    vertical-align: middle;
   }
 
   th {
@@ -28,4 +29,59 @@
       }
     }
   }
+}
+
+.textInput {
+  width: 100%;
+  border: 1px solid $colorBorder;
+  padding: 0 0.3rem;
+  margin: 0 -0.3rem;
+
+  &:focus {
+    background-color: $colorBg2;
+    outline: none;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  width: max-content;
+}
+
+.button,
+.deleteButton {
+  border: 1px solid $colorBorder2;
+  background: $colorBg;
+  color: $colorContent;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.2;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.2rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:hover {
+    background: $colorBg2;
+  }
+}
+
+.deleteButton {
+  border-color: $colorWarning;
+  color: $colorWarning;
+
+  &:hover {
+    background: $colorWarningBg;
+  }
+}
+
+.error {
+  color: $colorWarning;
+  margin: 0;
 }

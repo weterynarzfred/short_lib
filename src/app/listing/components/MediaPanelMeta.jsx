@@ -10,7 +10,7 @@ import styles from "./MediaPanelMeta.module.scss";
 // TODO: order tags in the tag editor by type ("meta", "creator", "general",
 // everything else) and then alphabetically
 export default function MediaPanelMeta({ post, prev, next }) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -76,20 +76,20 @@ export default function MediaPanelMeta({ post, prev, next }) {
     </div>
 
     <div className={styles.actions}>
-      {!confirmingDelete && (
+      {!isConfirmingDelete && (
         <button
           className={styles.deleteButton}
-          onClick={() => setConfirmingDelete(true)}
+          onClick={() => setIsConfirmingDelete(true)}
         >
           delete
         </button>
       )}
 
-      {confirmingDelete && (
+      {isConfirmingDelete && (
         <>
           <button
             className={styles.button}
-            onClick={() => setConfirmingDelete(false)}
+            onClick={() => setIsConfirmingDelete(false)}
           >
             cancel
           </button>
@@ -97,7 +97,7 @@ export default function MediaPanelMeta({ post, prev, next }) {
             className={styles.deleteButton}
             onClick={async () => {
               await deletePostAction(post.id);
-              setConfirmingDelete(false);
+              setIsConfirmingDelete(false);
             }}
           >
             confirm
