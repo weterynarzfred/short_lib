@@ -47,7 +47,7 @@ describe("addMediaToDb", () => {
     vi.unstubAllEnvs();
   });
 
-  it("stores relative paths and adds a meta tag when type exists", async () => {
+  it("stores relative paths, returns inserted media, and adds a meta tag when type exists", async () => {
     vi.stubEnv("STORAGE_DIR", "C:\\storage");
 
     const inserted = [];
@@ -63,6 +63,13 @@ describe("addMediaToDb", () => {
               nextId += 1;
               return { lastInsertRowid: nextId };
             },
+          };
+
+        if (sql.includes("SELECT t.name, t.type"))
+          return {
+            all: mediaId => mediaId === 201
+              ? [{ name: "image", type: "meta" }]
+              : [],
           };
 
         throw new Error(`Unexpected SQL: ${sql}`);
@@ -103,12 +110,28 @@ describe("addMediaToDb", () => {
       }],
     ]);
 
-    await addMediaToDb(fileData);
+    const insertedMedia = await addMediaToDb(fileData);
 
     expect(inserted).toHaveLength(2);
     expect(inserted[0][0]).toBe("2026/03/abc.jpg");
     expect(inserted[0][8]).toBe(JSON.stringify({ thumb: "x" }));
     expect(inserted[1][8]).toBe("null");
+    expect(insertedMedia).toEqual([
+      {
+        id: 201,
+        originalFilename: "abc.jpg",
+        filePath: "2026/03/abc.jpg",
+        mimeType: "image/jpeg",
+        tags: [{ name: "image", type: "meta" }],
+      },
+      {
+        id: 202,
+        originalFilename: "def.mp4",
+        filePath: "2026/03/def.mp4",
+        mimeType: "video/mp4",
+        tags: [],
+      },
+    ]);
     expect(addTags).toHaveBeenCalledTimes(1);
     expect(addTags).toHaveBeenCalledWith(201, [{ name: "image", type: "meta" }]);
   });

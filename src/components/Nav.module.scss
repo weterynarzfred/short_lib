@@ -5,10 +5,18 @@
   display: flex;
   flex-wrap: wrap;
   padding: 0 $spacingQuarter;
+  background-color: $colorBg;
+  border: solid $colorBorder;
+  border-width: 0 1px 1px 0;
+  border-radius: 0 0 0.5rem 0;
+  z-index: 21;
 
   .navLink {
-    padding: $spacingQuarter;
+    padding: 0.5rem $spacingQuarter;
     color: $colorLink;
+    font-weight: 700;
+    font-size: 0.8rem;
+    font-family: monospace;
 
     &:hover {
       color: $colorContent;

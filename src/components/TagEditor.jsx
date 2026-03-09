@@ -8,7 +8,13 @@ import useCombobox from "./useCombobox";
 
 import styles from "./TagEditor.module.scss";
 
-export default function TagEditor({ postId, value, setValue, saveTags, className }) {
+export default function TagEditor({
+  postId,
+  value,
+  setValue,
+  saveTags,
+  inputProps = {},
+}) {
   const inputRef = useRef(null);
   const nextCursorRef = useRef(null);
 
@@ -37,7 +43,7 @@ export default function TagEditor({ postId, value, setValue, saveTags, className
     cursor,
     moveCursorTo: pos => nextCursorRef.current = pos,
   });
-  const inputProps = combobox.getInputProps();
+  const combinedInputProps = { ...combobox.getInputProps(), ...inputProps };
 
   return (
     <div ref={combobox.rootRef} className={styles.TagEditor}>
@@ -51,8 +57,7 @@ export default function TagEditor({ postId, value, setValue, saveTags, className
         onClick={updateCursorPos}
         onKeyUp={updateCursorPos}
         onSelect={updateCursorPos}
-        className={className}
-        {...inputProps}
+        {...combinedInputProps}
         onKeyDown={event => {
           if (!combobox.isOpen && event.key === "Escape") {
             event.stopPropagation();
@@ -65,7 +70,7 @@ export default function TagEditor({ postId, value, setValue, saveTags, className
             return;
           }
 
-          inputProps.onKeyDown(event);
+          combinedInputProps.onKeyDown(event);
         }}
       />
 

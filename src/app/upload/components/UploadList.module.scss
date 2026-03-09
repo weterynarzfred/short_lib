@@ -1,0 +1,124 @@
+@use "/src/scss/variables" as *;
+
+.uploadList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(30rem, 1fr));
+  gap: $spacingQuarter;
+  margin-top: $spacingHalf;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid $colorBorder;
+  border-radius: 0.5rem;
+  padding: $spacingQuarter;
+
+  .MediaPreview {
+    height: 30rem;
+
+    img,
+    video,
+    audio {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  .itemHeader {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .progressWrapper {
+    display: flex;
+    align-items: center;
+    gap: $spacingQuarter;
+
+    .progressDone,
+    .progressFailed {
+      line-height: 0;
+    }
+
+    .progress {
+      width: 12rem;
+      max-width: 100%;
+      height: 0.4rem;
+      box-shadow: 0 0 0 1px $colorBorder;
+      border-radius: 0.2rem;
+      overflow: hidden;
+      margin-bottom: 0.3rem;
+    }
+
+    .progressBar {
+      height: 100%;
+      background-color: $colorContent;
+    }
+  }
+
+  &.itemDone {
+    .fileName {
+      color: $colorSuccess;
+    }
+
+    .progressBar {
+      background-color: $colorSuccess;
+    }
+  }
+
+  &.itemFailed {
+    .fileName {
+      color: $colorWarning;
+    }
+
+    .progressBar {
+      background-color: $colorWarning;
+    }
+  }
+
+  .itemTagPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .tagInput {
+    display: block;
+    width: 100%;
+    resize: vertical;
+    min-height: 10rem;
+    height: 10rem;
+    padding: 0.2rem 0.5rem;
+    font-family: monospace;
+    border: 1px solid $colorBorder;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  .tagActions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .tagButton {
+    cursor: pointer;
+    border: 1px solid $colorBorder;
+    background: transparent;
+    color: inherit;
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.2rem;
+  }
+
+  .tagNote {
+    font-size: 0.9rem;
+    opacity: 0.85;
+  }
+}

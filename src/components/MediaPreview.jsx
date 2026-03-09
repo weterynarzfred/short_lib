@@ -1,7 +1,9 @@
+import classNames from "classnames";
+
 import styles from "./MediaPreview.module.scss";
 
-export default function MediaPreview({ src, mime_type, mediaRef, settings }) {
-  return <div className={styles.MediaPreview}>
+export default function MediaPreview({ src, mime_type, mediaRef, settings, className }) {
+  return <div className={classNames(styles.MediaPreview, className)}>
     {mime_type.startsWith("image") && (
       <img
         src={`/api/media/${src}`}
@@ -16,7 +18,6 @@ export default function MediaPreview({ src, mime_type, mediaRef, settings }) {
         src={`/api/media/${src}`}
         autoPlay={settings.autoplay}
         controls
-        // onEnded={next}
         loop={settings.loop}
         muted={settings.muted}
         ref={mediaRef}
@@ -29,7 +30,6 @@ export default function MediaPreview({ src, mime_type, mediaRef, settings }) {
         src={`/api/media/${src}`}
         autoPlay={settings.autoplay}
         controls
-        // onEnded={next}
         loop={settings.loop}
         muted={settings.muted}
         ref={mediaRef}

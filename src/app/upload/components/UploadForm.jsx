@@ -1,120 +1,126 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import classNames from "classnames";
+
+import {
+  addPostTagsBulkAction,
+  getPostTagValuesAction,
+  updatePostTagsAction,
+} from "@/lib/actions";
+import UploadBulkTagPanel from "./UploadBulkTagPanel";
+import UploadList from "./UploadList";
+import useUploadQueue from "../lib/useUploadQueue";
 
 import styles from "./UploadForm.module.scss";
 
 export default function UploadForm() {
-  const [uploads, setUploads] = useState([]);
   const [dragDepth, setDragDepth] = useState(0);
+  const [bulkTagsValue, setBulkTagsValue] = useState("");
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
+  const [bulkSaveNote, setBulkSaveNote] = useState("");
+  const {
+    uploads,
+    successUploads,
+    uploadFiles,
+    setUploadTagsValue,
+    setUploadTagSaving,
+    setUploadTagNote,
+    applyMediaTagValues,
+  } = useUploadQueue();
+
   const inputRef = useRef(null);
 
-  function markFailed(id) {
-    setUploads(prev =>
-      prev.map(upload =>
-        upload.id === id ? { ...upload, failed: true } : upload
-      )
-    );
-  }
-
-  function uploadFile(file) {
-    const id = crypto.randomUUID();
-
-    setUploads(prev => [
-      ...prev,
-      { id, name: file.name, progress: 0, done: false, failed: false }
-    ]);
-
-    const form = new FormData();
-    form.append("file", file);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload");
-
-    xhr.upload.onprogress = e => {
-      if (!e.lengthComputable) return;
-
-      const progress = Math.round((e.loaded / e.total) * 100);
-
-      setUploads(prev =>
-        prev.map(upload =>
-          upload.id === id ? { ...upload, progress } : upload
-        )
-      );
-    };
-
-    xhr.onload = () => {
-      if (xhr.status < 200 || xhr.status >= 300) {
-        markFailed(id);
-        return;
-      }
-
-      try {
-        const res = JSON.parse(xhr.responseText);
-
-        if (res.status === "Upload finished") {
-          setUploads(prev =>
-            prev.map(upload =>
-              upload.id === id ?
-                { ...upload, progress: 100, done: true } :
-                upload
-            )
-          );
-        } else markFailed(id);
-      } catch { markFailed(id); }
-    };
-
-    xhr.onerror = () => markFailed(id);
-    xhr.onabort = () => markFailed(id);
-    xhr.send(form);
-  }
-
-  function onDrop(e) {
-    e.preventDefault();
-    [...e.dataTransfer.files].forEach(uploadFile);
+  function onDrop(event) {
+    event.preventDefault();
+    uploadFiles(event.dataTransfer.files);
     setDragDepth(0);
+  }
+
+  async function saveUploadTags(uploadId) {
+    const upload = uploads.find(item => item.id === uploadId);
+    if (!upload?.mediaId) return;
+    const rawTagsValue =
+      typeof upload.tagsValue === "string" ? upload.tagsValue : "";
+
+    setUploadTagSaving(uploadId, true);
+
+    try {
+      await updatePostTagsAction(upload.mediaId, rawTagsValue);
+      setUploadTagSaving(uploadId, false);
+      setUploadTagNote(uploadId, "saved");
+    } catch {
+      setUploadTagSaving(uploadId, false);
+      setUploadTagNote(uploadId, "save failed");
+    }
+  }
+
+  async function saveBulkTags() {
+    const mediaIds = successUploads.map(upload => upload.mediaId);
+    if (!mediaIds.length) return;
+
+    setIsBulkSaving(true);
+    setBulkSaveNote("");
+
+    try {
+      await addPostTagsBulkAction(mediaIds, bulkTagsValue);
+      const refreshedValues = await getPostTagValuesAction(mediaIds);
+      applyMediaTagValues(refreshedValues);
+      setBulkTagsValue("");
+      setBulkSaveNote(`saved for ${mediaIds.length} item(s)`);
+    } catch {
+      setBulkSaveNote("bulk save failed");
+    } finally {
+      setIsBulkSaving(false);
+    }
   }
 
   return (
     <div className={styles.UploadForm}>
-      <div
-        className={classNames(
-          styles.dropzone,
-          { [styles.dropzoneDragging]: dragDepth > 0 }
-        )}
-        onDragEnter={e => { e.preventDefault(); setDragDepth(d => d + 1); }}
-        onDragLeave={e => { e.preventDefault(); setDragDepth(d => d - 1); }}
-        onDragOver={e => { e.preventDefault(); }}
-        onDrop={onDrop}
-        onClick={() => inputRef.current?.click()}
-      >
-        drop files here or click to upload
+      <div className={`content ${styles.content}`}>
+        <div
+          className={classNames(
+            styles.dropzone,
+            { [styles.dropzoneDragging]: dragDepth > 0 }
+          )}
+          onDragEnter={event => {
+            event.preventDefault();
+            setDragDepth(value => value + 1);
+          }}
+          onDragLeave={event => {
+            event.preventDefault();
+            setDragDepth(value => value - 1);
+          }}
+          onDragOver={event => event.preventDefault()}
+          onDrop={onDrop}
+          onClick={() => inputRef.current?.click()}
+        >drop files here or click to upload</div>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          hidden
+          onChange={event => {
+            uploadFiles(event.target.files || []);
+            event.target.value = "";
+          }}
+        />
+        <UploadBulkTagPanel
+          count={successUploads.length}
+          value={bulkTagsValue}
+          setValue={setBulkTagsValue}
+          saveTags={saveBulkTags}
+          isSaving={isBulkSaving}
+          note={bulkSaveNote}
+        />
       </div>
 
-      <input ref={inputRef} type="file" multiple hidden />
-
-      <div className={styles.uploadList}>
-        {uploads.map(file =>
-          <div key={file.id} className={classNames(styles.item, {
-            [styles.itemDone]: file.done,
-            [styles.itemFailed]: file.failed,
-          })}>
-            <div className={styles.progressWrapper}>
-              {file.done && <div className={styles.progressDone}>✓</div>}
-              {file.failed && <div className={styles.progressFailed}>✗</div>}
-              <div className={styles.progress}>
-                <div
-                  className={styles.progressBar}
-                  style={{ width: file.progress + "%" }}
-                />
-              </div>
-            </div>
-            <div>
-              {file.name}
-            </div>
-          </div>
-        )}
+      <div className={`content content--full ${styles.contentWide}`}>
+        <UploadList
+          uploads={uploads}
+          setUploadTagsValue={setUploadTagsValue}
+          saveUploadTags={saveUploadTags}
+        />
       </div>
     </div>
   );

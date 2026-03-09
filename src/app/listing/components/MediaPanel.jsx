@@ -1,6 +1,6 @@
 import { useState, useTransition } from "react";
 import MediaPanelMeta from "./MediaPanelMeta";
-import MediaPreview from "./MediaPreview";
+import MediaPreview from "../../../components/MediaPreview";
 import { updateMediaSettingsAction } from "@/lib/actions";
 
 import styles from "./MediaPanel.module.scss";

@@ -1,0 +1,50 @@
+@use "/src/scss/variables" as *;
+
+.bulkTagPanel {
+  margin-top: $spacingHalf;
+  padding: $spacingQuarter;
+  border: 1px solid $colorBorder;
+  border-radius: $spacingQuarter;
+
+  h3 {
+    margin: 0 0 $spacingQuarter;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
+
+.tagInput {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: 10rem;
+  height: 10rem;
+  padding: 0.2rem 0.5rem;
+  font-family: monospace;
+  border: 1px solid $colorBorder;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.tagActions {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tagButton {
+  cursor: pointer;
+  border: 1px solid $colorBorder;
+  background: transparent;
+  color: inherit;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.2rem;
+}
+
+.tagNote {
+  font-size: 0.9rem;
+  opacity: 0.85;
+}

@@ -6,7 +6,9 @@ const db = new Database(dbPath);
 
 db.pragma("foreign_keys = ON");
 
-// TODO: add additional column for storing transcribed text from images or video
+// TODO: add additional column for storing comments links, or transcribed text
+// from images or video, just a simple field for long text, might get later
+// enhanced to display markdown
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS media (

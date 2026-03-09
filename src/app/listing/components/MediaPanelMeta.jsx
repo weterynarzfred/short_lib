@@ -7,8 +7,8 @@ import TagEditor from "@/components/TagEditor";
 import styles from "./MediaPanelMeta.module.scss";
 
 // TODO: add an input for changing the original_filename value
-// TODO: order tags in the tag editor by type ("meta", "creator", "general",
-// everything else) and then alphabetically
+// TODO: order tags in the tag editor by type ("meta", "creator", "copyright",
+// "character", "general", everything else) and then alphabetically
 export default function MediaPanelMeta({ post, prev, next }) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");
@@ -35,12 +35,8 @@ export default function MediaPanelMeta({ post, prev, next }) {
 
   return <div className={styles.MediaPanelMeta}>
     <div className={styles.navigation}>
-      <button className={styles.MediaPanel__prev} onClick={prev}>
-        ←
-      </button>
-      <button className={styles.MediaPanel__next} onClick={next}>
-        →
-      </button>
+      <button className={styles.MediaPanel__prev} onClick={prev}>←</button>
+      <button className={styles.MediaPanel__next} onClick={next}>→</button>
     </div>
 
     <div className={styles.edit}>
@@ -49,7 +45,10 @@ export default function MediaPanelMeta({ post, prev, next }) {
         value={tagsValue}
         setValue={setTagsValue}
         saveTags={saveTags}
-        className={classNames(styles.tagList, { [styles.tagListDirty]: isDirty })}
+        inputProps={{
+          className: classNames(styles.tagList, { [styles.tagListDirty]: isDirty }),
+          placeholder: "tags",
+        }}
       />
 
       <div className={styles.buttonList}>

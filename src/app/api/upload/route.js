@@ -6,8 +6,8 @@ import generateMediaDerivatives from "./generateMediaDerivatives";
 
 export const runtime = "nodejs";
 
+// TODO: throw on duplicate files, based on checksums
 export async function POST(req) {
-
   try {
     const fileData = await parseUploadForm(req);
 
@@ -15,9 +15,9 @@ export async function POST(req) {
       throw new Error("Invalid upload parser result");
 
     await generateMediaDerivatives(fileData);
-    await addMediaToDb(fileData);
+    const uploaded = await addMediaToDb(fileData);
 
-    return NextResponse.json({ status: "Upload finished" });
+    return NextResponse.json({ status: "Upload finished", uploaded });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });

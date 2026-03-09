@@ -17,6 +17,7 @@ export default function useTagSuggestions(value, options = {}) {
     if (!value || lastChar === " ") {
       setItems([]);
       didMountRef.current = true;
+      prevKey.current = options.key;
       return;
     }
 
