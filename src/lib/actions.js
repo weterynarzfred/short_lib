@@ -38,6 +38,22 @@ export async function addPostTagsBulkAction(postIds, rawTagString) {
   revalidatePath("/listing");
 }
 
+export async function updatePostNotesAction(postId, notesMd) {
+  const safePostId = Number(postId);
+  if (!Number.isInteger(safePostId) || safePostId <= 0)
+    throw new Error("Invalid media id");
+
+  const nextNotes = typeof notesMd === "string" ? notesMd : "";
+
+  db.prepare(`
+    UPDATE media
+    SET notes_md = ?
+    WHERE id = ?
+  `).run(nextNotes, safePostId);
+
+  revalidatePath("/listing");
+}
+
 export async function getPostTagValuesAction(postIds) {
   const ids = Array.isArray(postIds)
     ? [...new Set(postIds.map(Number).filter(Number.isInteger))]

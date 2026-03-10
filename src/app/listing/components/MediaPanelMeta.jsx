@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import classNames from "classnames";
 
-import { deletePostAction, updatePostTagsAction } from "@/lib/actions";
+import {
+  deletePostAction,
+  updatePostTagsAction,
+} from "@/lib/actions";
 import TagEditor from "@/components/TagEditor";
+import MediaPanelNotesEditor from "./MediaPanelNotesEditor";
 
 import styles from "./MediaPanelMeta.module.scss";
 
@@ -25,10 +29,6 @@ export default function MediaPanelMeta({ post, prev, next }) {
 
     const nextValue = tagsValue.trim();
     startTransition(() => { updatePostTagsAction(post.id, nextValue); });
-  };
-
-  const resetTags = () => {
-    setTagsValue(originalTags);
   };
 
   return <div className={styles.MediaPanelMeta}>
@@ -55,31 +55,30 @@ export default function MediaPanelMeta({ post, prev, next }) {
           type="button"
           onClick={saveTags}
           disabled={!isDirty || isPending}
-        >
-          {isPending ? "saving…" : "save tags"}
-        </button>
+        >{isPending ? "saving…" : "save tags"}</button>
 
         <button
           className={styles.button}
           type="button"
-          onClick={resetTags}
+          onClick={() => setTagsValue(originalTags)}
           disabled={!isDirty || isPending}
-        >
-          reset
-        </button>
+        >reset</button>
 
         <div className={styles.saveNote}>ctrl + enter to save</div>
       </div>
     </div>
+
+    <MediaPanelNotesEditor
+      postId={post.id}
+      initialValue={post.notes_md}
+    />
 
     <div className={styles.actions}>
       {!isConfirmingDelete && (
         <button
           className={styles.deleteButton}
           onClick={() => setIsConfirmingDelete(true)}
-        >
-          delete
-        </button>
+        >delete</button>
       )}
 
       {isConfirmingDelete && (
@@ -87,18 +86,14 @@ export default function MediaPanelMeta({ post, prev, next }) {
           <button
             className={styles.button}
             onClick={() => setIsConfirmingDelete(false)}
-          >
-            cancel
-          </button>
+          >cancel</button>
           <button
             className={styles.deleteButton}
             onClick={async () => {
               await deletePostAction(post.id);
               setIsConfirmingDelete(false);
             }}
-          >
-            confirm
-          </button>
+          >confirm</button>
         </>
       )}
     </div>

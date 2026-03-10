@@ -6,10 +6,6 @@ const db = new Database(dbPath);
 
 db.pragma("foreign_keys = ON");
 
-// TODO: add additional column for storing comments links, or transcribed text
-// from images or video, just a simple field for long text, might get later
-// enhanced to display markdown
-
 db.exec(`
   CREATE TABLE IF NOT EXISTS media (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,6 +17,7 @@ db.exec(`
     height INTEGER,
     duration_ms INTEGER,
     original_filename TEXT,
+    notes_md TEXT,
     variants TEXT CHECK (variants IS NULL OR json_valid(variants)),
     checksum TEXT
   );
