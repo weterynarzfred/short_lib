@@ -9,6 +9,8 @@ function createUploadEntry(file) {
     progress: 0,
     done: false,
     failed: false,
+    failureReason: "",
+    existingPost: null,
     mediaId: null,
     tagsValue: "",
     isSavingTags: false,
@@ -51,8 +53,43 @@ export default function useUploadQueue() {
     ));
   }
 
-  function markFailed(uploadId) {
-    updateUpload(uploadId, upload => ({ ...upload, failed: true }));
+  function markFailed(uploadId, failureReason = "Upload failed", extra = {}) {
+    updateUpload(uploadId, upload => ({
+      ...upload,
+      failed: true,
+      failureReason,
+      ...extra,
+    }));
+  }
+
+  function extractFailureData(xhr) {
+    let payload = null;
+    try {
+      payload = JSON.parse(xhr.responseText);
+    } catch {
+      payload = null;
+    }
+
+    const fallbackReason = xhr.status === 0
+      ? "Network error"
+      : xhr.status >= 400
+        ? `Upload failed (${xhr.status})`
+        : "Upload failed";
+    const failureReason = payload && typeof payload.error === "string"
+      ? payload.error
+      : fallbackReason;
+
+    const existingPost = payload && typeof payload.existingPost === "object" && payload.existingPost
+      ? payload.existingPost
+      : null;
+    const hasPreview = typeof existingPost?.file_path === "string" && typeof existingPost?.mime_type === "string";
+
+    return {
+      failureReason,
+      existingPost,
+      filePath: hasPreview ? existingPost.file_path : null,
+      mime_type: hasPreview ? existingPost.mime_type : null,
+    };
   }
 
   function uploadFile(file) {
@@ -74,14 +111,19 @@ export default function useUploadQueue() {
 
     xhr.onload = () => {
       if (xhr.status < 200 || xhr.status >= 300) {
-        markFailed(entry.id);
+        const failure = extractFailureData(xhr);
+        markFailed(entry.id, failure.failureReason, {
+          existingPost: failure.existingPost,
+          filePath: failure.filePath,
+          mime_type: failure.mime_type,
+        });
         return;
       }
 
       try {
         const res = JSON.parse(xhr.responseText);
         if (res.status !== "Upload finished") {
-          markFailed(entry.id);
+          markFailed(entry.id, typeof res?.error === "string" ? res.error : "Upload failed");
           return;
         }
 
@@ -98,12 +140,12 @@ export default function useUploadQueue() {
           tagsValue: buildTagEditorValue(match?.tags),
         }));
       } catch {
-        markFailed(entry.id);
+        markFailed(entry.id, "Invalid server response");
       }
     };
 
-    xhr.onerror = () => markFailed(entry.id);
-    xhr.onabort = () => markFailed(entry.id);
+    xhr.onerror = () => markFailed(entry.id, "Network error");
+    xhr.onabort = () => markFailed(entry.id, "Upload canceled");
     xhr.send(form);
   }
 

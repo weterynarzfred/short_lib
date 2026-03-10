@@ -12,8 +12,6 @@ export default function UploadList({
   setUploadTagsValue,
   saveUploadTags,
 }) {
-  console.log(uploads);
-
   return (
     <div className={styles.uploadList}>
       {uploads.map(file => <div
@@ -23,7 +21,7 @@ export default function UploadList({
           [styles.itemFailed]: file.failed,
         })}
       >
-        {file.filePath ? <MediaPreview
+        {file.filePath && file.mime_type ? <MediaPreview
           src={file.filePath}
           mime_type={file.mime_type}
           settings={{
@@ -46,6 +44,9 @@ export default function UploadList({
             </div>
           </div>
           <div className={styles.fileName}>{file.name}</div>
+          {file.failed && file.failureReason ?
+            <div className={styles.failureReason}>{file.failureReason}</div> :
+            null}
         </div>
 
         {file.done && file.mediaId ? (

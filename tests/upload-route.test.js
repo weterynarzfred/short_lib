@@ -18,10 +18,12 @@ describe("upload route", () => {
         tags: [{ name: "image", type: "meta" }],
       },
     ]);
+    const findExistingChecksums = vi.fn(() => []);
 
     vi.doMock("../src/app/api/upload/parseUploadForm", () => ({ default: parseUploadForm }));
     vi.doMock("../src/app/api/upload/generateMediaDerivatives", () => ({ default: generateMediaDerivatives }));
     vi.doMock("../src/app/api/upload/addMediaToDb", () => ({ default: addMediaToDb }));
+    vi.doMock("../src/lib/mediaChecksums", () => ({ findExistingChecksums }));
 
     const { POST } = await import("../src/app/api/upload/route");
     const req = new Request("http://localhost/api/upload", { method: "POST" });
@@ -30,6 +32,7 @@ describe("upload route", () => {
 
     expect(res.status).toBe(200);
     expect(parseUploadForm).toHaveBeenCalledWith(req);
+    expect(findExistingChecksums).toHaveBeenCalledWith([]);
     expect(generateMediaDerivatives).toHaveBeenCalledWith(fileData);
     expect(addMediaToDb).toHaveBeenCalledWith(fileData);
     expect(body).toEqual({

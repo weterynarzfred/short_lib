@@ -10,6 +10,7 @@
 .item {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 0.5rem;
   border: 1px solid $colorBorder;
   border-radius: 0.5rem;
@@ -32,6 +33,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-top: 0.3rem;
+  }
+
+  .failureReason {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    word-break: break-word;
   }
 
   .progressWrapper {
@@ -42,6 +50,17 @@
     .progressDone,
     .progressFailed {
       line-height: 0;
+      font-weight: 700;
+    }
+
+    .progressDone {
+      margin-top: -0.1em;
+      color: $colorSuccess;
+    }
+
+    .progressFailed {
+      margin-top: -0.3em;
+      color: $colorWarning;
     }
 
     .progress {
