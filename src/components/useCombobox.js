@@ -76,6 +76,7 @@ export default function useCombobox({
     }
   }, [isOpen, items, activeIndex, chooseTag, close]);
 
+  // TODO: move to a separate file and add tests
   function chooseTag(tag) {
     const isOperator = tag.type === "operator";
 
