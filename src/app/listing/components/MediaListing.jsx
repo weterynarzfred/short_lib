@@ -12,6 +12,7 @@ import styles from "./MediaListing.module.scss";
 // TODO: fix side panel switching to a different post when the edits change the
 // order of posts or remove the post entirely. If the post is no longer shown,
 // close the panel. Otherwise keep the same post displayed.
+// TODO: add lazy loading of posts
 export default function MediaListing({ posts, search, mediaSettings }) {
   const mediaRef = useRef(null);
 
