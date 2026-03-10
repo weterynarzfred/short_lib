@@ -11,7 +11,7 @@ import { TAG_ORDER_SQL } from "@/app/listing/lib/buildQuery";
 
 export async function deletePostAction(postId) {
   await deletePost(postId);
-  revalidatePath("/media");
+  revalidatePath("/listing");
 }
 
 export async function updatePostTagsAction(postId, rawTagString) {

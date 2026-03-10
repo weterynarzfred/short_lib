@@ -6,7 +6,8 @@
   .content {
     width: 100%;
     height: 100vh;
-    overflow: scroll;
+    overflow: auto;
+    padding-bottom: $spacingHalf;
 
     .list {
       width: 100%;
@@ -15,6 +16,38 @@
       gap: 1rem;
       margin-top: $spacingQuarter;
     }
+
+    .loadMore {
+      margin-top: $spacingHalf;
+      display: flex;
+      justify-content: center;
+      min-height: 2rem;
+    }
+
+    .loadMoreButton {
+      padding: 0.2rem $spacingQuarter;
+      border: 1px solid $colorBorder;
+
+      &:hover {
+        background-color: $colorBg2;
+      }
+
+      &[disabled] {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    .loadMoreDone {
+      font-size: 0.85rem;
+      color: $colorContent2;
+      font-style: italic;
+    }
+
+    .loadMoreSentinel {
+      width: 100%;
+      height: 1px;
+    }
   }
 
   .sidebar {
@@ -22,7 +55,7 @@
     width: 0;
     max-width: 70%;
     height: 100vh;
-    overflow: scroll;
+    overflow: auto;
 
     &.sidebarActive {
       width: 40rem;

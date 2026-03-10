@@ -35,6 +35,7 @@ export default async function extractMetadata(filepath) {
     } catch { }
   }
 
+  // TODO: for video files add a "has_audio" tag if audio track is present
   if (type === "video" || type === "audio") {
     try {
       const data = await ffprobe(filepath);

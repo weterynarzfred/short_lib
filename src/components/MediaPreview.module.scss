@@ -4,4 +4,12 @@
   border: 1px solid $colorBorder;
   border-radius: 0.5rem;
   overflow: hidden;
+  flex: 0 0 auto;
+
+  img,
+  video,
+  audio {
+    width: 100%;
+    height: auto;
+  }
 }

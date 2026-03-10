@@ -2,19 +2,13 @@
 
 .MediaPanel {
   position: relative;
-  height: 100%;
+  min-height: 100%;
   background-color: $colorBg;
   display: flex;
   flex-direction: column;
   gap: $spacingQuarter;
   z-index: 22;
   padding: $spacingQuarter;
-
-  img,
-  video {
-    width: 100%;
-    height: auto;
-  }
 
   &__close,
   &__burger {

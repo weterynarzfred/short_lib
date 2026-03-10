@@ -24,6 +24,14 @@ describe("search parser and query builder", () => {
     expect(sql).toContain("JOIN media_tags mt2");
     expect(sql).toContain("NOT EXISTS");
     expect(sql).toContain("LIMIT 25");
+    expect(sql).toContain("OFFSET 0");
+  });
+
+  it("supports explicit limit/offset pagination overrides", () => {
+    const { sql } = buildQuery(parseSearch("cat limit:25"), { limit: 10, offset: 40 });
+
+    expect(sql).toContain("LIMIT 10");
+    expect(sql).toContain("OFFSET 40");
   });
 
   it("parses operator filters and applies them to SQL", () => {
@@ -100,5 +108,28 @@ describe("getPosts", () => {
     expect(posts[0].tags).toEqual([{ id: 1, name: "tag1" }]);
     expect(posts[1].variants).toBeNull();
     expect(posts[1].tags).toEqual([]);
+  });
+
+  it("returns paginated rows with hasMore metadata", async () => {
+    const fakeRows = [
+      { id: 1, variants: null, tags: "[]" },
+      { id: 2, variants: null, tags: "[]" },
+      { id: 3, variants: null, tags: "[]" },
+    ];
+
+    const db = {
+      prepare: vi.fn(() => ({
+        all: vi.fn(() => fakeRows),
+      })),
+    };
+
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { getPostsPage } = await import("../src/app/listing/lib/getPosts");
+    const page = getPostsPage("", { limit: 2, offset: 0 });
+
+    expect(page.posts.map(post => post.id)).toEqual([1, 2]);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextOffset).toBe(2);
   });
 });

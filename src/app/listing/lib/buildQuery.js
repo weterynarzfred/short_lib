@@ -9,8 +9,24 @@ export const TAG_ORDER_SQL = `
   END
 `;
 
-export default function buildQuery(parsed) {
+function clampInt(value, { min, max, fallback }) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+
+export default function buildQuery(parsed, { limit, offset } = {}) {
   const { includeTags, excludeTags, filters } = parsed;
+  const safeLimit = clampInt(limit ?? filters.limit, {
+    min: 1,
+    max: 500,
+    fallback: 100,
+  });
+  const safeOffset = clampInt(offset, {
+    min: 0,
+    max: Number.MAX_SAFE_INTEGER,
+    fallback: 0,
+  });
 
   const where = [];
   const params = [];
@@ -118,7 +134,8 @@ export default function buildQuery(parsed) {
 
   sql += `
     ORDER BY ${filters.orderBy}
-    LIMIT ${filters.limit}
+    LIMIT ${safeLimit}
+    OFFSET ${safeOffset}
   `;
 
   return { sql, params };
