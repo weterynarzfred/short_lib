@@ -204,4 +204,37 @@ describe("integration: addTags + getPosts", () => {
     expect(getPosts("order:image_ratio limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
     expect(getPosts("order:tag_count limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
   });
+
+  it("filters tag stats by name and type and exposes known types", async () => {
+    db.prepare(`
+      INSERT INTO tags (name, type, post_count)
+      VALUES (?, ?, ?)
+    `).run("cat", "general", 3);
+    db.prepare(`
+      INSERT INTO tags (name, type, post_count)
+      VALUES (?, ?, ?)
+    `).run("car", "general", 2);
+    db.prepare(`
+      INSERT INTO tags (name, type, post_count)
+      VALUES (?, ?, ?)
+    `).run("camera", "meta", 1);
+    db.prepare(`
+      INSERT INTO tags (name, type, post_count)
+      VALUES (?, ?, ?)
+    `).run("artist_name", "creator", 4);
+
+    const { default: getTagStats, getTagTypes } = await import("../src/app/tags/lib/getTagStats");
+
+    const filtered = getTagStats({
+      page: 1,
+      limit: 50,
+      order: "name_asc",
+      name: "ca",
+      type: "general",
+    });
+
+    expect(filtered.total).toBe(2);
+    expect(filtered.rows.map(row => row.name)).toEqual(["car", "cat"]);
+    expect(getTagTypes()).toEqual(["creator", "general", "meta"]);
+  });
 });

@@ -1,0 +1,64 @@
+@use "/src/scss/variables" as *;
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 10rem;
+  min-height: 1.625rem;
+  padding: 0 0.4rem;
+  background-color: $colorBg;
+  color: $colorContent;
+  border: 1px solid $colorBorder;
+  border-radius: 0.4rem;
+
+  &:hover {
+    background-color: $colorBg2;
+  }
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.icon svg {
+  width: 0.6rem;
+  height: 0.6rem;
+
+  * {
+    stroke: $colorContent2;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+}
+
+.content {
+  z-index: 30;
+  background-color: $colorBg;
+  border: 1px solid $colorBorder;
+  min-width: var(--radix-select-trigger-width);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+
+.item {
+  position: relative;
+  padding: 0rem 1.4rem 0rem 0.4rem;
+  cursor: default;
+  user-select: none;
+  color: $colorContent;
+
+  &[data-highlighted] {
+    outline: none;
+    background-color: $colorBg2;
+  }
+}
+
+.indicator {
+  position: absolute;
+  right: 0.5rem;
+  color: $colorContent2;
+}

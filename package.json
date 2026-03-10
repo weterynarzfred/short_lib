@@ -10,6 +10,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@radix-ui/react-select": "^2.2.6",
     "better-sqlite3": "^12.6.2",
     "classnames": "^2.5.1",
     "file-type": "^21.3.1",

@@ -1,1 +1,28 @@
 @use "/src/scss/variables" as *;
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.nameInput {
+  border: 1px solid $colorBorder;
+  border-radius: 0.4rem;
+  padding: 0 0.4rem;
+
+  &:focus {
+    background-color: $colorBg2;
+    outline: none;
+  }
+}
+
+.typeSelect {
+  min-width: 10rem;
+}
+
+.stats {
+  margin-top: $spacingQuarter;
+  font-size: 0.8rem;
+}
