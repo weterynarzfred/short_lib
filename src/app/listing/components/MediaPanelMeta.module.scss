@@ -23,6 +23,21 @@
       background-color: $colorBg2;
     }
   }
+
+  @keyframes slideshow-active {
+    0% {
+      transform: rotate(-10deg);
+    }
+    50% {
+      transform: rotate(10deg);
+    }
+    100% {
+      transform: rotate(-10deg);
+    }
+  }
+  .MediaPanel__nextSlideshow {
+    animation: infinite 1s slideshow-active;
+  }
 }
 
 .edit {

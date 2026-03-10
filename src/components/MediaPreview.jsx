@@ -2,7 +2,7 @@ import classNames from "classnames";
 
 import styles from "./MediaPreview.module.scss";
 
-export default function MediaPreview({ src, mime_type, mediaRef, settings, className }) {
+export default function MediaPreview({ src, mime_type, mediaRef, settings, className, onEnded }) {
   return <div className={classNames(styles.MediaPreview, className)}>
     {mime_type.startsWith("image") && (
       <img
@@ -16,24 +16,26 @@ export default function MediaPreview({ src, mime_type, mediaRef, settings, class
     {mime_type.startsWith("video") && (
       <video
         src={`/api/media/${src}`}
-        autoPlay={settings.autoplay}
+        autoPlay={settings.autoplay || settings.slideshow}
         controls
-        loop={settings.loop}
+        loop={settings.loop && !settings.slideshow}
         muted={settings.muted}
         ref={mediaRef}
         tabIndex={0}
+        onEnded={onEnded}
       />
     )}
 
     {mime_type.startsWith("audio") && (
       <audio
         src={`/api/media/${src}`}
-        autoPlay={settings.autoplay}
+        autoPlay={settings.autoplay || settings.slideshow}
         controls
-        loop={settings.loop}
+        loop={settings.loop && !settings.slideshow}
         muted={settings.muted}
         ref={mediaRef}
         tabIndex={0}
+        onEnded={onEnded}
       />
     )}
   </div>;

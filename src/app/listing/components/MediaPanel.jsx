@@ -1,13 +1,10 @@
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import MediaPanelMeta from "./MediaPanelMeta";
 import MediaPreview from "../../../components/MediaPreview";
 import { updateMediaSettingsAction } from "@/lib/actions";
 
 import styles from "./MediaPanel.module.scss";
 
-// TODO: make slideshow option move to the next post when the current
-// audio/video ends, in case of images, move after 4 seconds. Don't move if the
-// tag editor textarea (or other inputs once implemented) is focused.
 // TODO: make fullscreen switch the media panel to take the whole screen, in
 // this case the media preview should take the entire screen with
 // object-fit: contain. Meta should still be there, accessible after scrolling
@@ -18,6 +15,14 @@ const DEFAULT_TOGGLES = {
   muted: false,
   fullscreen: false
 };
+const IMAGE_SLIDESHOW_DELAY_MS = 4000;
+
+function isEditorFocused() {
+  if (typeof document === "undefined") return false;
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return false;
+  return Boolean(active.closest("input, textarea, select, [contenteditable='true']"));
+}
 
 export default function MediaPanel({ post, close, prev, next, mediaRef, initialSettings }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,6 +31,54 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
     ...DEFAULT_TOGGLES,
     ...initialSettings,
   });
+  const retryAdvanceTimerRef = useRef(null);
+  const imageSlideshowTimerRef = useRef(null);
+  const slideshowEnabledRef = useRef(toggles.slideshow);
+  const currentPostIdRef = useRef(post?.id ?? null);
+
+  const clearRetryAdvanceTimer = useCallback(() => {
+    if (!retryAdvanceTimerRef.current) return;
+    clearTimeout(retryAdvanceTimerRef.current);
+    retryAdvanceTimerRef.current = null;
+  }, []);
+
+  const clearImageSlideshowTimer = useCallback(() => {
+    if (!imageSlideshowTimerRef.current) return;
+    clearTimeout(imageSlideshowTimerRef.current);
+    imageSlideshowTimerRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    slideshowEnabledRef.current = toggles.slideshow;
+  }, [toggles.slideshow]);
+
+  useEffect(() => {
+    currentPostIdRef.current = post?.id ?? null;
+  }, [post?.id]);
+
+  const tryAdvance = useCallback((expectedPostId) => {
+    if (!slideshowEnabledRef.current) return true;
+    if (currentPostIdRef.current !== expectedPostId) return true;
+    if (isEditorFocused()) return false;
+
+    next();
+    return true;
+  }, [next]);
+
+  const scheduleAdvanceRetry = useCallback((expectedPostId) => {
+    clearRetryAdvanceTimer();
+
+    const tick = () => {
+      if (tryAdvance(expectedPostId)) {
+        retryAdvanceTimerRef.current = null;
+        return;
+      }
+
+      retryAdvanceTimerRef.current = setTimeout(tick, 300);
+    };
+
+    retryAdvanceTimerRef.current = setTimeout(tick, 300);
+  }, [clearRetryAdvanceTimer, tryAdvance]);
 
   function toggleOption(key) {
     const nextValue = !toggles[key];
@@ -35,6 +88,51 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
       updateMediaSettingsAction({ [key]: nextValue });
     });
   }
+
+  const handleMediaEnded = useCallback(() => {
+    if (!toggles.slideshow) return;
+    const expectedPostId = post?.id ?? null;
+    if (expectedPostId == null) return;
+    if (!tryAdvance(expectedPostId)) scheduleAdvanceRetry(expectedPostId);
+  }, [toggles.slideshow, post?.id, scheduleAdvanceRetry, tryAdvance]);
+
+  useEffect(() => {
+    clearImageSlideshowTimer();
+    clearRetryAdvanceTimer();
+
+    if (!toggles.slideshow) return;
+    if (!post?.mime_type?.startsWith("image")) return;
+
+    const expectedPostId = post.id;
+
+    const tick = () => {
+      if (tryAdvance(expectedPostId)) {
+        imageSlideshowTimerRef.current = null;
+        return;
+      }
+
+      imageSlideshowTimerRef.current = setTimeout(tick, 300);
+    };
+
+    imageSlideshowTimerRef.current = setTimeout(tick, IMAGE_SLIDESHOW_DELAY_MS);
+
+    return () => {
+      clearImageSlideshowTimer();
+      clearRetryAdvanceTimer();
+    };
+  }, [
+    toggles.slideshow,
+    post?.id,
+    post?.mime_type,
+    clearImageSlideshowTimer,
+    clearRetryAdvanceTimer,
+    tryAdvance,
+  ]);
+
+  useEffect(() => () => {
+    clearImageSlideshowTimer();
+    clearRetryAdvanceTimer();
+  }, [clearImageSlideshowTimer, clearRetryAdvanceTimer]);
 
   return (
     <div className={styles.MediaPanel}>
@@ -104,12 +202,14 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
         mime_type={post.mime_type}
         mediaRef={mediaRef}
         settings={toggles}
+        onEnded={handleMediaEnded}
       />
 
       <MediaPanelMeta
         post={post}
         prev={prev}
         next={next}
+        isSlideshowOn={toggles.slideshow}
       />
     </div>
   );
