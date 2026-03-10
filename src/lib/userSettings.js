@@ -1,5 +1,9 @@
 import db from "@/lib/db";
 
+// TODO: add a separate page with all settings, media settings should still have
+// a copy in the media panel
+// TODO: add a blacklisted tags setting, input with tag suggestions
+
 export const MEDIA_SETTINGS_DEFAULTS = {
   autoplay: false,
   loop: false,
