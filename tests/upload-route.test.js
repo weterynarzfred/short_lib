@@ -18,7 +18,7 @@ describe("upload route", () => {
         tags: [{ name: "image", type: "meta" }],
       },
     ]);
-    const findExistingChecksums = vi.fn(() => []);
+    const findExistingChecksums = vi.fn(() => { });
 
     vi.doMock("../src/app/api/upload/parseUploadForm", () => ({ default: parseUploadForm }));
     vi.doMock("../src/app/api/upload/generateMediaDerivatives", () => ({ default: generateMediaDerivatives }));
