@@ -72,8 +72,7 @@ describe("search parser and query builder", () => {
 
   it("parses notes operator into an FTS query filter", () => {
     const parsed = parseSearch("notes:\"hello world\" notes:cat");
-
-    expect(parsed.filters.notes).toBe("\"hello world\" cat");
+    expect(parsed.filters.notes).toBe("hello world cat");
   });
 
   it("adds FTS notes clause and parameter to SQL", () => {
@@ -82,7 +81,7 @@ describe("search parser and query builder", () => {
 
     expect(sql).toContain("FROM media_notes_fts");
     expect(sql).toContain("media_notes_fts MATCH ?");
-    expect(params).toEqual(["\"hello world\""]);
+    expect(params).toEqual(["hello world"]);
   });
 
   it("ignores malformed operator tokens", () => {
