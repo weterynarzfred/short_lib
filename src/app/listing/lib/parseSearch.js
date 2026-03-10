@@ -59,7 +59,14 @@ export default function parseSearch(searchString = "") {
     mpixels: null,
     duration: null,
     imageRatio: null,
+    notes: null,
   };
+
+  function toNotesFtsTerm(rawValue) {
+    const trimmed = rawValue.trim();
+    if (!trimmed) return null;
+    return trimmed.replace(/(^"|"$)/, "");
+  }
 
   for (const token of tokens) {
     if (token.startsWith("limit:")) {
@@ -131,6 +138,12 @@ export default function parseSearch(searchString = "") {
     if (token.startsWith("image_ratio:")) {
       const parsed = parseImageRatio(token.slice("image_ratio:".length));
       if (parsed) filters.imageRatio = parsed;
+      continue;
+    }
+
+    if (token.startsWith("notes:")) {
+      const term = toNotesFtsTerm(token.slice("notes:".length));
+      if (term) filters.notes = filters.notes ? `${filters.notes} ${term}` : term;
       continue;
     }
 

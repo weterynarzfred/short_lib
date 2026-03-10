@@ -70,6 +70,21 @@ describe("search parser and query builder", () => {
     expect(params).toEqual(["video/mp4", 10485760, 604800, 2000000, 90000, 16 / 9]);
   });
 
+  it("parses notes operator into an FTS query filter", () => {
+    const parsed = parseSearch("notes:\"hello world\" notes:cat");
+
+    expect(parsed.filters.notes).toBe("\"hello world\" cat");
+  });
+
+  it("adds FTS notes clause and parameter to SQL", () => {
+    const parsed = parseSearch("notes:\"hello world\"");
+    const { sql, params } = buildQuery(parsed);
+
+    expect(sql).toContain("FROM media_notes_fts");
+    expect(sql).toContain("media_notes_fts MATCH ?");
+    expect(params).toEqual(["\"hello world\""]);
+  });
+
   it("ignores malformed operator tokens", () => {
     const parsed = parseSearch("file_size:abc age:-- order:nope mpixels:x duration:- image_ratio:1/0 tag1");
 

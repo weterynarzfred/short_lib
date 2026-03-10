@@ -44,7 +44,10 @@ export function getPostsPage(search, { offset = 0, limit } = {}) {
     offset: safeOffset,
   });
 
-  const rows = db.prepare(sql).all(...params);
+  let rows = [];
+  try {
+    rows = db.prepare(sql).all(...params);
+  } catch { }
   const hasMore = rows.length > requestedLimit;
   const posts = hasMore ? rows.slice(0, requestedLimit) : rows;
   normalizePosts(posts);

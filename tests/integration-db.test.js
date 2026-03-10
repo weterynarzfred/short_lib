@@ -21,6 +21,7 @@ function createTempDb() {
       height INTEGER,
       duration_ms INTEGER,
       original_filename TEXT,
+      notes_md TEXT,
       variants TEXT CHECK (variants IS NULL OR json_valid(variants)),
       checksum TEXT
     );
@@ -39,6 +40,32 @@ function createTempDb() {
       FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
       FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
     );
+
+    CREATE VIRTUAL TABLE media_notes_fts
+    USING fts5(notes_md, content='media', content_rowid='id');
+
+    CREATE TRIGGER media_notes_fts_ai
+    AFTER INSERT ON media
+    BEGIN
+      INSERT INTO media_notes_fts (rowid, notes_md)
+      VALUES (NEW.id, COALESCE(NEW.notes_md, ''));
+    END;
+
+    CREATE TRIGGER media_notes_fts_ad
+    AFTER DELETE ON media
+    BEGIN
+      INSERT INTO media_notes_fts (media_notes_fts, rowid, notes_md)
+      VALUES ('delete', OLD.id, COALESCE(OLD.notes_md, ''));
+    END;
+
+    CREATE TRIGGER media_notes_fts_au
+    AFTER UPDATE OF notes_md ON media
+    BEGIN
+      INSERT INTO media_notes_fts (media_notes_fts, rowid, notes_md)
+      VALUES ('delete', OLD.id, COALESCE(OLD.notes_md, ''));
+      INSERT INTO media_notes_fts (rowid, notes_md)
+      VALUES (NEW.id, COALESCE(NEW.notes_md, ''));
+    END;
   `);
 
   return { db, tempDir };
@@ -203,6 +230,39 @@ describe("integration: addTags + getPosts", () => {
     expect(getPosts("order:pixelcount limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
     expect(getPosts("order:image_ratio limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
     expect(getPosts("order:tag_count limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
+  });
+
+  it("filters posts by notes full-text search", async () => {
+    const insertMedia = db.prepare(`
+      INSERT INTO media (file_path, created_at, notes_md, variants, checksum)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    const nowMs = Date.now();
+    const m1 = insertMedia.run(
+      "2026/03/n1.jpg",
+      nowMs,
+      "quick brown fox jumps",
+      null,
+      "n1"
+    ).lastInsertRowid;
+    insertMedia.run(
+      "2026/03/n2.jpg",
+      nowMs,
+      "green turtle swims",
+      null,
+      "n2"
+    );
+
+    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+
+    const fox = getPosts("notes:fox");
+    expect(fox).toHaveLength(1);
+    expect(fox[0].id).toBe(m1);
+
+    const phrase = getPosts("notes:\"quick brown\"");
+    expect(phrase).toHaveLength(1);
+    expect(phrase[0].id).toBe(m1);
   });
 
   it("filters tag stats by name and type and exposes known types", async () => {

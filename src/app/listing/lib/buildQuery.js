@@ -128,6 +128,17 @@ export default function buildQuery(parsed, { limit, offset } = {}) {
     params.push(filters.imageRatio.value);
   }
 
+  if (filters.notes) {
+    where.push(`
+      m.id IN (
+        SELECT rowid
+        FROM media_notes_fts
+        WHERE media_notes_fts MATCH ?
+      )
+    `);
+    params.push(filters.notes);
+  }
+
   if (where.length) {
     sql += " WHERE " + where.join(" AND ");
   }
