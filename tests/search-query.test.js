@@ -11,6 +11,20 @@ describe("search parser and query builder", () => {
     expect(parsed.excludeTags).toEqual(["tag2"]);
   });
 
+  it("supports quoted tokens with spaces", () => {
+    const parsed = parseSearch("tag1 \"tag two\" -\"tag three\"");
+
+    expect(parsed.includeTags).toEqual(["tag1", "tag two"]);
+    expect(parsed.excludeTags).toEqual(["tag three"]);
+  });
+
+  it("supports escaped quotes inside quoted tokens", () => {
+    const parsed = parseSearch("\"say \\\"hello\\\"\" -\"quote: \\\"x\\\"\"");
+
+    expect(parsed.includeTags).toEqual(["say \"hello\""]);
+    expect(parsed.excludeTags).toEqual(["quote: \"x\""]);
+  });
+
   it("keeps default limit when limit token is malformed", () => {
     expect(parseSearch("limit:abc").filters.limit).toBe(100);
     expect(parseSearch("limit:").filters.limit).toBe(100);

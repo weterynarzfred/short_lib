@@ -29,6 +29,10 @@ const OPERATORS = [
     label: "duration:",
   },
   {
+    key: "notes",
+    label: "notes:",
+  },
+  {
     key: "image_ratio",
     label: "image_ratio:",
   },

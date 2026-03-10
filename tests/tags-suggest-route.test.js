@@ -61,6 +61,19 @@ describe("tags suggest route", () => {
     expect(all).not.toHaveBeenCalled();
   });
 
+  it("returns notes operator suggestions", async () => {
+    const all = vi.fn(() => []);
+    const db = { prepare: vi.fn(() => ({ all })) };
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { GET } = await import("../src/app/api/tags/suggest/route");
+    const res = GET(new Request("http://localhost/api/tags/suggest?q=no"));
+    const body = await res.json();
+
+    expect(body.tags.some(tag => tag.name === "notes:")).toBe(true);
+    expect(all).toHaveBeenCalledWith("no");
+  });
+
   it("suppresses operator suggestions in edit mode", async () => {
     const all = vi.fn(() => [{ id: 3, name: "misc", type: "general", post_count: 9 }]);
     const db = { prepare: vi.fn(() => ({ all })) };

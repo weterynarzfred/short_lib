@@ -1,5 +1,11 @@
+import parseComparable from "@/app/listing/lib/parseComparable";
+import parseImageRatio from "@/app/listing/lib/parseImageRatio";
+import tokenizeSearchString from "@/app/listing/lib/tokenizeSearchString";
+
+// TODO: add an option to reverse order, probably with operators like
+// order:file_size_asc
 export default function parseSearch(searchString = "") {
-  const tokens = searchString.trim().split(/\s+/).filter(Boolean);
+  const tokens = tokenizeSearchString(searchString);
 
   const includeTags = [];
   const excludeTags = [];
@@ -23,7 +29,6 @@ export default function parseSearch(searchString = "") {
   const AGE_RE = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)(s|m|h|d|w|y)?$/i;
   const DURATION_RE = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)(ms|s|m|h)?$/i;
   const MPIXELS_RE = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)$/i;
-  const IMAGE_RATIO_RE = /^(<=|>=|<|>|=)?(.+)$/i;
   const FILE_SIZE_UNITS = {
     b: 1,
     kb: 1024,
@@ -44,54 +49,6 @@ export default function parseSearch(searchString = "") {
     m: 60 * 1000,
     h: 60 * 60 * 1000,
   };
-
-  function parseComparable(rawValue, regex, units, defaultUnit, options = {}) {
-    const { integer = true } = options;
-    const match = regex.exec(rawValue.trim());
-    if (!match) return null;
-
-    const [, opRaw, numRaw, unitRaw] = match;
-    const unit = (unitRaw || defaultUnit).toLowerCase();
-    const multiplier = units[unit];
-    if (!multiplier) return null;
-
-    const parsedNumber = Number(numRaw);
-    if (!Number.isFinite(parsedNumber) || parsedNumber < 0) return null;
-
-    return {
-      op: opRaw || "=",
-      value: integer
-        ? Math.floor(parsedNumber * multiplier)
-        : parsedNumber * multiplier,
-    };
-  }
-
-  function parseImageRatio(rawValue) {
-    const match = IMAGE_RATIO_RE.exec(rawValue.trim());
-    if (!match) return null;
-
-    const [, opRaw, valueRaw] = match;
-    const ratioText = valueRaw.trim();
-    if (!ratioText) return null;
-
-    let ratio;
-    if (ratioText.includes("/")) {
-      const [left, right] = ratioText.split("/");
-      const a = Number(left);
-      const b = Number(right);
-      if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0 || a < 0 || b < 0)
-        return null;
-      ratio = a / b;
-    } else {
-      ratio = Number(ratioText);
-      if (!Number.isFinite(ratio) || ratio < 0) return null;
-    }
-
-    return {
-      op: opRaw || "=",
-      value: ratio,
-    };
-  }
 
   const filters = {
     orderBy: ORDER_BY.age,
