@@ -1,0 +1,74 @@
+@use "/src/scss/variables" as *;
+
+.settingsIntro {
+  margin-top: -0.4rem;
+  margin-bottom: 0.8rem;
+  color: $colorContent2;
+  font-size: 0.9rem;
+}
+
+.settingCard {
+  max-width: 40rem;
+  border: 1px solid $colorBorder;
+  border-radius: 0.5rem;
+  padding: $spacingQuarter;
+}
+
+.settingTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.settingDescription {
+  margin-top: 0.3rem;
+  margin-bottom: 0.5rem;
+  color: $colorContent2;
+  font-size: 0.9rem;
+}
+
+.blacklistEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.blacklistInput {
+  display: block;
+  width: 100%;
+  min-height: 8rem;
+  resize: vertical;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid $colorBorder;
+  font-family: monospace;
+
+  &:focus {
+    outline: none;
+    background-color: $colorBg2;
+  }
+}
+
+.blacklistInputDirty {
+  border-color: $colorContent2;
+}
+
+.settingActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settingButton {
+  border: 1px solid $colorBorder;
+  padding: 0.1rem 0.5rem;
+}
+
+.statusOk {
+  color: $colorSuccess;
+  font-size: 0.85rem;
+}
+
+.statusError {
+  color: $colorWarning;
+  font-size: 0.85rem;
+}

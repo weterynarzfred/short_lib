@@ -6,7 +6,7 @@ import addTags, { parseTagString } from "@/lib/addTags";
 import db from "@/lib/db";
 import deletePost from "@/lib/deletePost";
 import { deleteTagById, updateTagById } from "@/lib/manageTag";
-import { setMediaSettings } from "@/lib/userSettings";
+import { setBlacklistedTags, setMediaSettings } from "@/lib/userSettings";
 import { TAG_ORDER_SQL } from "@/app/listing/lib/buildQuery";
 
 export async function deletePostAction(postId) {
@@ -110,4 +110,15 @@ export async function updateMediaSettingsAction(partialSettings) {
   const media = setMediaSettings(partialSettings);
   revalidatePath("/listing");
   return media;
+}
+
+export async function updateBlacklistedTagsAction(rawTagString) {
+  const tags = setBlacklistedTags(rawTagString);
+
+  revalidatePath("/listing");
+
+  return {
+    tags,
+    tagsValue: tags.join(" "),
+  };
 }

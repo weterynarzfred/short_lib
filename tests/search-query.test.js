@@ -25,6 +25,24 @@ describe("search parser and query builder", () => {
     expect(parsed.excludeTags).toEqual(["quote: \"x\""]);
   });
 
+  it("applies default excluded tags unless query already mentions them", () => {
+    const parsed = parseSearch("cat -bird", {
+      defaultExcludedTags: ["nsfw", "cat", "bird", "nsfw"],
+    });
+
+    expect(parsed.includeTags).toEqual(["cat"]);
+    expect(parsed.excludeTags).toEqual(["bird", "nsfw"]);
+  });
+
+  it("allows explicit include tags to override blacklist defaults", () => {
+    const parsed = parseSearch("nsfw", {
+      defaultExcludedTags: ["nsfw", "spoiler"],
+    });
+
+    expect(parsed.includeTags).toEqual(["nsfw"]);
+    expect(parsed.excludeTags).toEqual(["spoiler"]);
+  });
+
   it("keeps default limit when limit token is malformed", () => {
     expect(parseSearch("limit:abc").filters.limit).toBe(100);
     expect(parseSearch("limit:").filters.limit).toBe(100);

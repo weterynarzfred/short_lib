@@ -24,8 +24,8 @@ function normalizePosts(posts) {
   });
 }
 
-export function getPostsPage(search, { offset = 0, limit } = {}) {
-  const parsed = parseSearch(search);
+export function getPostsPage(search, { offset = 0, limit, defaultExcludedTags } = {}) {
+  const parsed = parseSearch(search, { defaultExcludedTags });
   const requestedLimit = clampInt(limit ?? parsed.filters.limit, {
     min: 1,
     max: 500,

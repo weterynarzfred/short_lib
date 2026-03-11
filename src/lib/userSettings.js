@@ -1,8 +1,7 @@
 import db from "@/lib/db";
 
-// TODO: add a separate page with all settings, media settings should still have
-// a copy in the media panel
-// TODO: add a blacklisted tags setting, input with tag suggestions
+// TODO: add media settings controls to /settings while keeping quick toggles in
+// the media panel
 
 export const MEDIA_SETTINGS_DEFAULTS = {
   autoplay: false,
@@ -11,6 +10,7 @@ export const MEDIA_SETTINGS_DEFAULTS = {
   muted: false,
   fullscreen: false,
 };
+export const BLACKLISTED_TAGS_KEY = "listing.blacklisted_tags";
 
 const MEDIA_SETTING_KEYS = new Set(Object.keys(MEDIA_SETTINGS_DEFAULTS));
 
@@ -18,6 +18,12 @@ const getMediaRowsStmt = db.prepare(`
   SELECT key, value
   FROM user_settings
   WHERE key LIKE 'media.%'
+`);
+const getSettingStmt = db.prepare(`
+  SELECT value
+  FROM user_settings
+  WHERE key = ?
+  LIMIT 1
 `);
 
 const upsertSettingStmt = db.prepare(`
@@ -34,6 +40,66 @@ function isTrue(raw) {
 
 function toStoredValue(value) {
   return value ? "1" : "0";
+}
+
+function parseTagNames(raw = "") {
+  if (typeof raw !== "string") return [];
+
+  return raw
+    .split(/\s+/)
+    .map(token => token.trim())
+    .filter(Boolean)
+    .map(token => {
+      const idx = token.indexOf(":");
+      if (idx > 0 && idx < token.length - 1)
+        return token.slice(idx + 1).trim();
+
+      return token;
+    })
+    .filter(Boolean);
+}
+
+function normalizeTagNames(rawValue) {
+  const normalized = [];
+  const seen = new Set();
+
+  const pushName = value => {
+    const name = String(value ?? "").trim();
+    if (!name || seen.has(name)) return;
+
+    seen.add(name);
+    normalized.push(name);
+  };
+
+  if (Array.isArray(rawValue)) {
+    for (const item of rawValue) {
+      if (typeof item !== "string") continue;
+      for (const name of parseTagNames(item))
+        pushName(name);
+    }
+    return normalized;
+  }
+
+  if (typeof rawValue !== "string") return normalized;
+
+  for (const name of parseTagNames(rawValue))
+    pushName(name);
+
+  return normalized;
+}
+
+function parseStoredTagNames(rawValue) {
+  if (typeof rawValue !== "string") return [];
+
+  const trimmed = rawValue.trim();
+  if (!trimmed) return [];
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return normalizeTagNames(parsed);
+  } catch { }
+
+  return normalizeTagNames(trimmed);
 }
 
 export function getMediaSettings() {
@@ -63,4 +129,25 @@ export function setMediaSettings(partialSettings) {
 
   tx(entries);
   return getMediaSettings();
+}
+
+export function getBlacklistedTags() {
+  try {
+    const row = getSettingStmt.get(BLACKLISTED_TAGS_KEY);
+    return parseStoredTagNames(row?.value);
+  } catch {
+    return [];
+  }
+}
+
+export function setBlacklistedTags(rawTagString) {
+  const tags = normalizeTagNames(rawTagString);
+
+  upsertSettingStmt.run(
+    BLACKLISTED_TAGS_KEY,
+    JSON.stringify(tags),
+    Date.now()
+  );
+
+  return tags;
 }

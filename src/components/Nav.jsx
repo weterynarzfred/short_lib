@@ -8,5 +8,6 @@ export default function Nav() {
     <Link className={styles.navLink} href="/listing">listing</Link>
     <Link className={styles.navLink} href="/upload">upload</Link>
     <Link className={styles.navLink} href="/tags">tags</Link>
+    <Link className={styles.navLink} href="/settings">settings</Link>
   </nav>;
 };

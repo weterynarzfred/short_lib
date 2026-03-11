@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPostsPage } from "@/app/listing/lib/getPosts";
+import { getBlacklistedTags } from "@/lib/userSettings";
 
 function parseIntParam(value, { min, max, fallback } = {}) {
   if (value == null || value === "") return fallback;
@@ -27,6 +28,10 @@ export function GET(req) {
   if (offset == null || (searchParams.has("limit") && limit == null))
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
 
-  const result = getPostsPage(search, { offset, limit });
+  const result = getPostsPage(search, {
+    offset,
+    limit,
+    defaultExcludedTags: getBlacklistedTags(),
+  });
   return NextResponse.json(result);
 }

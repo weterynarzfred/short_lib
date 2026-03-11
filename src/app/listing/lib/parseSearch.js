@@ -2,7 +2,7 @@ import parseComparable from "@/app/listing/lib/parseComparable";
 import parseImageRatio from "@/app/listing/lib/parseImageRatio";
 import tokenizeSearchString from "@/app/listing/lib/tokenizeSearchString";
 
-export default function parseSearch(searchString = "") {
+export default function parseSearch(searchString = "", options = {}) {
   const tokens = tokenizeSearchString(searchString);
 
   const includeTags = [];
@@ -157,6 +157,20 @@ export default function parseSearch(searchString = "") {
     }
 
     includeTags.push(token);
+  }
+
+  if (Array.isArray(options.defaultExcludedTags) && options.defaultExcludedTags.length) {
+    const includeSet = new Set(includeTags);
+    const excludeSet = new Set(excludeTags);
+
+    for (const tag of options.defaultExcludedTags) {
+      const name = String(tag ?? "").trim();
+      if (!name) continue;
+      if (includeSet.has(name) || excludeSet.has(name)) continue;
+
+      excludeTags.push(name);
+      excludeSet.add(name);
+    }
   }
 
   return { includeTags, excludeTags, filters };

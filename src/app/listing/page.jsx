@@ -1,11 +1,14 @@
 import Nav from "@/components/Nav";
 import { getPostsPage } from "./lib/getPosts";
 import MediaListing from "./components/MediaListing";
-import { getMediaSettings } from "@/lib/userSettings";
+import { getBlacklistedTags, getMediaSettings } from "@/lib/userSettings";
 
 export default async function ListingPage({ searchParams }) {
   const search = (await searchParams)?.search ?? "";
-  const { posts, hasMore, nextOffset } = getPostsPage(search);
+  const blacklistedTags = getBlacklistedTags();
+  const { posts, hasMore, nextOffset } = getPostsPage(search, {
+    defaultExcludedTags: blacklistedTags,
+  });
   const mediaSettings = getMediaSettings();
 
   return (
