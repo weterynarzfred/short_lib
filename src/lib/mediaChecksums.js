@@ -14,7 +14,7 @@ function uniqueChecksums(rawChecksums) {
 
 export function findExistingChecksums(rawChecksums) {
   const checksums = uniqueChecksums(rawChecksums);
-  if (!checksums.length) return [];
+  if (!checksums.length) return undefined;
 
   const placeholders = checksums.map(() => "?").join(",");
   const rows = db.prepare(`
@@ -24,5 +24,5 @@ export function findExistingChecksums(rawChecksums) {
   `).all(...checksums);
 
   return rows
-    .filter(row => typeof row.checksum === "string" && row.checksum.length > 0)?.[0];
+    .filter(row => typeof row.checksum === "string" && row.checksum.length > 0)[0];
 }
