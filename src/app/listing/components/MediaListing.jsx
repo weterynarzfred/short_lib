@@ -10,6 +10,14 @@ import useMediaListingPanelNavigation from "../lib/useMediaListingPanelNavigatio
 
 import styles from "./MediaListing.module.scss";
 
+// TODO: add an ability to select multiple posts by either using
+// ctrl/shift + click or toggling a "select multiple" checkbox. Selecting using
+// ctrl/shift + click automatically check the box.
+
+// TODO: when more than one post is selected, the side panel should have a bulk
+// tag edit textarea where typing "tag" adds "tag" to all selected posts and
+// "-tag" removes it from all posts.
+
 export default function MediaListing({
   posts,
   search,
