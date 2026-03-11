@@ -8,7 +8,7 @@ export default function tokenizeSearchString(searchString = "") {
 
     if (char === "\\") {
       const next = searchString[i + 1];
-      if (next === "\"" || next === "\\") {
+      if (next === "\"" || next === "\\" || next === "(" || next === ")") {
         current += next;
         i++;
         continue;
@@ -17,6 +17,15 @@ export default function tokenizeSearchString(searchString = "") {
 
     if (char === "\"") {
       inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (!inQuotes && (char === "(" || char === ")")) {
+      if (current) {
+        tokens.push(current);
+        current = "";
+      }
+      tokens.push(char);
       continue;
     }
 

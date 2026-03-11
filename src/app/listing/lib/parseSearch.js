@@ -2,11 +2,126 @@ import parseComparable from "@/app/listing/lib/parseComparable";
 import parseImageRatio from "@/app/listing/lib/parseImageRatio";
 import tokenizeSearchString from "@/app/listing/lib/tokenizeSearchString";
 
+function parseTagExpression(tokens = []) {
+  let index = 0;
+
+  const peek = () => tokens[index] ?? null;
+  const consume = () => tokens[index++] ?? null;
+  const isTermStart = token => token?.kind === "tag" || token?.kind === "lparen";
+
+  function parsePrimary() {
+    const token = peek();
+    if (!token) return null;
+
+    if (token.kind === "tag") {
+      consume();
+      return {
+        type: "TAG",
+        name: token.value,
+        negated: token.negated,
+      };
+    }
+
+    if (token.kind === "lparen") {
+      consume();
+      const inner = parseOr();
+      if (peek()?.kind === "rparen") consume();
+      return inner;
+    }
+
+    return null;
+  }
+
+  function parseAnd() {
+    let node = parsePrimary();
+    if (!node) return null;
+
+    while (true) {
+      const token = peek();
+
+      if (token?.kind === "and") {
+        consume();
+        const rhs = parsePrimary();
+        if (!rhs) continue;
+
+        node = {
+          type: "AND",
+          left: node,
+          right: rhs,
+        };
+        continue;
+      }
+
+      if (isTermStart(token)) {
+        const rhs = parsePrimary();
+        if (!rhs) break;
+
+        node = {
+          type: "AND",
+          left: node,
+          right: rhs,
+        };
+        continue;
+      }
+
+      break;
+    }
+
+    return node;
+  }
+
+  function parseOr() {
+    let node = parseAnd();
+    if (!node) return null;
+
+    while (peek()?.kind === "or") {
+      consume();
+      const rhs = parseAnd();
+      if (!rhs) continue;
+
+      node = {
+        type: "OR",
+        left: node,
+        right: rhs,
+      };
+    }
+
+    return node;
+  }
+
+  let expression = null;
+
+  while (index < tokens.length) {
+    if (peek()?.kind === "rparen") {
+      consume();
+      continue;
+    }
+
+    const node = parseOr();
+    if (!node) {
+      consume();
+      continue;
+    }
+
+    expression = expression
+      ? {
+        type: "AND",
+        left: expression,
+        right: node,
+      }
+      : node;
+  }
+
+  return expression;
+}
+
 export default function parseSearch(searchString = "", options = {}) {
   const tokens = tokenizeSearchString(searchString);
 
   const includeTags = [];
   const excludeTags = [];
+  const expressionTokens = [];
+  const mentionedTags = new Set();
 
   const ORDER_BY_BASE = {
     date: "m.created_at",
@@ -70,6 +185,21 @@ export default function parseSearch(searchString = "", options = {}) {
     const trimmed = rawValue.trim();
     if (!trimmed) return null;
     return trimmed.replace(/(^"|"$)/, "");
+  }
+
+  function addTagToken(rawValue, { negated = false } = {}) {
+    const value = String(rawValue ?? "").trim();
+    if (!value) return;
+
+    if (negated) excludeTags.push(value);
+    else includeTags.push(value);
+
+    mentionedTags.add(value);
+    expressionTokens.push({
+      kind: "tag",
+      value,
+      negated,
+    });
   }
 
   for (const token of tokens) {
@@ -151,27 +281,65 @@ export default function parseSearch(searchString = "", options = {}) {
       continue;
     }
 
-    if (token.startsWith("-")) {
-      excludeTags.push(token.slice(1));
+    if (token === "OR") {
+      expressionTokens.push({ kind: "or" });
       continue;
     }
 
-    includeTags.push(token);
+    if (token === "AND") {
+      expressionTokens.push({ kind: "and" });
+      continue;
+    }
+
+    if (token === "(") {
+      expressionTokens.push({ kind: "lparen" });
+      continue;
+    }
+
+    if (token === ")") {
+      expressionTokens.push({ kind: "rparen" });
+      continue;
+    }
+
+    if (token.startsWith("-")) {
+      addTagToken(token.slice(1), { negated: true });
+      continue;
+    }
+
+    addTagToken(token);
   }
 
-  if (Array.isArray(options.defaultExcludedTags) && options.defaultExcludedTags.length) {
-    const includeSet = new Set(includeTags);
-    const excludeSet = new Set(excludeTags);
+  let tagExpression = parseTagExpression(expressionTokens);
 
+  if (Array.isArray(options.defaultExcludedTags) && options.defaultExcludedTags.length) {
     for (const tag of options.defaultExcludedTags) {
       const name = String(tag ?? "").trim();
       if (!name) continue;
-      if (includeSet.has(name) || excludeSet.has(name)) continue;
+      if (mentionedTags.has(name)) continue;
 
       excludeTags.push(name);
-      excludeSet.add(name);
+      mentionedTags.add(name);
+
+      const defaultNode = {
+        type: "TAG",
+        name,
+        negated: true,
+      };
+
+      tagExpression = tagExpression
+        ? {
+          type: "AND",
+          left: tagExpression,
+          right: defaultNode,
+        }
+        : defaultNode;
     }
   }
 
-  return { includeTags, excludeTags, filters };
+  return {
+    includeTags,
+    excludeTags,
+    filters,
+    tagExpression,
+  };
 }

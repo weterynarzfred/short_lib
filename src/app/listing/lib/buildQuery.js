@@ -15,8 +15,41 @@ function clampInt(value, { min, max, fallback }) {
   return Math.min(Math.max(parsed, min), max);
 }
 
+function buildTagPredicate(node, params) {
+  if (!node) return null;
+
+  if (node.type === "TAG") {
+    params.push(node.name);
+
+    const existsClause = `
+      EXISTS (
+        SELECT 1
+        FROM media_tags mt
+        JOIN tags t ON t.id = mt.tag_id
+        WHERE mt.media_id = m.id
+          AND t.name = ?
+      )
+    `;
+
+    if (node.negated) return `NOT ${existsClause}`;
+    return existsClause;
+  }
+
+  if (node.type === "AND" || node.type === "OR") {
+    const left = buildTagPredicate(node.left, params);
+    const right = buildTagPredicate(node.right, params);
+
+    if (!left) return right;
+    if (!right) return left;
+
+    return `(${left} ${node.type} ${right})`;
+  }
+
+  return null;
+}
+
 export default function buildQuery(parsed, { limit, offset } = {}) {
-  const { includeTags, excludeTags, filters } = parsed;
+  const { filters, tagExpression } = parsed;
   const safeLimit = clampInt(limit ?? filters.limit, {
     min: 1,
     max: 500,
@@ -63,34 +96,8 @@ export default function buildQuery(parsed, { limit, offset } = {}) {
     FROM media m
   `;
 
-  let tagJoinIndex = 0;
-
-  for (const tag of includeTags) {
-    tagJoinIndex++;
-
-    sql += `
-      JOIN media_tags mt${tagJoinIndex}
-        ON mt${tagJoinIndex}.media_id = m.id
-      JOIN tags t${tagJoinIndex}
-        ON t${tagJoinIndex}.id = mt${tagJoinIndex}.tag_id
-       AND t${tagJoinIndex}.name = ?
-    `;
-
-    params.push(tag);
-  }
-
-  for (const tag of excludeTags) {
-    where.push(`
-      NOT EXISTS (
-        SELECT 1
-        FROM media_tags mt
-        JOIN tags t ON t.id = mt.tag_id
-        WHERE mt.media_id = m.id
-          AND t.name = ?
-      )
-    `);
-    params.push(tag);
-  }
+  const tagPredicate = buildTagPredicate(tagExpression, params);
+  if (tagPredicate) where.push(tagPredicate);
 
   if (filters.mimeTypes.length) {
     const placeholders = filters.mimeTypes.map(() => "?").join(", ");

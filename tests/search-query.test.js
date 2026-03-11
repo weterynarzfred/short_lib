@@ -3,6 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import buildQuery from "../src/app/listing/lib/buildQuery";
 import parseSearch from "../src/app/listing/lib/parseSearch";
 
+function simplifyTagExpression(node) {
+  if (!node) return null;
+
+  if (node.type === "TAG")
+    return node.negated ? { type: "TAG", name: node.name, negated: true } : node.name;
+
+  return [node.type, simplifyTagExpression(node.left), simplifyTagExpression(node.right)];
+}
+
 describe("search parser and query builder", () => {
   it("ignores extra whitespace and keeps include/exclude tags", () => {
     const parsed = parseSearch("   tag1   -tag2   tag3  ");
@@ -48,15 +57,38 @@ describe("search parser and query builder", () => {
     expect(parseSearch("limit:").filters.limit).toBe(100);
   });
 
-  it("builds SQL with include joins and exclude NOT EXISTS clauses", () => {
+  it("builds SQL with boolean tag predicates", () => {
     const { sql, params } = buildQuery(parseSearch("cat dog -bird -fish limit:25"));
 
     expect(params).toEqual(["cat", "dog", "bird", "fish"]);
-    expect(sql).toContain("JOIN media_tags mt1");
-    expect(sql).toContain("JOIN media_tags mt2");
-    expect(sql).toContain("NOT EXISTS");
+    expect(sql).toContain("EXISTS (");
+    expect(sql).toMatch(/NOT\s+EXISTS/);
     expect(sql).toContain("LIMIT 25");
     expect(sql).toContain("OFFSET 0");
+  });
+
+  it("supports OR with parentheses and implicit AND", () => {
+    const parsed = parseSearch("(raven OR owl) plague_doctor");
+    const { sql, params } = buildQuery(parsed);
+
+    expect(simplifyTagExpression(parsed.tagExpression)).toEqual([
+      "AND",
+      ["OR", "raven", "owl"],
+      "plague_doctor",
+    ]);
+    expect(sql).toContain(" OR ");
+    expect(sql).toContain(" AND ");
+    expect(params).toEqual(["raven", "owl", "plague_doctor"]);
+  });
+
+  it("keeps AND precedence higher than OR without parentheses", () => {
+    const parsed = parseSearch("raven OR owl plague_doctor");
+
+    expect(simplifyTagExpression(parsed.tagExpression)).toEqual([
+      "OR",
+      "raven",
+      ["AND", "owl", "plague_doctor"],
+    ]);
   });
 
   it("supports explicit limit/offset pagination overrides", () => {
