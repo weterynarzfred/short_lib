@@ -56,7 +56,7 @@ export default function parseSearch(searchString = "", options = {}) {
 
   const filters = {
     orderBy: ORDER_BY.date,
-    limit: 10,
+    limit: 100,
     mimeTypes: [],
     fileSize: null,
     age: null,
