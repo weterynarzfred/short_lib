@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import classNames from "classnames";
 import MediaPanelMeta from "./MediaPanelMeta";
 import MediaPreview from "../../../components/MediaPreview";
 import { updateMediaSettingsAction } from "@/lib/actions";
 
 import styles from "./MediaPanel.module.scss";
 
-// TODO: make fullscreen switch the media panel to take the whole screen, in
-// this case the media preview should take the entire screen with
-// object-fit: contain. Meta should still be there, accessible after scrolling
 const DEFAULT_TOGGLES = {
   autoplay: false,
   loop: false,
@@ -135,7 +133,11 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
   }, [clearImageSlideshowTimer, clearRetryAdvanceTimer]);
 
   return (
-    <div className={styles.MediaPanel}>
+    <div
+      className={classNames(styles.MediaPanel, {
+        [styles.MediaPanelFullscreen]: toggles.fullscreen,
+      })}
+    >
       <div className={styles.MediaPanel__controls}>
         <button
           className={styles.MediaPanel__burger}
@@ -202,6 +204,9 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
         mime_type={post.mime_type}
         mediaRef={mediaRef}
         settings={toggles}
+        className={classNames({
+          [styles.MediaPanel__previewFullscreen]: toggles.fullscreen,
+        })}
         onEnded={handleMediaEnded}
       />
 
@@ -210,6 +215,9 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
         prev={prev}
         next={next}
         isSlideshowOn={toggles.slideshow}
+        className={classNames({
+          [styles.MediaPanel__metaFullscreen]: toggles.fullscreen,
+        })}
       />
     </div>
   );

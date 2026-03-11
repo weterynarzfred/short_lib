@@ -10,37 +10,46 @@
   z-index: 22;
   padding: $spacingQuarter;
 
-  &__close,
-  &__burger {
+  &.MediaPanelFullscreen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    max-width: 100vw;
+    padding: 0;
+    overflow: auto;
+    z-index: 40;
+  }
+
+  &__controls {
     position: absolute;
-    top: $spacingHalf;
-    width: 1.5rem;
-    height: 1.5rem;
-    background-color: $colorBg;
-    border: 1px solid $colorBorder;
+    top: $spacingQuarter;
+    right: $spacingHalf;
+    display: flex;
+    gap: 0.5rem;
     opacity: 0;
     transition: 0.2s;
 
     @at-root body:hover & {
       opacity: 1;
     }
+  }
+
+  &__close,
+  &__burger {
+    width: 1.5rem;
+    height: 1.5rem;
+    background-color: $colorBg;
+    border: 1px solid $colorBorder;
 
     &:hover {
       background-color: $colorBg2;
     }
   }
 
-  &__close {
-    right: $spacingHalf;
-  }
-
-  &__burger {
-    right: calc($spacingHalf + 1.5rem + 0.5rem);
-  }
-
   &__menu {
     position: absolute;
-    top: calc($spacingHalf + 1.5rem + 0.5rem);
+    top: 2rem;
     right: $spacingHalf;
     display: flex;
     flex-direction: column;
@@ -75,5 +84,27 @@
         color: $colorBg;
       }
     }
+  }
+
+  &__previewFullscreen {
+    width: 100%;
+    height: 100vh;
+    min-height: 100vh;
+    border: none;
+    border-radius: 0;
+
+    img,
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  &__metaFullscreen {
+    padding: $spacingHalf;
+    max-width: 40rem;
+    align-self: center;
+    width: 100%;
   }
 }

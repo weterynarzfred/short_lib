@@ -11,7 +11,7 @@ import MediaPanelNotesEditor from "./MediaPanelNotesEditor";
 import styles from "./MediaPanelMeta.module.scss";
 
 // TODO: add an input for changing the original_filename value
-export default function MediaPanelMeta({ post, prev, next, isSlideshowOn = false }) {
+export default function MediaPanelMeta({ post, prev, next, className, isSlideshowOn = false }) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -31,7 +31,7 @@ export default function MediaPanelMeta({ post, prev, next, isSlideshowOn = false
     startTransition(() => { updatePostTagsAction(post.id, nextValue); });
   };
 
-  return <div className={styles.MediaPanelMeta}>
+  return <div className={classNames(className, styles.MediaPanelMeta)}>
     <div className={styles.navigation}>
       <button className={styles.MediaPanel__prev} onClick={prev}>←</button>
       <button
