@@ -11,8 +11,6 @@ import styles from "./MediaListing.module.scss";
 
 const SUPPORTED_MEDIA_TYPES = new Set(["image", "video", "audio"]);
 
-// TODO: if the active post changes its position when typing in the search
-// input, the input loses focus because MediaPreview steals it
 export default function MediaListing({
   posts,
   search,
@@ -104,7 +102,7 @@ export default function MediaListing({
 
   useEffect(() => {
     if (active && mediaRef.current) mediaRef.current.focus();
-  }, [active]);
+  }, [active?.id]);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
