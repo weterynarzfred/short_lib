@@ -4,8 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState, } from "react";
 import { useRouter } from "next/navigation";
 
 import TagSuggestions from "@/components/TagSuggestions";
-import useTagSuggestions from "@/components/useTagSuggestions";
-import useCombobox from "@/components/useCombobox";
+import useTagSuggestions from "@/lib/useTagSuggestions";
+import useCombobox from "@/lib/useCombobox";
 
 import styles from "./Search.module.scss";
 

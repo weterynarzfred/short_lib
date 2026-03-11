@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import chooseComboboxTag from "./chooseComboboxTag";
+import chooseComboboxTag from "../lib/chooseComboboxTag";
 
 export default function useCombobox({
   items,

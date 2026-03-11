@@ -2,7 +2,7 @@ import { useCallback, useState, useTransition } from "react";
 import classNames from "classnames";
 import MediaPanelMeta from "./MediaPanelMeta";
 import MediaPanelControls from "./MediaPanelControls";
-import useMediaPanelSlideshow from "./useMediaPanelSlideshow";
+import useMediaPanelSlideshow from "../lib/useMediaPanelSlideshow";
 import MediaPreview from "../../../components/MediaPreview";
 import { updateMediaSettingsAction } from "@/lib/actions";
 

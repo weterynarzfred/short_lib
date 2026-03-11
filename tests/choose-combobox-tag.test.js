@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import chooseComboboxTag from "../src/components/chooseComboboxTag";
+import chooseComboboxTag from "../src/lib/chooseComboboxTag";
 
 describe("chooseComboboxTag", () => {
   it("replaces current token and keeps a leading negation sign", () => {

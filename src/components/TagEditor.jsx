@@ -3,8 +3,8 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
 import TagSuggestions from "./TagSuggestions";
-import useTagSuggestions from "./useTagSuggestions";
-import useCombobox from "./useCombobox";
+import useTagSuggestions from "../lib/useTagSuggestions";
+import useCombobox from "@/lib/useCombobox";
 
 import styles from "./TagEditor.module.scss";
 
