@@ -58,6 +58,7 @@ describe("tags suggest route", () => {
     const body = await res.json();
 
     expect(body.tags.some(tag => tag.name === "order:image_ratio")).toBe(true);
+    expect(body.tags.some(tag => tag.name === "order:image_ratio_asc")).toBe(true);
     expect(all).not.toHaveBeenCalled();
   });
 

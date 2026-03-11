@@ -99,6 +99,8 @@ describe("search parser and query builder", () => {
   it("supports additional order modes", () => {
     expect(parseSearch("order:image_ratio").filters.orderBy).toContain("CAST(m.width AS REAL) / m.height");
     expect(parseSearch("order:tag_count").filters.orderBy).toBe("tag_count DESC");
+    expect(parseSearch("order:file_size_asc").filters.orderBy).toBe("m.file_size ASC");
+    expect(parseSearch("order:age_desc").filters.orderBy).toBe("m.created_at DESC");
   });
 });
 

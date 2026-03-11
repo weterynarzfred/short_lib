@@ -2,28 +2,32 @@ import parseComparable from "@/app/listing/lib/parseComparable";
 import parseImageRatio from "@/app/listing/lib/parseImageRatio";
 import tokenizeSearchString from "@/app/listing/lib/tokenizeSearchString";
 
-// TODO: add an option to reverse order, probably with operators like
-// order:file_size_asc
 export default function parseSearch(searchString = "") {
   const tokens = tokenizeSearchString(searchString);
 
   const includeTags = [];
   const excludeTags = [];
 
-  const ORDER_BY = {
-    age: "m.created_at DESC",
-    duration: "m.duration_ms DESC",
-    file_size: "m.file_size DESC",
-    pixelcount: "(COALESCE(m.width, 0) * COALESCE(m.height, 0)) DESC",
+  const ORDER_BY_BASE = {
+    date: "m.created_at",
+    duration: "m.duration_ms",
+    file_size: "m.file_size",
+    pixelcount: "(COALESCE(m.width, 0) * COALESCE(m.height, 0))",
     image_ratio: `
       CASE
         WHEN m.width IS NOT NULL AND m.height IS NOT NULL AND m.height > 0
           THEN CAST(m.width AS REAL) / m.height
         ELSE NULL
-      END DESC
+      END
     `,
-    tag_count: "tag_count DESC",
+    tag_count: "tag_count",
   };
+  const ORDER_BY = Object.fromEntries(
+    Object.entries(ORDER_BY_BASE).flatMap(([key, expression]) => ([
+      [key, `${expression} DESC`],
+      [`${key}_asc`, `${expression} ASC`],
+    ]))
+  );
 
   const FILE_SIZE_RE = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)(b|kb|mb|gb)?$/i;
   const AGE_RE = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)(s|m|h|d|w|y)?$/i;
@@ -51,7 +55,7 @@ export default function parseSearch(searchString = "") {
   };
 
   const filters = {
-    orderBy: ORDER_BY.age,
+    orderBy: ORDER_BY.date,
     limit: 100,
     mimeTypes: [],
     fileSize: null,

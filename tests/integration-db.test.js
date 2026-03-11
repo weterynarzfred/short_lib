@@ -230,6 +230,8 @@ describe("integration: addTags + getPosts", () => {
     expect(getPosts("order:pixelcount limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
     expect(getPosts("order:image_ratio limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
     expect(getPosts("order:tag_count limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
+    expect(getPosts("order:pixelcount_asc limit:3").map(p => p.checksum)).toEqual(["p3", "p2", "p1"]);
+    expect(getPosts("order:duration_asc limit:3").map(p => p.checksum)).toEqual(["p3", "p2", "p1"]);
   });
 
   it("filters posts by notes full-text search", async () => {
