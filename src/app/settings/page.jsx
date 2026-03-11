@@ -1,11 +1,13 @@
 import Nav from "@/components/Nav";
-import { getBlacklistedTags } from "@/lib/userSettings";
+import { getBlacklistedTags, getMediaSettings } from "@/lib/userSettings";
 import BlacklistedTagsSetting from "./components/BlacklistedTagsSetting";
+import MediaSettingsSetting from "./components/MediaSettingsSetting";
 
 import styles from "./page.module.scss";
 
 export default function SettingsPage() {
   const blacklistedTags = getBlacklistedTags();
+  const mediaSettings = getMediaSettings();
 
   return (
     <div className="page-settings">
@@ -25,6 +27,17 @@ export default function SettingsPage() {
 
           <BlacklistedTagsSetting
             initialValue={blacklistedTags.join(" ")}
+          />
+        </section>
+
+        <section className={styles.settingCard}>
+          <h2 className={styles.settingTitle}>media behavior</h2>
+          <p className={styles.settingDescription}>
+            default playback toggles used in the listing media panel.
+          </p>
+
+          <MediaSettingsSetting
+            initialSettings={mediaSettings}
           />
         </section>
       </main>

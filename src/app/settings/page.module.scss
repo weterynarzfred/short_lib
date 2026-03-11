@@ -1,10 +1,9 @@
 @use "/src/scss/variables" as *;
 
 .settingsIntro {
-  margin-top: -0.4rem;
-  margin-bottom: 0.8rem;
+  margin-top: -0.5rem;
+  margin-bottom: 3rem;
   color: $colorContent2;
-  font-size: 0.9rem;
 }
 
 .settingCard {
@@ -12,6 +11,10 @@
   border: 1px solid $colorBorder;
   border-radius: 0.5rem;
   padding: $spacingQuarter;
+
+  & + & {
+    margin-top: 0.8rem;
+  }
 }
 
 .settingTitle {
@@ -71,4 +74,39 @@
 .statusError {
   color: $colorWarning;
   font-size: 0.85rem;
+}
+
+.mediaSettingsEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mediaSettingsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mediaSettingItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.mediaSettingText {
+  display: flex;
+  flex-direction: column;
+  margin-top: -0.12rem;
+}
+
+.mediaSettingLabel {
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.mediaSettingDescription {
+  color: $colorContent2;
+  font-size: 0.8rem;
+  margin-top: -0.2rem;
 }

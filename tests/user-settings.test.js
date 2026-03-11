@@ -29,6 +29,7 @@ function mockDb(initial = {}) {
 
       throw new Error(`Unexpected SQL: ${sql}`);
     }),
+    transaction: vi.fn(fn => rows => fn(rows)),
   };
 
   return { db, store };
@@ -68,5 +69,37 @@ describe("userSettings blacklist", () => {
 
     const { getBlacklistedTags } = await import("../src/lib/userSettings");
     expect(getBlacklistedTags()).toEqual(["nsfw", "spoiler"]);
+  });
+});
+
+describe("userSettings media", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("returns default media settings when nothing is stored", async () => {
+    const { db } = mockDb();
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { getMediaSettings, MEDIA_SETTINGS_DEFAULTS } = await import("../src/lib/userSettings");
+    expect(getMediaSettings()).toEqual(MEDIA_SETTINGS_DEFAULTS);
+  });
+
+  it("stores only known media settings keys", async () => {
+    const { db, store } = mockDb();
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { setMediaSettings } = await import("../src/lib/userSettings");
+    const media = setMediaSettings({
+      autoplay: true,
+      loop: true,
+      somethingElse: true,
+    });
+
+    expect(media.autoplay).toBe(true);
+    expect(media.loop).toBe(true);
+    expect(store.get("media.autoplay")).toBe("1");
+    expect(store.get("media.loop")).toBe("1");
+    expect(store.has("media.somethingElse")).toBe(false);
   });
 });

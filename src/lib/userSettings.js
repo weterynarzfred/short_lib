@@ -1,8 +1,5 @@
 import db from "@/lib/db";
 
-// TODO: add media settings controls to /settings while keeping quick toggles in
-// the media panel
-
 export const MEDIA_SETTINGS_DEFAULTS = {
   autoplay: false,
   loop: false,
