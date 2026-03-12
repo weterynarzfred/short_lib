@@ -11,7 +11,6 @@
   background-color: $colorBg;
   color: $colorContent;
   border: 1px solid $colorBorder;
-  border-radius: 0.4rem;
 
   &:hover {
     background-color: $colorBg2;
@@ -40,7 +39,6 @@
   background-color: $colorBg;
   border: 1px solid $colorBorder;
   min-width: var(--radix-select-trigger-width);
-  border-radius: 0.4rem;
   overflow: hidden;
 }
 

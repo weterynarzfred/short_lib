@@ -37,14 +37,14 @@ export default function MediaListingContent({
             <div className={styles.button}>bulk edit</div>
           </label>
 
-          {selectedCount > 0 ? <div className={styles.selectionCount}>{selectedCount} selected</div> : null}
-          {selectedCount > 0 ? (
+          {selectedCount > 0 ? <>
+            <div className={styles.selectionCount}>{selectedCount} selected</div>
             <button
               type="button"
               className={styles.clearSelection}
               onClick={onClearSelection}
             >clear selection</button>
-          ) : null}
+          </> : null}
         </div>
       </div>
       <div className={styles.list}>

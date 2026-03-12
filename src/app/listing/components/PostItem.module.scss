@@ -59,8 +59,12 @@
 }
 
 .PostItemSelected {
-  box-shadow: 0 0 0 2px $colorContent;
+  box-shadow: 0 0 0 2px $colorContent2;
   background-color: $colorBg2;
+
+  &:hover {
+    box-shadow: 0 0 0 2px $colorContent2;
+  }
 }
 
 .selectIndicator {
@@ -73,7 +77,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid $colorBorder;
-  border-radius: 0.25rem;
+  border-radius: 0.3rem;
   background-color: $colorBg;
   font-size: 0.9rem;
   line-height: 1;

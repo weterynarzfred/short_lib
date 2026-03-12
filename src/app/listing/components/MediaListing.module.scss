@@ -31,8 +31,7 @@
       .button {
         padding: 0 $spacingQuarter;
         border: 1px solid $colorBorder;
-        border-radius: 0.3rem;
-        background-color: $colorBg2;
+        background-color: $colorBg;
         cursor: pointer;
 
         &:hover {
@@ -47,13 +46,15 @@
     }
 
     .selectionCount {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: $colorContent2;
     }
 
     .clearSelection {
-      padding: 0.2rem $spacingQuarter;
+      padding: 0 $spacingQuarter;
       border: 1px solid $colorBorder;
+      background-color: $colorBg;
+      cursor: pointer;
 
       &:hover {
         background-color: $colorBg2;
@@ -90,7 +91,7 @@
     }
 
     .loadMoreDone {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: $colorContent2;
       font-style: italic;
     }
