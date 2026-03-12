@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import addTags, { parseTagString, removeTags } from "@/lib/addTags";
 import db from "@/lib/db";
 import deletePost from "@/lib/deletePost";
+import clearDeletedStorage from "@/lib/clearDeletedStorage";
 import { deleteTagById, updateTagById } from "@/lib/manageTag";
 import { setBlacklistedTags, setMediaSettings } from "@/lib/userSettings";
 import { TAG_ORDER_SQL } from "@/app/listing/lib/buildQuery";
@@ -26,6 +27,12 @@ export async function deletePostsBulkAction(postIds) {
 
   for (const postId of ids) await deletePost(postId);
   revalidatePath("/listing");
+}
+
+export async function clearDeletedStorageAction() {
+  const result = clearDeletedStorage();
+  revalidatePath("/");
+  return result;
 }
 
 export async function updatePostTagsAction(postId, rawTagString) {

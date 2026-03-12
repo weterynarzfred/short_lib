@@ -7,6 +7,7 @@ const hoisted = vi.hoisted(() => ({
   parseTagString: vi.fn(),
   dbPrepare: vi.fn(),
   deletePost: vi.fn(),
+  clearDeletedStorage: vi.fn(),
   updateTagById: vi.fn(),
   deleteTagById: vi.fn(),
   setBlacklistedTags: vi.fn(),
@@ -33,6 +34,10 @@ vi.mock("@/lib/deletePost", () => ({
   default: hoisted.deletePost,
 }));
 
+vi.mock("@/lib/clearDeletedStorage", () => ({
+  default: hoisted.clearDeletedStorage,
+}));
+
 vi.mock("@/lib/manageTag", () => ({
   updateTagById: hoisted.updateTagById,
   deleteTagById: hoisted.deleteTagById,
@@ -54,6 +59,7 @@ describe("server actions", () => {
     hoisted.parseTagString.mockReset();
     hoisted.dbPrepare.mockReset();
     hoisted.deletePost.mockReset();
+    hoisted.clearDeletedStorage.mockReset();
     hoisted.updateTagById.mockReset();
     hoisted.deleteTagById.mockReset();
     hoisted.setBlacklistedTags.mockReset();
@@ -88,6 +94,20 @@ describe("server actions", () => {
     expect(hoisted.deletePost).toHaveBeenNthCalledWith(1, 1);
     expect(hoisted.deletePost).toHaveBeenNthCalledWith(2, 2);
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+  });
+
+  it("clearDeletedStorageAction clears deleted storage and revalidates home", async () => {
+    hoisted.clearDeletedStorage.mockReturnValue({
+      removedFiles: 4,
+      removedBytes: 8192,
+    });
+
+    const { clearDeletedStorageAction } = await import("../src/lib/actions");
+    const result = await clearDeletedStorageAction();
+
+    expect(result).toEqual({ removedFiles: 4, removedBytes: 8192 });
+    expect(hoisted.clearDeletedStorage).toHaveBeenCalledTimes(1);
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/");
   });
 
   it("addPostTagsBulkAction applies tags only to integer post ids", async () => {

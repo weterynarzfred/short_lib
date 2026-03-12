@@ -1,0 +1,61 @@
+@use "/src/scss/variables" as *;
+
+.title {
+  margin: 0 0 $spacingQuarter;
+  font-size: 1.6rem;
+}
+
+.panel {
+  margin-top: $spacingHalf;
+  border: 1px solid $colorBorder;
+  border-radius: 0.5rem;
+  padding: $spacingQuarter;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.panelDescription {
+  margin-top: 0.2rem;
+  color: $colorContent2;
+  font-size: 0.9rem;
+}
+
+.statGrid {
+  margin: $spacingHalf 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+
+  @media (max-width: $resPhone) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.statCard {
+  margin: 0;
+  border: 1px solid $colorBorder;
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.statLabel {
+  color: $colorContent2;
+  font-size: 0.8rem;
+  text-transform: lowercase;
+}
+
+.statValue {
+  margin: 0.1rem 0 0;
+  font-size: 1rem;
+}
+
+.warning {
+  margin-top: $spacingThird;
+  color: $colorWarning;
+  font-size: 0.8rem;
+}
