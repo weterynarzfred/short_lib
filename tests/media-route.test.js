@@ -11,6 +11,10 @@ const mimeHoisted = vi.hoisted(() => ({
   lookup: vi.fn(),
 }));
 
+const childProcessHoisted = vi.hoisted(() => ({
+  spawn: vi.fn(),
+}));
+
 vi.mock("fs", () => ({
   default: fsHoisted,
 }));
@@ -19,12 +23,32 @@ vi.mock("mime-types", () => ({
   default: mimeHoisted,
 }));
 
+vi.mock("child_process", () => ({
+  spawn: childProcessHoisted.spawn,
+}));
+
 function emptyStream() {
   return new ReadableStream({
     start(controller) {
       controller.close();
     },
   });
+}
+
+function emptyEmitter() {
+  return {
+    on: vi.fn(),
+  };
+}
+
+function ffmpegProcessMock() {
+  return {
+    stdout: emptyStream(),
+    stderr: emptyEmitter(),
+    on: vi.fn(),
+    kill: vi.fn(),
+    killed: false,
+  };
 }
 
 const CHECKSUM = "a".repeat(64);
@@ -37,6 +61,7 @@ describe("media route", () => {
     fsHoisted.statSync.mockReset();
     fsHoisted.createReadStream.mockReset();
     mimeHoisted.lookup.mockReset();
+    childProcessHoisted.spawn.mockReset();
 
     vi.stubEnv("STORAGE_DIR", "C:\\storage");
     fsHoisted.existsSync.mockReturnValue(true);
@@ -102,6 +127,65 @@ describe("media route", () => {
     expect(fsHoisted.createReadStream).toHaveBeenCalledWith(
       path.join("C:\\storage", "full", "2026", "03", `${CHECKSUM}.mp4`)
     );
+  });
+
+  it("remuxes mkv into mp4 on the fly", async () => {
+    childProcessHoisted.spawn.mockReturnValue(ffmpegProcessMock());
+
+    const { GET } = await import("../src/app/api/media/[year]/[month]/[file]/route");
+    const req = new Request("http://localhost/api/media/2026/03/file.mkv");
+
+    const res = await GET(req, {
+      params: Promise.resolve({
+        year: "2026",
+        month: "03",
+        file: `${CHECKSUM}.mkv`,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("video/mp4");
+    expect(res.headers.get("Accept-Ranges")).toBe("none");
+    expect(fsHoisted.createReadStream).not.toHaveBeenCalled();
+    expect(childProcessHoisted.spawn).toHaveBeenCalledWith("ffmpeg", [
+      "-v",
+      "error",
+      "-i",
+      path.join("C:\\storage", "full", "2026", "03", `${CHECKSUM}.mkv`),
+      "-map",
+      "0:v?",
+      "-map",
+      "0:a?",
+      "-c",
+      "copy",
+      "-movflags",
+      "+frag_keyframe+empty_moov",
+      "-f",
+      "mp4",
+      "pipe:1",
+    ]);
+  });
+
+  it("ignores byte ranges while remuxing mkv", async () => {
+    childProcessHoisted.spawn.mockReturnValue(ffmpegProcessMock());
+
+    const { GET } = await import("../src/app/api/media/[year]/[month]/[file]/route");
+    const req = new Request("http://localhost/api/media/2026/03/file.mkv", {
+      headers: { range: "bytes=0-9" },
+    });
+
+    const res = await GET(req, {
+      params: Promise.resolve({
+        year: "2026",
+        month: "03",
+        file: `${CHECKSUM}.mkv`,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Range")).toBeNull();
+    expect(res.headers.get("Accept-Ranges")).toBe("none");
+    expect(fsHoisted.createReadStream).not.toHaveBeenCalled();
   });
 
   it("serves thumbnail variants when size=thumb", async () => {

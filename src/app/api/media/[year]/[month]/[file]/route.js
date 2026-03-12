@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import mime from "mime-types";
+import { spawn } from "child_process";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
 const CHECKSUM_RE = /^[a-f0-9]{64}$/i;
@@ -49,7 +50,51 @@ function parseRange(rangeHeader, fileSize) {
   return { start, end };
 }
 
-// TODO: potentially remux mkv -> mp4 on the fly using ffmpeg pipe
+function remuxMkvToMp4(filePath, signal) {
+  const ffmpeg = spawn("ffmpeg", [
+    "-v",
+    "error",
+    "-i",
+    filePath,
+    "-map",
+    "0:v?",
+    "-map",
+    "0:a?",
+    "-c",
+    "copy",
+    "-movflags",
+    "+frag_keyframe+empty_moov",
+    "-f",
+    "mp4",
+    "pipe:1",
+  ]);
+
+  let stderr = "";
+  ffmpeg.stderr.on("data", chunk => {
+    stderr += chunk.toString();
+    if (stderr.length > 8192) stderr = stderr.slice(-8192);
+  });
+
+  ffmpeg.on("error", err => {
+    console.error("ffmpeg spawn failed while remuxing mkv:", err);
+  });
+
+  ffmpeg.on("close", code => {
+    if (code !== 0) {
+      const message = stderr.trim() || `ffmpeg exited with code ${code}`;
+      console.error("ffmpeg remux failed:", message);
+    }
+  });
+
+  if (signal) {
+    signal.addEventListener("abort", () => {
+      if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
+    }, { once: true });
+  }
+
+  return ffmpeg.stdout;
+}
+
 export async function GET(req, { params }) {
   const { year, month, file } = await params;
 
@@ -92,6 +137,17 @@ export async function GET(req, { params }) {
   const stat = fs.statSync(filePath);
   const fileSize = stat.size;
   const contentType = mime.lookup(filePath) || "application/octet-stream";
+  const isMkvInFullDir = baseDir === "full" && ext.toLowerCase() === ".mkv";
+
+  if (isMkvInFullDir) {
+    const stream = remuxMkvToMp4(filePath, req.signal);
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "video/mp4",
+        "Accept-Ranges": "none",
+      },
+    });
+  }
 
   const range = req.headers.get("range");
 
