@@ -41,8 +41,8 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
 
   return (
     <div
-      className={classNames(styles.MediaPanel, {
-        [styles.MediaPanelFullscreen]: toggles.fullscreen,
+      className={classNames(styles.mediaPanel, {
+        [styles.fullscreen]: toggles.fullscreen,
       })}
     >
       <MediaPanelControls
@@ -57,7 +57,7 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
         mediaRef={mediaRef}
         settings={toggles}
         className={classNames({
-          [styles.MediaPanel__previewFullscreen]: toggles.fullscreen,
+          [styles.previewFullscreen]: toggles.fullscreen,
         })}
         onEnded={handleMediaEnded}
       />
@@ -68,7 +68,7 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
         next={next}
         isSlideshowOn={toggles.slideshow}
         className={classNames({
-          [styles.MediaPanel__metaFullscreen]: toggles.fullscreen,
+          [styles.metaFullscreen]: toggles.fullscreen,
         })}
       />
     </div>

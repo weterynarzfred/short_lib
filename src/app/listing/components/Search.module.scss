@@ -1,18 +1,14 @@
 @use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
 
-.Search {
+.search {
   position: relative;
   max-width: 25rem;
   flex: 1 1 auto;
 
   input {
-    border: 1px solid $colorBorder;
-    padding: 0 0.4rem;
-    width: 100%;
+    @include inputBase();
 
-    &:focus {
-      background-color: $colorBg2;
-      outline: none;
-    }
+    width: 100%;
   }
 }

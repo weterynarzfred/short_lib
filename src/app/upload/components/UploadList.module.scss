@@ -1,4 +1,5 @@
 @use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
 
 .uploadList {
   display: grid;
@@ -8,15 +9,14 @@
 }
 
 .item {
+  @include panelShell();
+
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 0.5rem;
-  border: 1px solid $colorBorder;
-  border-radius: 0.5rem;
-  padding: $spacingQuarter;
 
-  .MediaPreview {
+  .preview {
     height: 30rem;
 
     img,
@@ -38,14 +38,13 @@
 
   .failureReason {
     margin-top: 0.5rem;
-    font-size: 0.8rem;
     word-break: break-word;
+
+    @include subtleText();
   }
 
   .progressWrapper {
-    display: flex;
-    align-items: center;
-    gap: $spacingQuarter;
+    @include actionRow($spacingQuarter, false);
 
     .progressDone,
     .progressFailed {
@@ -68,7 +67,7 @@
       max-width: 100%;
       height: 0.4rem;
       box-shadow: 0 0 0 1px $colorBorder;
-      border-radius: 0.3rem;
+      border-radius: $radiusSm;
       overflow: hidden;
       margin-bottom: 0.3rem;
     }
@@ -78,65 +77,52 @@
       background-color: $colorContent;
     }
   }
+}
 
-  &.itemDone {
-    .fileName {
-      color: $colorSuccess;
-    }
-
-    .progressBar {
-      background-color: $colorSuccess;
-    }
+.itemDone {
+  .fileName {
+    color: $colorSuccess;
   }
 
-  &.itemFailed {
-    .fileName {
-      color: $colorWarning;
-    }
+  .progressWrapper .progressBar {
+    background-color: $colorSuccess;
+  }
+}
 
-    .progressBar {
-      background-color: $colorWarning;
-    }
+.itemFailed {
+  .fileName {
+    color: $colorWarning;
   }
 
-  .itemTagPanel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    width: 100%;
+  .progressWrapper .progressBar {
+    background-color: $colorWarning;
   }
+}
 
-  .tagInput {
-    display: block;
-    width: 100%;
-    resize: vertical;
-    min-height: 10rem;
-    height: 10rem;
-    padding: 0.2rem 0.5rem;
-    font-family: monospace;
-    border: 1px solid $colorBorder;
+.itemTagPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
 
-    &:focus {
-      outline: none;
-    }
-  }
+.tagInput {
+  @include textareaBase();
+}
 
-  .tagActions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
+.tagActions {
+  @include actionRow();
+}
 
-  .tagButton {
-    cursor: pointer;
-    border: 1px solid $colorBorder;
-    background: transparent;
-    color: inherit;
-    padding: 0.15rem 0.45rem;
-  }
+.tagButton {
+  @include buttonBase(
+    $padding: 0.15rem 0.45rem,
+    $borderColor: $colorBorder,
+    $background: transparent,
+    $color: inherit,
+  );
+}
 
-  .tagNote {
-    font-size: 0.8rem;
-    color: $colorContent2;
-  }
+.tagNote {
+  @include subtleText();
 }

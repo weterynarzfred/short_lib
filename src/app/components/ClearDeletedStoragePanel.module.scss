@@ -1,10 +1,10 @@
 @use "@/scss/variables" as *;
+@use "@/scss/mixins" as *;
 
 .panel {
   margin-top: $spacing;
-  border: 1px solid $colorBorder;
-  background: $colorBg2;
-  padding: $spacingHalf;
+
+  @include panelShell($padding: $spacingHalf, $background: $colorBg2);
 }
 
 .heading {
@@ -14,24 +14,16 @@
 
 .help {
   margin: 0 0 $spacingHalf;
-  color: $colorContent2;
-  font-size: 0.95rem;
+
+  @include subtleText(0.95rem);
 }
 
 .button {
-  border: 1px solid $colorBorder2;
-  background: $colorBg;
-  color: $colorContent;
-  padding: 0.5rem 0.75rem;
-}
-
-.button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  @include buttonBase($padding: 0.5rem 0.75rem, $borderColor: $colorBorder2);
 }
 
 .status {
   margin-top: $spacingThird;
-  color: $colorContent2;
-  font-size: 0.92rem;
+
+  @include subtleText(0.92rem);
 }

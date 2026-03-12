@@ -52,7 +52,7 @@ export default function Search({ initialValue = "" }) {
   return (
     <div
       ref={combobox.rootRef}
-      className={styles.Search}
+      className={styles.search}
     >
       <input
         ref={inputRef}

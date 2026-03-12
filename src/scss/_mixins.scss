@@ -1,0 +1,98 @@
+@use "variables" as *;
+
+@mixin panelShell(
+  $padding: $spacingQuarter,
+  $radius: $radiusMd,
+  $background: transparent,
+  $borderColor: $colorBorder
+) {
+  border: 1px solid $borderColor;
+  border-radius: $radius;
+  padding: $padding;
+  background: $background;
+}
+
+@mixin focusSurface($background: $colorBg2) {
+  &:focus {
+    outline: none;
+
+    @if $background != null {
+      background-color: $background;
+    }
+  }
+}
+
+@mixin inputBase($padding: 0 $controlPaddingX) {
+  border: 1px solid $colorBorder;
+  padding: $padding;
+  min-width: 0;
+
+  @include focusSurface();
+}
+
+@mixin textareaBase($minHeight: 10rem, $padding: 0.2rem 0.5rem) {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: $minHeight;
+  height: $minHeight;
+  padding: $padding;
+  font-family: $fontMono;
+  font-size: $fontSizeMonoInput;
+  border: 1px solid $colorBorder;
+
+  @include focusSurface();
+}
+
+@mixin actionRow($gap: 0.5rem, $wrap: true) {
+  display: flex;
+  align-items: center;
+  gap: $gap;
+
+  @if $wrap {
+    flex-wrap: wrap;
+  }
+}
+
+@mixin buttonBase(
+  $padding: 0.2rem $spacingQuarter,
+  $borderColor: $colorBorder,
+  $background: $colorBg,
+  $color: $colorContent,
+  $hoverBackground: $colorBg2,
+  $disabledOpacity: 0.6
+) {
+  padding: $padding;
+  border: 1px solid $borderColor;
+  background: $background;
+  color: $color;
+  transition: background-color $controlTransition;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $hoverBackground;
+  }
+
+  &:disabled {
+    opacity: $disabledOpacity;
+    cursor: not-allowed;
+  }
+}
+
+@mixin buttonDanger(
+  $borderColor: $colorWarning,
+  $color: $colorWarning,
+  $hoverBackground: $colorWarningBg
+) {
+  border-color: $borderColor;
+  color: $color;
+
+  &:hover {
+    background-color: $hoverBackground;
+  }
+}
+
+@mixin subtleText($fontSize: 0.8rem, $color: $colorContent2) {
+  color: $color;
+  font-size: $fontSize;
+}

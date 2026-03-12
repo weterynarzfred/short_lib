@@ -1,7 +1,7 @@
 import { useState } from "react";
+import classNames from "classnames";
 
 import styles from "./MediaPanel.module.scss";
-import classNames from "classnames";
 
 const TOGGLE_OPTIONS = [
   { key: "autoplay", label: "autoplay" },
@@ -14,32 +14,38 @@ export default function MediaPanelControls({ toggles, onToggle, onClose }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className={styles.MediaPanel__controls}>
+    <div className={styles.controls}>
       <button
         type="button"
-        className={classNames(styles.MediaPanel__fullscreen, {
-          [styles.active]: Boolean(toggles['fullscreen'])
+        className={classNames(styles.fullscreenToggle, {
+          [styles.buttonActive]: Boolean(toggles.fullscreen),
         })}
         aria-label="Toggle fullscreen"
-        onClick={() => onToggle('fullscreen')}
-      >fullscreen</button>
+        onClick={() => onToggle("fullscreen")}
+      >
+        fullscreen
+      </button>
 
       <button
         type="button"
-        className={styles.MediaPanel__burger}
+        className={styles.menuToggle}
         aria-label="Toggle media panel menu"
         onClick={() => setMenuOpen(value => !value)}
-      >☰</button>
+      >
+        {"\u2630"}
+      </button>
 
       <button
         type="button"
-        className={styles.MediaPanel__close}
+        className={styles.closeButton}
         aria-label="Close media panel"
         onClick={onClose}
-      >×</button>
+      >
+        {"\u00d7"}
+      </button>
 
       {menuOpen && (
-        <div className={styles.MediaPanel__menu}>
+        <div className={styles.menu}>
           {TOGGLE_OPTIONS.map(({ key, label }) => (
             <label key={key}>
               <input
@@ -47,7 +53,7 @@ export default function MediaPanelControls({ toggles, onToggle, onClose }) {
                 checked={Boolean(toggles[key])}
                 onChange={() => onToggle(key)}
               />
-              <div className={styles.button}>{label}</div>
+              <div className={styles.toggleButton}>{label}</div>
             </label>
           ))}
         </div>

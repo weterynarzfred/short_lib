@@ -43,6 +43,18 @@ $colorBorder2: #555;
 
 $colorLink: #aaa;
 
+$fontSans: "Lato", sans-serif;
+$fontMono: "Fira Code", monospace;
+$fontSizeMonoInput: 0.8rem;
+
+$radiusSm: 0.3rem;
+$radiusMd: 0.5rem;
+
+$controlHeight: 1.625rem;
+$controlPaddingX: 0.4rem;
+$controlPaddingY: 0.2rem;
+$controlTransition: 0.2s;
+
 @mixin fontDefault() {
-  font-family: "Lato", sans-serif;
+  font-family: $fontSans;
 }

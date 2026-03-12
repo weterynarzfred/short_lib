@@ -61,7 +61,7 @@ export default function MediaPanelBulkTagEditor({ postIds, className, onDeleteAl
   }
 
   return (
-    <div className={classNames(className, styles.MediaPanelBulkTagEditor)}>
+    <div className={classNames(className, styles.bulkTagEditor)}>
       <h2>bulk tag edit</h2>
       <div className={styles.subtitle}>{count} selected</div>
 

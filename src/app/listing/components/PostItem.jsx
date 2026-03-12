@@ -10,9 +10,9 @@ export default function PostItem({
   onInteractPost,
 }) {
   return <div
-    className={classNames(styles.PostItem, {
-      [styles.PostItemSelected]: isSelected,
-      [styles.PostItemSelectionMode]: isMultiSelectEnabled,
+    className={classNames(styles.card, {
+      [styles.selected]: isSelected,
+      [styles.selectionMode]: isMultiSelectEnabled,
     })}
     onClick={event => onInteractPost(post.id, event)}
   >

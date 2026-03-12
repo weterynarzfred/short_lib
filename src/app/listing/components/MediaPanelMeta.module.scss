@@ -1,6 +1,7 @@
 @use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
 
-.MediaPanelMeta {
+.mediaPanelMeta {
   display: flex;
   flex-direction: column;
   gap: $spacingQuarter;
@@ -11,20 +12,14 @@
   justify-content: space-between;
   width: 100%;
 
-  .MediaPanel__prev,
-  .MediaPanel__next {
+  .navButton {
     width: 1.5rem;
     height: 1.5rem;
-    background-color: $colorBg;
-    border: 1px solid $colorBorder;
-    transition: 0.2s;
 
-    &:hover {
-      background-color: $colorBg2;
-    }
+    @include buttonBase($padding: 0, $borderColor: $colorBorder);
   }
 
-  @keyframes slideshow-active {
+  @keyframes slideshowActive {
     0% {
       transform: rotate(-10deg);
     }
@@ -35,114 +30,85 @@
       transform: rotate(-10deg);
     }
   }
-  .MediaPanel__nextSlideshow {
-    animation: infinite 1s slideshow-active;
+
+  .navButtonSlideshow {
+    animation: infinite 1s slideshowActive;
   }
 }
 
 .edit {
   display: flex;
   flex-direction: column;
-  flex-wrap: wrap;
   gap: 0.5rem;
+}
 
-  .tagList {
-    display: block;
-    width: 100%;
-    resize: vertical;
-    min-height: 10rem;
-    height: 10rem;
-    padding: 0.2rem 0.5rem;
-    font-family: monospace;
-    border: 1px solid $colorBorder;
+.tagList {
+  @include textareaBase();
 
-    &.tagListDirty {
-      border-color: $colorBorder2;
-    }
-
-    &:focus {
-      outline: none;
-    }
+  &.tagListDirty {
+    border-color: $colorBorder2;
   }
+}
 
-  .buttonList {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+.buttonList {
+  @include actionRow();
 
-    .saveNote {
-      margin-left: auto;
-      font-size: 0.8rem;
-      font-style: italic;
-      color: $colorContent2;
-    }
+  .saveNote {
+    margin-left: auto;
+    font-style: italic;
+
+    @include subtleText();
   }
 }
 
 .filename {
   display: flex;
   flex-direction: column;
-  flex-wrap: wrap;
   gap: 0.5rem;
+}
 
-  .filenameLabel {
-    font-size: 0.8rem;
-    color: $colorContent2;
-  }
+.filenameLabel {
+  @include subtleText();
+}
 
-  .filenameInput {
-    width: 100%;
-    padding: 0.2rem 0.5rem;
-    font-family: monospace;
-    border: 1px solid $colorBorder;
+.filenameInput {
+  @include inputBase(0.2rem 0.5rem);
 
-    &.filenameInputDirty {
-      border-color: $colorBorder2;
-    }
+  width: 100%;
+  font-family: $fontMono;
+  font-size: $fontSizeMonoInput;
 
-    &:focus {
-      outline: none;
-    }
-  }
-
-  .filenameButtonList {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  &.filenameInputDirty {
+    border-color: $colorBorder2;
   }
 }
 
-.button {
-  padding: 0.2rem $spacingQuarter;
-  border: 1px solid $colorBorder;
+.filenameButtonList {
+  @include actionRow();
+}
 
-  &:hover {
+.button {
+  @include buttonBase($disabledOpacity: 0.5);
+
+  &:disabled {
     background-color: $colorBg2;
   }
+}
 
-  &[disabled] {
-    opacity: 0.5;
+.deleteButton {
+  @include buttonBase($disabledOpacity: 0.5);
+  @include buttonDanger();
+
+  &:disabled {
     background-color: $colorBg2;
-    cursor: not-allowed;
   }
 }
 
 .actions {
-  display: flex;
-  gap: $spacingQuarter;
+  @include actionRow($spacingQuarter, false);
 
-  .button {
-    width: 100%;
-  }
-
+  .button,
   .deleteButton {
-    padding: 0.2rem $spacingQuarter;
-    color: $colorWarning;
-    border: 1px solid $colorWarning;
     width: 100%;
-
-    &:hover {
-      background-color: $colorWarningBg;
-    }
   }
 }

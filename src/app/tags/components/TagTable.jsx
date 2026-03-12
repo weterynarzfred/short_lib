@@ -25,7 +25,7 @@ export default function TagTable({ tags, order }) {
 
   return <>
     {editor.error && <p className={styles.error}>{editor.error}</p>}
-    <table className={styles.TagTable}>
+    <table className={styles.table}>
       <TagTableHeader order={order} createSortHref={createSortHref} />
       <tbody>
         {tags.map(tag => (

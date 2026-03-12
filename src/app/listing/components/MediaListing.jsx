@@ -156,7 +156,7 @@ export default function MediaListing({
   }, [visiblePostIds]);
 
   return (
-    <div className={styles.MediaListing}>
+    <div className={styles.mediaListing}>
       <MediaListingContent
         contentRef={contentRef}
         sentinelRef={sentinelRef}

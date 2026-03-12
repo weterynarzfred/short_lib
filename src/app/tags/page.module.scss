@@ -1,20 +1,12 @@
 @use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
 
 .filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
+  @include actionRow();
 }
 
 .nameInput {
-  border: 1px solid $colorBorder;
-  padding: 0 0.4rem;
-
-  &:focus {
-    background-color: $colorBg2;
-    outline: none;
-  }
+  @include inputBase();
 }
 
 .typeSelect {
@@ -23,5 +15,6 @@
 
 .stats {
   margin-top: $spacingQuarter;
-  font-size: 0.8rem;
+
+  @include subtleText();
 }

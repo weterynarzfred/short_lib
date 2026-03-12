@@ -46,7 +46,7 @@ export default function TagEditor({
   const combinedInputProps = { ...combobox.getInputProps(), ...inputProps };
 
   return (
-    <div ref={combobox.rootRef} className={styles.TagEditor}>
+    <div ref={combobox.rootRef} className={styles.tagEditor}>
       <textarea
         ref={inputRef}
         value={value}

@@ -1,6 +1,7 @@
 @use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
 
-.TagTable {
+.table {
   margin: $spacingHalf 0;
   border-collapse: collapse;
 
@@ -32,52 +33,33 @@
 }
 
 .textInput {
-  width: 100%;
-  border: 1px solid $colorBorder;
-  padding: 0 0.3rem;
-  margin: 0 -0.3rem;
+  @include inputBase(0 0.3rem);
 
-  &:focus {
-    background-color: $colorBg2;
-    outline: none;
-  }
+  width: 100%;
+  margin: 0 -0.3rem;
+  font-size: $fontSizeMonoInput;
 }
 
 .actions {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
+  @include actionRow(0.35rem);
+
   width: max-content;
 }
 
 .button,
 .deleteButton {
-  border: 1px solid $colorBorder2;
-  background: $colorBg;
-  color: $colorContent;
+  @include buttonBase(
+    $padding: 0.2rem 0.45rem,
+    $borderColor: $colorBorder2,
+  );
+
   font-family: inherit;
   font-size: inherit;
   line-height: 1.2;
-  padding: 0.2rem 0.45rem;
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  &:hover {
-    background: $colorBg2;
-  }
 }
 
 .deleteButton {
-  border-color: $colorWarning;
-  color: $colorWarning;
-
-  &:hover {
-    background: $colorWarningBg;
-  }
+  @include buttonDanger();
 }
 
 .error {

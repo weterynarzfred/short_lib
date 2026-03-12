@@ -1,12 +1,12 @@
 @use "/src/scss/variables" as *;
 
-.PostItem {
+.card {
   position: relative;
   padding: 0.5rem;
   box-shadow: 0 0 0 1px $colorBorder;
-  border-radius: 0.5rem;
+  border-radius: $radiusMd;
   cursor: pointer;
-  transition: 0.2s;
+  transition: box-shadow $controlTransition, background-color $controlTransition;
 
   &:hover {
     box-shadow: 0 0 0 1px $colorBorder2;
@@ -23,7 +23,7 @@
       display: block;
       width: 100%;
       max-height: 100%;
-      border-radius: 0.5rem;
+      border-radius: $radiusMd;
       object-fit: contain;
     }
   }
@@ -35,30 +35,15 @@
     overflow: hidden;
     white-space: nowrap;
   }
-
-  .postDelete {
-    position: absolute;
-    top: 0.3rem;
-    right: 0.3rem;
-    width: 1rem;
-    height: 1rem;
-    color: #f31;
-    opacity: 0;
-    transition: 0.2s;
-  }
-
-  &:hover .postDelete {
-    opacity: 1;
-  }
 }
 
-.PostItemSelectionMode {
+.selectionMode {
   .imageContainer {
     opacity: 0.95;
   }
 }
 
-.PostItemSelected {
+.selected {
   box-shadow: 0 0 0 2px $colorContent2;
   background-color: $colorBg2;
 
@@ -77,7 +62,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid $colorBorder;
-  border-radius: 0.3rem;
+  border-radius: $radiusSm;
   background-color: $colorBg;
   font-size: 0.9rem;
   line-height: 1;

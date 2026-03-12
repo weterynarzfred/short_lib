@@ -1,8 +1,8 @@
 @use "/src/scss/variables" as *;
 
-.MediaPreview {
+.mediaPreview {
   border: 1px solid $colorBorder;
-  border-radius: 0.5rem;
+  border-radius: $radiusMd;
   overflow: hidden;
   flex: 0 0 auto;
 

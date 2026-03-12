@@ -3,7 +3,7 @@ import classNames from "classnames";
 import styles from "./MediaPreview.module.scss";
 
 export default function MediaPreview({ src, mime_type, mediaRef, settings, className, onEnded }) {
-  return <div className={classNames(styles.MediaPreview, className)}>
+  return <div className={classNames(styles.mediaPreview, className)}>
     {mime_type.startsWith("image") && (
       <img
         src={`/api/media/${src}`}

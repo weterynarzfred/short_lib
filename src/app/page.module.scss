@@ -1,4 +1,5 @@
 @use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
 
 .title {
   margin: 0 0 $spacingQuarter;
@@ -7,13 +8,13 @@
 
 .panel {
   margin-top: $spacingHalf;
-  border: 1px solid $colorBorder;
-  border-radius: 0.5rem;
-  padding: $spacingQuarter;
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.02),
-    rgba(255, 255, 255, 0)
+
+  @include panelShell(
+    $background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.02),
+      rgba(255, 255, 255, 0)
+    ),
   );
 }
 
@@ -24,8 +25,8 @@
 
 .panelDescription {
   margin-top: 0.2rem;
-  color: $colorContent2;
-  font-size: 0.9rem;
+
+  @include subtleText(0.9rem);
 }
 
 .statGrid {
@@ -41,16 +42,18 @@
 
 .statCard {
   margin: 0;
-  border: 1px solid $colorBorder;
-  border-radius: 0.3rem;
-  padding: 0.5rem 0.6rem;
-  background: rgba(0, 0, 0, 0.12);
+
+  @include panelShell(
+    $padding: 0.5rem 0.6rem,
+    $radius: $radiusSm,
+    $background: rgba(0, 0, 0, 0.12),
+  );
 }
 
 .statLabel {
-  color: $colorContent2;
-  font-size: 0.8rem;
   text-transform: lowercase;
+
+  @include subtleText();
 }
 
 .statValue {
@@ -60,6 +63,8 @@
 
 .warning {
   margin-top: $spacingThird;
+
+  @include subtleText();
+
   color: $colorWarning;
-  font-size: 0.8rem;
 }

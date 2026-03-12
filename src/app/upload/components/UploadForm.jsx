@@ -76,7 +76,7 @@ export default function UploadForm() {
   }
 
   return (
-    <div className={styles.UploadForm}>
+    <div className={styles.uploadForm}>
       <div className={`content ${styles.content}`}>
         <div
           className={classNames(

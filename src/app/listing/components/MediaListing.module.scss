@@ -1,6 +1,7 @@
 @use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
 
-.MediaListing {
+.mediaListing {
   display: flex;
 
   .content {
@@ -10,17 +11,11 @@
     padding-bottom: $spacingHalf;
 
     .searchTools {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      align-items: center;
+      @include actionRow();
     }
 
     .multiSelectTools {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+      @include actionRow();
     }
 
     .multiSelectToggle {
@@ -28,37 +23,22 @@
         display: none;
       }
 
-      .button {
-        padding: 0 $spacingQuarter;
-        border: 1px solid $colorBorder;
-        background-color: $colorBg;
-        cursor: pointer;
-
-        &:hover {
-          background-color: $colorBg2;
-        }
+      .toggleButton {
+        @include buttonBase($padding: 0 $spacingQuarter, $borderColor: $colorBorder);
       }
 
-      input[type="checkbox"]:checked + .button {
+      input[type="checkbox"]:checked + .toggleButton {
         background-color: $colorContent;
         color: $colorBg;
       }
     }
 
     .selectionCount {
-      font-size: 0.8rem;
-      color: $colorContent2;
+      @include subtleText();
     }
 
     .clearSelection {
-      padding: 0 $spacingQuarter;
-      border: 1px solid $colorBorder;
-      background-color: $colorBg;
-      cursor: pointer;
-
-      &:hover {
-        background-color: $colorBg2;
-      }
+      @include buttonBase($padding: 0 $spacingQuarter, $borderColor: $colorBorder);
     }
 
     .list {
@@ -77,23 +57,13 @@
     }
 
     .loadMoreButton {
-      padding: 0.2rem $spacingQuarter;
-      border: 1px solid $colorBorder;
-
-      &:hover {
-        background-color: $colorBg2;
-      }
-
-      &[disabled] {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
+      @include buttonBase($padding: 0.2rem $spacingQuarter, $borderColor: $colorBorder);
     }
 
     .loadMoreDone {
-      font-size: 0.8rem;
-      color: $colorContent2;
       font-style: italic;
+
+      @include subtleText();
     }
 
     .loadMoreSentinel {

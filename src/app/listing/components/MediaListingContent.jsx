@@ -34,7 +34,7 @@ export default function MediaListingContent({
               checked={isMultiSelectEnabled}
               onChange={event => onMultiSelectChange(event.target.checked)}
             />
-            <div className={styles.button}>bulk edit</div>
+            <div className={styles.toggleButton}>bulk edit</div>
           </label>
 
           {selectedCount > 0 ? <>

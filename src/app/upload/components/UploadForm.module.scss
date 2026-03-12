@@ -1,6 +1,6 @@
 @use "/src/scss/variables" as *;
 
-.UploadForm {
+.uploadForm {
   .content {
     padding-bottom: 0;
   }
@@ -14,9 +14,9 @@
     font-style: italic;
     padding: $spacing;
     border: 2px dashed $colorBorder;
-    border-radius: $spacingQuarter;
+    border-radius: $radiusMd;
     cursor: pointer;
-    transition: 0.2s;
+    transition: background-color $controlTransition;
 
     &.dropzoneDragging {
       background-color: $colorBg2;

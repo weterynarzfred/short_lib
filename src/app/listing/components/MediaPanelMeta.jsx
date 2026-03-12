@@ -11,7 +11,13 @@ import MediaPanelNotesEditor from "./MediaPanelNotesEditor";
 
 import styles from "./MediaPanelMeta.module.scss";
 
-export default function MediaPanelMeta({ post, prev, next, className, isSlideshowOn = false }) {
+export default function MediaPanelMeta({
+  post,
+  prev,
+  next,
+  className,
+  isSlideshowOn = false,
+}) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");
   const [filenameValue, setFilenameValue] = useState("");
@@ -19,16 +25,20 @@ export default function MediaPanelMeta({ post, prev, next, className, isSlidesho
   const [isSavingFilename, startFilenameTransition] = useTransition();
 
   const originalTags = useMemo(
-    () => post.tags.map(t => t.name).join(" ").trim(),
-    [post.tags]
+    () => post.tags.map(tag => tag.name).join(" ").trim(),
+    [post.tags],
   );
   const originalFilename = useMemo(
     () => typeof post.original_filename === "string" ? post.original_filename : "",
-    [post.original_filename]
+    [post.original_filename],
   );
 
-  useEffect(() => { setTagsValue(originalTags); }, [originalTags]);
-  useEffect(() => { setFilenameValue(originalFilename); }, [originalFilename]);
+  useEffect(() => {
+    setTagsValue(originalTags);
+  }, [originalTags]);
+  useEffect(() => {
+    setFilenameValue(originalFilename);
+  }, [originalFilename]);
 
   const isTagsDirty = tagsValue.trim() !== originalTags;
   const isFilenameDirty = filenameValue !== originalFilename;
@@ -37,7 +47,9 @@ export default function MediaPanelMeta({ post, prev, next, className, isSlidesho
     if (!isTagsDirty) return;
 
     const nextValue = tagsValue.trim();
-    startTagsTransition(() => { updatePostTagsAction(post.id, nextValue); });
+    startTagsTransition(() => {
+      updatePostTagsAction(post.id, nextValue);
+    });
   };
 
   const saveFilename = () => {
@@ -48,125 +60,150 @@ export default function MediaPanelMeta({ post, prev, next, className, isSlidesho
     });
   };
 
-  // TODO: move the "slideshow" toggle from the controls menu to between the
-  // prev and next arrows
-  return <div className={classNames(className, styles.MediaPanelMeta)}>
-    <div className={styles.navigation}>
-      <button className={styles.MediaPanel__prev} onClick={prev}>←</button>
-      <button
-        className={classNames(styles.MediaPanel__next, {
-          [styles.MediaPanel__nextSlideshow]: isSlideshowOn,
-        })}
-        onClick={next}
-      >→</button>
-    </div>
+  return (
+    <div className={classNames(className, styles.mediaPanelMeta)}>
+      <div className={styles.navigation}>
+        <button type="button" className={styles.navButton} onClick={prev}>
+          {"\u2190"}
+        </button>
+        <button
+          type="button"
+          className={classNames(styles.navButton, {
+            [styles.navButtonSlideshow]: isSlideshowOn,
+          })}
+          onClick={next}
+        >
+          {"\u2192"}
+        </button>
+      </div>
 
-    <div className={styles.edit}>
-      <TagEditor
+      <div className={styles.edit}>
+        <TagEditor
+          postId={post.id}
+          value={tagsValue}
+          setValue={setTagsValue}
+          saveTags={saveTags}
+          inputProps={{
+            className: classNames(styles.tagList, {
+              [styles.tagListDirty]: isTagsDirty,
+            }),
+            placeholder: "tags",
+          }}
+        />
+
+        <div className={styles.buttonList}>
+          <button
+            className={styles.button}
+            type="button"
+            onClick={saveTags}
+            disabled={!isTagsDirty || isSavingTags}
+          >
+            {isSavingTags ? "saving..." : "save tags"}
+          </button>
+
+          <button
+            className={styles.button}
+            type="button"
+            onClick={() => setTagsValue(originalTags)}
+            disabled={!isTagsDirty || isSavingTags}
+          >
+            reset
+          </button>
+
+          <div className={styles.saveNote}>ctrl + enter to save</div>
+        </div>
+      </div>
+
+      <MediaPanelNotesEditor
         postId={post.id}
-        value={tagsValue}
-        setValue={setTagsValue}
-        saveTags={saveTags}
-        inputProps={{
-          className: classNames(styles.tagList, { [styles.tagListDirty]: isTagsDirty }),
-          placeholder: "tags",
-        }}
+        initialValue={post.notes_md}
       />
 
-      <div className={styles.buttonList}>
-        <button
-          className={styles.button}
-          type="button"
-          onClick={saveTags}
-          disabled={!isTagsDirty || isSavingTags}
-        >{isSavingTags ? "saving..." : "save tags"}</button>
-
-        <button
-          className={styles.button}
-          type="button"
-          onClick={() => setTagsValue(originalTags)}
-          disabled={!isTagsDirty || isSavingTags}
-        >reset</button>
-
-        <div className={styles.saveNote}>ctrl + enter to save</div>
-      </div>
-    </div>
-
-    <MediaPanelNotesEditor
-      postId={post.id}
-      initialValue={post.notes_md}
-    />
-
-    <div className={styles.edit}>
-      <div className={styles.filename}>
-        <div>
-          <label
-            className={styles.filenameLabel}
-            htmlFor={`media-filename-${post.id}`}
-          >filename</label>
-          <input
-            id={`media-filename-${post.id}`}
-            className={classNames(styles.filenameInput, {
-              [styles.filenameInputDirty]: isFilenameDirty,
-            })}
-            type="text"
-            value={filenameValue}
-            placeholder="original filename"
-            onChange={event => setFilenameValue(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === "ArrowLeft" || event.key === "ArrowRight")
-                event.stopPropagation();
-              else if (event.key === "Escape") {
-                event.stopPropagation();
-                event.currentTarget.blur();
-              }
-              else if (event.key === "Enter") {
-                event.preventDefault();
-                saveFilename();
-              }
-            }}
-          />
-        </div>
-        <div className={styles.filenameButtonList}>
-          <button
-            className={styles.button}
-            type="button"
-            onClick={saveFilename}
-            disabled={!isFilenameDirty || isSavingFilename}
-          >{isSavingFilename ? "saving..." : "save name"}</button>
-          <button
-            className={styles.button}
-            type="button"
-            onClick={() => setFilenameValue(originalFilename)}
-            disabled={!isFilenameDirty || isSavingFilename}
-          >reset</button>
+      <div className={styles.edit}>
+        <div className={styles.filename}>
+          <div>
+            <label
+              className={styles.filenameLabel}
+              htmlFor={`media-filename-${post.id}`}
+            >
+              filename
+            </label>
+            <input
+              id={`media-filename-${post.id}`}
+              className={classNames(styles.filenameInput, {
+                [styles.filenameInputDirty]: isFilenameDirty,
+              })}
+              type="text"
+              value={filenameValue}
+              placeholder="original filename"
+              onChange={event => setFilenameValue(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                  event.stopPropagation();
+                } else if (event.key === "Escape") {
+                  event.stopPropagation();
+                  event.currentTarget.blur();
+                } else if (event.key === "Enter") {
+                  event.preventDefault();
+                  saveFilename();
+                }
+              }}
+            />
+          </div>
+          <div className={styles.filenameButtonList}>
+            <button
+              className={styles.button}
+              type="button"
+              onClick={saveFilename}
+              disabled={!isFilenameDirty || isSavingFilename}
+            >
+              {isSavingFilename ? "saving..." : "save name"}
+            </button>
+            <button
+              className={styles.button}
+              type="button"
+              onClick={() => setFilenameValue(originalFilename)}
+              disabled={!isFilenameDirty || isSavingFilename}
+            >
+              reset
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div className={styles.actions}>
-      {!isConfirmingDelete && (
-        <button
-          className={styles.deleteButton}
-          onClick={() => setIsConfirmingDelete(true)}
-        >delete</button>
-      )}
-
-      {isConfirmingDelete && (
-        <>
+      <div className={styles.actions}>
+        {!isConfirmingDelete && (
           <button
-            className={styles.button}
-            onClick={() => setIsConfirmingDelete(false)}
-          >cancel</button>
-          <button
+            type="button"
             className={styles.deleteButton}
-            onClick={async () => {
-              await deletePostAction(post.id);
-              setIsConfirmingDelete(false);
-            }}
-          >confirm</button>
-        </>
-      )}
+            onClick={() => setIsConfirmingDelete(true)}
+          >
+            delete
+          </button>
+        )}
+
+        {isConfirmingDelete && (
+          <>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => setIsConfirmingDelete(false)}
+            >
+              cancel
+            </button>
+            <button
+              type="button"
+              className={styles.deleteButton}
+              onClick={async () => {
+                await deletePostAction(post.id);
+                setIsConfirmingDelete(false);
+              }}
+            >
+              confirm
+            </button>
+          </>
+        )}
+      </div>
     </div>
-  </div>;
+  );
 }

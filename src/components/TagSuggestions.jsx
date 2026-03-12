@@ -12,17 +12,19 @@ export default function TagSuggestions({
   if (!combobox.isOpen) return null;
 
   return (
-    <div role="listbox" id={combobox.listId} className={styles.TagSuggestions}>
-      {isLoading && <div className={styles.SuggestionMeta}>Loading…</div>}
+    <div role="listbox" id={combobox.listId} className={styles.tagSuggestions}>
+      {isLoading && <div className={styles.suggestionMeta}>Loading...</div>}
 
-      {items.map((t, idx) => (
+      {items.map((tag, idx) => (
         <div
-          key={t.id}
-          className={classNames(styles.Suggestion, { [styles.Active]: idx === combobox.activeIndex })}
-          {...combobox.getItemProps({ index: idx, id: t.id })}
+          key={tag.id}
+          className={classNames(styles.suggestion, {
+            [styles.active]: idx === combobox.activeIndex,
+          })}
+          {...combobox.getItemProps({ index: idx, id: tag.id })}
         >
-          <span className={styles.TagName}>{t.name}</span>
-          <span className={styles.TagMeta}>{t.type}{" · "}{t.postCount}</span>
+          <span className={styles.tagName}>{tag.name}</span>
+          <span className={styles.tagMeta}>{tag.type}{" | "}{tag.postCount}</span>
         </div>
       ))}
     </div>
