@@ -115,6 +115,9 @@ function parseTagExpression(tokens = []) {
   return expression;
 }
 
+// TODO: add "has:" and "-has:" operator to search queries, it can filter by
+// "notes" (having not empty notes_md) and by tag types (for example
+// "-has:character" returns all posts that have no character tags)
 export default function parseSearch(searchString = "", options = {}) {
   const tokens = tokenizeSearchString(searchString);
 
