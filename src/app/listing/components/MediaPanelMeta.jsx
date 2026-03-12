@@ -31,7 +31,8 @@ export default function MediaPanelMeta({ post, prev, next, className, isSlidesho
     startTransition(() => { updatePostTagsAction(post.id, nextValue); });
   };
 
-  // TODO: add a "stop slideshow" button between the prev and next arrows
+  // TODO: move the "slideshow" toggle from the controls menu to between the
+  // prev and next arrows
   return <div className={classNames(className, styles.MediaPanelMeta)}>
     <div className={styles.navigation}>
       <button className={styles.MediaPanel__prev} onClick={prev}>←</button>
