@@ -83,6 +83,7 @@ export default async function parseUploadForm(req) {
     file.type = meta.type;
     file.dimensions = meta.dimensions;
     file.duration = meta.duration;
+    file.hasAudio = meta.hasAudio;
 
     delete file.hash;
     delete file.finished;

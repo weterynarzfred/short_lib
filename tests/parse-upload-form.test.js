@@ -86,6 +86,7 @@ describe("parseUploadForm", () => {
       type: "image",
       dimensions: { width: 10, height: 20 },
       duration: null,
+      hasAudio: false,
     });
   });
 
@@ -119,6 +120,7 @@ describe("parseUploadForm", () => {
     expect(file.type).toBe("image");
     expect(file.dimensions).toEqual({ width: 10, height: 20 });
     expect(file.duration).toBeNull();
+    expect(file.hasAudio).toBe(false);
     expect(file.hash).toBeUndefined();
     expect(file.finished).toBeUndefined();
 

@@ -47,7 +47,7 @@ describe("addMediaToDb", () => {
     vi.unstubAllEnvs();
   });
 
-  it("stores relative paths, returns inserted media, and adds a meta tag when type exists", async () => {
+  it("stores relative paths, returns inserted media, and adds meta tags from upload metadata", async () => {
     vi.stubEnv("STORAGE_DIR", "C:\\storage");
 
     const inserted = [];
@@ -67,9 +67,14 @@ describe("addMediaToDb", () => {
 
         if (sql.includes("SELECT t.name, t.type"))
           return {
-            all: mediaId => mediaId === 201
-              ? [{ name: "image", type: "meta" }]
-              : [],
+            all: mediaId => {
+              if (mediaId === 201) return [{ name: "image", type: "meta" }];
+              if (mediaId === 202) return [
+                { name: "video", type: "meta" },
+                { name: "has_audio", type: "meta" },
+              ];
+              return [];
+            },
           };
 
         throw new Error(`Unexpected SQL: ${sql}`);
@@ -95,6 +100,7 @@ describe("addMediaToDb", () => {
         variants: { thumb: "x" },
         checksum: "abc",
         type: "image",
+        hasAudio: false,
       }],
       ["b", {
         filepath: "C:\\storage\\full\\2026\\03\\def.mp4",
@@ -106,7 +112,8 @@ describe("addMediaToDb", () => {
         originalFilename: "def.mp4",
         variants: null,
         checksum: "def",
-        type: null,
+        type: "video",
+        hasAudio: true,
       }],
     ]);
 
@@ -129,10 +136,17 @@ describe("addMediaToDb", () => {
         originalFilename: "def.mp4",
         filePath: "2026/03/def.mp4",
         mimeType: "video/mp4",
-        tags: [],
+        tags: [
+          { name: "video", type: "meta" },
+          { name: "has_audio", type: "meta" },
+        ],
       },
     ]);
-    expect(addTags).toHaveBeenCalledTimes(1);
+    expect(addTags).toHaveBeenCalledTimes(2);
     expect(addTags).toHaveBeenCalledWith(201, [{ name: "image", type: "meta" }]);
+    expect(addTags).toHaveBeenCalledWith(202, [
+      { name: "video", type: "meta" },
+      { name: "has_audio", type: "meta" },
+    ]);
   });
 });

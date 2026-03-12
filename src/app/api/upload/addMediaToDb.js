@@ -43,14 +43,25 @@ export default async function addMediaToDb(fileData) {
         metadata.checksum
       );
 
+      const metaTags = [];
+
       if (metadata.type) {
+        metaTags.push({
+          name: metadata.type,
+          type: "meta",
+        });
+      }
+
+      if (metadata.hasAudio) {
+        metaTags.push({
+          name: "has_audio",
+          type: "meta",
+        });
+      }
+
+      if (metaTags.length > 0) {
         const mediaId = result.lastInsertRowid;
-        addTags(mediaId, [
-          {
-            name: metadata.type,
-            type: "meta",
-          },
-        ]);
+        addTags(mediaId, metaTags);
       }
 
       const mediaId = Number(result.lastInsertRowid);

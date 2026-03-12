@@ -17,6 +17,7 @@ export default async function extractMetadata(filepath) {
   let dimensions = null;
   let duration = null;
   let size = null;
+  let hasAudio = false;
 
   try {
     const fileStats = await stat(filepath);
@@ -35,12 +36,15 @@ export default async function extractMetadata(filepath) {
     } catch { }
   }
 
-  // TODO: for video files add a "has_audio" tag if audio track is present
   if (type === "video" || type === "audio") {
     try {
       const data = await ffprobe(filepath);
+      const streams = Array.isArray(data.streams) ? data.streams : [];
 
-      const streamWithSize = data.streams.find(
+      if (type === "video")
+        hasAudio = streams.some(stream => stream.codec_type === "audio");
+
+      const streamWithSize = streams.find(
         s => s.width && s.height
       );
 
@@ -65,5 +69,6 @@ export default async function extractMetadata(filepath) {
     dimensions,
     duration,
     size,
+    hasAudio,
   };
 }
