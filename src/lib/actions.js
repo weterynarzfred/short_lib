@@ -103,6 +103,22 @@ export async function updatePostNotesAction(postId, notesMd) {
   revalidatePath("/listing");
 }
 
+export async function updatePostOriginalFilenameAction(postId, originalFilename) {
+  const safePostId = Number(postId);
+  if (!Number.isInteger(safePostId) || safePostId <= 0)
+    throw new Error("Invalid media id");
+
+  const nextOriginalFilename = typeof originalFilename === "string" ? originalFilename : "";
+
+  db.prepare(`
+    UPDATE media
+    SET original_filename = ?
+    WHERE id = ?
+  `).run(nextOriginalFilename, safePostId);
+
+  revalidatePath("/listing");
+}
+
 export async function getPostTagValuesAction(postIds) {
   const ids = normalizePostIds(postIds);
   if (!ids.length) return [];

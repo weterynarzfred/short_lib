@@ -86,6 +86,28 @@ describe("server actions", () => {
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
   });
 
+  it("updatePostOriginalFilenameAction rejects invalid media id values", async () => {
+    const { updatePostOriginalFilenameAction } = await import("../src/lib/actions");
+
+    await expect(updatePostOriginalFilenameAction("abc", "name.jpg"))
+      .rejects
+      .toThrow("Invalid media id");
+    expect(hoisted.dbPrepare).not.toHaveBeenCalled();
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("updatePostOriginalFilenameAction writes sanitized filename and revalidates listing", async () => {
+    const run = vi.fn();
+    hoisted.dbPrepare.mockReturnValue({ run });
+
+    const { updatePostOriginalFilenameAction } = await import("../src/lib/actions");
+    await updatePostOriginalFilenameAction("7", null);
+
+    expect(hoisted.dbPrepare).toHaveBeenCalled();
+    expect(run).toHaveBeenCalledWith("", 7);
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+  });
+
   it("deletePostsBulkAction deletes only integer ids and revalidates listing", async () => {
     const { deletePostsBulkAction } = await import("../src/lib/actions");
     await deletePostsBulkAction(["1", "nope", 2, "2", 2.5]);

@@ -3,6 +3,7 @@ import classNames from "classnames";
 
 import {
   deletePostAction,
+  updatePostOriginalFilenameAction,
   updatePostTagsAction,
 } from "@/lib/actions";
 import TagEditor from "@/components/TagEditor";
@@ -10,25 +11,41 @@ import MediaPanelNotesEditor from "./MediaPanelNotesEditor";
 
 import styles from "./MediaPanelMeta.module.scss";
 
-// TODO: add an input for changing the original_filename value
 export default function MediaPanelMeta({ post, prev, next, className, isSlideshowOn = false }) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [filenameValue, setFilenameValue] = useState("");
+  const [isSavingTags, startTagsTransition] = useTransition();
+  const [isSavingFilename, startFilenameTransition] = useTransition();
 
   const originalTags = useMemo(
     () => post.tags.map(t => t.name).join(" ").trim(),
-    [post]
+    [post.tags]
+  );
+  const originalFilename = useMemo(
+    () => typeof post.original_filename === "string" ? post.original_filename : "",
+    [post.original_filename]
   );
 
   useEffect(() => { setTagsValue(originalTags); }, [originalTags]);
+  useEffect(() => { setFilenameValue(originalFilename); }, [originalFilename]);
 
-  const isDirty = tagsValue.trim() !== originalTags;
+  const isTagsDirty = tagsValue.trim() !== originalTags;
+  const isFilenameDirty = filenameValue !== originalFilename;
+
   const saveTags = () => {
-    if (!isDirty) return;
+    if (!isTagsDirty) return;
 
     const nextValue = tagsValue.trim();
-    startTransition(() => { updatePostTagsAction(post.id, nextValue); });
+    startTagsTransition(() => { updatePostTagsAction(post.id, nextValue); });
+  };
+
+  const saveFilename = () => {
+    if (!isFilenameDirty) return;
+
+    startFilenameTransition(() => {
+      updatePostOriginalFilenameAction(post.id, filenameValue);
+    });
   };
 
   // TODO: move the "slideshow" toggle from the controls menu to between the
@@ -51,7 +68,7 @@ export default function MediaPanelMeta({ post, prev, next, className, isSlidesho
         setValue={setTagsValue}
         saveTags={saveTags}
         inputProps={{
-          className: classNames(styles.tagList, { [styles.tagListDirty]: isDirty }),
+          className: classNames(styles.tagList, { [styles.tagListDirty]: isTagsDirty }),
           placeholder: "tags",
         }}
       />
@@ -61,14 +78,14 @@ export default function MediaPanelMeta({ post, prev, next, className, isSlidesho
           className={styles.button}
           type="button"
           onClick={saveTags}
-          disabled={!isDirty || isPending}
-        >{isPending ? "saving…" : "save tags"}</button>
+          disabled={!isTagsDirty || isSavingTags}
+        >{isSavingTags ? "saving..." : "save tags"}</button>
 
         <button
           className={styles.button}
           type="button"
           onClick={() => setTagsValue(originalTags)}
-          disabled={!isDirty || isPending}
+          disabled={!isTagsDirty || isSavingTags}
         >reset</button>
 
         <div className={styles.saveNote}>ctrl + enter to save</div>
@@ -79,6 +96,53 @@ export default function MediaPanelMeta({ post, prev, next, className, isSlidesho
       postId={post.id}
       initialValue={post.notes_md}
     />
+
+    <div className={styles.edit}>
+      <div className={styles.filename}>
+        <div>
+          <label
+            className={styles.filenameLabel}
+            htmlFor={`media-filename-${post.id}`}
+          >filename</label>
+          <input
+            id={`media-filename-${post.id}`}
+            className={classNames(styles.filenameInput, {
+              [styles.filenameInputDirty]: isFilenameDirty,
+            })}
+            type="text"
+            value={filenameValue}
+            placeholder="original filename"
+            onChange={event => setFilenameValue(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === "ArrowLeft" || event.key === "ArrowRight")
+                event.stopPropagation();
+              else if (event.key === "Escape") {
+                event.stopPropagation();
+                event.currentTarget.blur();
+              }
+              else if (event.key === "Enter") {
+                event.preventDefault();
+                saveFilename();
+              }
+            }}
+          />
+        </div>
+        <div className={styles.filenameButtonList}>
+          <button
+            className={styles.button}
+            type="button"
+            onClick={saveFilename}
+            disabled={!isFilenameDirty || isSavingFilename}
+          >{isSavingFilename ? "saving..." : "save name"}</button>
+          <button
+            className={styles.button}
+            type="button"
+            onClick={() => setFilenameValue(originalFilename)}
+            disabled={!isFilenameDirty || isSavingFilename}
+          >reset</button>
+        </div>
+      </div>
+    </div>
 
     <div className={styles.actions}>
       {!isConfirmingDelete && (
