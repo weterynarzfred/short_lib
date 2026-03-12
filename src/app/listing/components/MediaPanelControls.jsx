@@ -1,13 +1,13 @@
 import { useState } from "react";
 
 import styles from "./MediaPanel.module.scss";
+import classNames from "classnames";
 
 const TOGGLE_OPTIONS = [
   { key: "autoplay", label: "autoplay" },
   { key: "loop", label: "loop" },
   { key: "slideshow", label: "slideshow" },
   { key: "muted", label: "muted" },
-  { key: "fullscreen", label: "fullscreen" },
 ];
 
 export default function MediaPanelControls({ toggles, onToggle, onClose }) {
@@ -15,6 +15,15 @@ export default function MediaPanelControls({ toggles, onToggle, onClose }) {
 
   return (
     <div className={styles.MediaPanel__controls}>
+      <button
+        type="button"
+        className={classNames(styles.MediaPanel__fullscreen, {
+          [styles.active]: Boolean(toggles['fullscreen'])
+        })}
+        aria-label="Toggle fullscreen"
+        onClick={() => onToggle('fullscreen')}
+      >fullscreen</button>
+
       <button
         type="button"
         className={styles.MediaPanel__burger}

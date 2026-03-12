@@ -3,6 +3,7 @@
 .Search {
   position: relative;
   max-width: 25rem;
+  flex: 1 1 auto;
 
   input {
     border: 1px solid $colorBorder;
