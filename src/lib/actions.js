@@ -2,15 +2,29 @@
 
 import { revalidatePath } from "next/cache";
 
-import addTags, { parseTagString } from "@/lib/addTags";
+import addTags, { parseTagString, removeTags } from "@/lib/addTags";
 import db from "@/lib/db";
 import deletePost from "@/lib/deletePost";
 import { deleteTagById, updateTagById } from "@/lib/manageTag";
 import { setBlacklistedTags, setMediaSettings } from "@/lib/userSettings";
 import { TAG_ORDER_SQL } from "@/app/listing/lib/buildQuery";
 
+function normalizePostIds(postIds) {
+  return Array.isArray(postIds)
+    ? [...new Set(postIds.map(Number).filter(Number.isInteger))]
+    : [];
+}
+
 export async function deletePostAction(postId) {
   await deletePost(postId);
+  revalidatePath("/listing");
+}
+
+export async function deletePostsBulkAction(postIds) {
+  const ids = normalizePostIds(postIds);
+  if (!ids.length) return;
+
+  for (const postId of ids) await deletePost(postId);
   revalidatePath("/listing");
 }
 
@@ -28,13 +42,41 @@ export async function addPostTagsAction(postId, rawTagString) {
 
 export async function addPostTagsBulkAction(postIds, rawTagString) {
   const tags = parseTagString(rawTagString);
-  const ids = Array.isArray(postIds)
-    ? postIds
-      .map(Number)
-      .filter(Number.isInteger)
-    : [];
+  const ids = normalizePostIds(postIds);
 
   for (const postId of ids) addTags(postId, tags, { replace: false });
+  revalidatePath("/listing");
+}
+
+export async function editPostTagsBulkAction(postIds, rawTagString) {
+  const ids = normalizePostIds(postIds);
+  if (!ids.length) return;
+
+  const tokens = String(rawTagString ?? "")
+    .split(/\s+/)
+    .map(token => token.trim())
+    .filter(Boolean);
+
+  const addTokens = [];
+  const removeTokens = [];
+
+  for (const token of tokens) {
+    if (token.startsWith("-") && token.length > 1) {
+      removeTokens.push(token.slice(1));
+      continue;
+    }
+
+    addTokens.push(token);
+  }
+
+  const tagsToAdd = parseTagString(addTokens.join(" "));
+  const tagsToRemove = parseTagString(removeTokens.join(" "));
+
+  for (const postId of ids) {
+    if (tagsToRemove.length) removeTags(postId, tagsToRemove);
+    if (tagsToAdd.length) addTags(postId, tagsToAdd, { replace: false });
+  }
+
   revalidatePath("/listing");
 }
 
@@ -55,9 +97,7 @@ export async function updatePostNotesAction(postId, notesMd) {
 }
 
 export async function getPostTagValuesAction(postIds) {
-  const ids = Array.isArray(postIds)
-    ? [...new Set(postIds.map(Number).filter(Number.isInteger))]
-    : [];
+  const ids = normalizePostIds(postIds);
   if (!ids.length) return [];
 
   const placeholders = ids.map(() => "?").join(",");

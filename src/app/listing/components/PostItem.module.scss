@@ -51,3 +51,31 @@
     opacity: 1;
   }
 }
+
+.PostItemSelectionMode {
+  .imageContainer {
+    opacity: 0.95;
+  }
+}
+
+.PostItemSelected {
+  box-shadow: 0 0 0 2px $colorContent;
+  background-color: $colorBg2;
+}
+
+.selectIndicator {
+  position: absolute;
+  top: 0.7rem;
+  left: 0.7rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid $colorBorder;
+  border-radius: 0.25rem;
+  background-color: $colorBg;
+  font-size: 0.9rem;
+  line-height: 1;
+  pointer-events: none;
+}

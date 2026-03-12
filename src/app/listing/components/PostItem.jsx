@@ -1,12 +1,27 @@
+import classNames from "classnames";
 import Image from "next/image";
 
 import styles from "./PostItem.module.scss";
 
-export default function PostItem({ post, openMediaPanel }) {
-  return <div className={styles.PostItem} >
+export default function PostItem({
+  post,
+  isSelected = false,
+  isMultiSelectEnabled = false,
+  onInteractPost,
+}) {
+  return <div
+    className={classNames(styles.PostItem, {
+      [styles.PostItemSelected]: isSelected,
+      [styles.PostItemSelectionMode]: isMultiSelectEnabled,
+    })}
+    onClick={event => onInteractPost(post.id, event)}
+  >
+    {isMultiSelectEnabled && (
+      <div className={styles.selectIndicator}>{isSelected ? "x" : ""}</div>
+    )}
+
     <div
       className={styles.imageContainer}
-      onClick={() => openMediaPanel(post.id)}
     >
       <Image
         src={`/api/media/${post.file_path}?size=thumb`}

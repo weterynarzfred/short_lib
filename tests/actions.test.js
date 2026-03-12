@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const hoisted = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   addTags: vi.fn(),
+  removeTags: vi.fn(),
   parseTagString: vi.fn(),
   dbPrepare: vi.fn(),
   deletePost: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/addTags", () => ({
   default: hoisted.addTags,
+  removeTags: hoisted.removeTags,
   parseTagString: hoisted.parseTagString,
 }));
 
@@ -48,6 +50,7 @@ describe("server actions", () => {
 
     hoisted.revalidatePath.mockReset();
     hoisted.addTags.mockReset();
+    hoisted.removeTags.mockReset();
     hoisted.parseTagString.mockReset();
     hoisted.dbPrepare.mockReset();
     hoisted.deletePost.mockReset();
@@ -77,6 +80,16 @@ describe("server actions", () => {
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
   });
 
+  it("deletePostsBulkAction deletes only integer ids and revalidates listing", async () => {
+    const { deletePostsBulkAction } = await import("../src/lib/actions");
+    await deletePostsBulkAction(["1", "nope", 2, "2", 2.5]);
+
+    expect(hoisted.deletePost).toHaveBeenCalledTimes(2);
+    expect(hoisted.deletePost).toHaveBeenNthCalledWith(1, 1);
+    expect(hoisted.deletePost).toHaveBeenNthCalledWith(2, 2);
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+  });
+
   it("addPostTagsBulkAction applies tags only to integer post ids", async () => {
     hoisted.parseTagString.mockReturnValue([{ name: "cat" }]);
 
@@ -87,6 +100,27 @@ describe("server actions", () => {
     expect(hoisted.addTags).toHaveBeenCalledTimes(2);
     expect(hoisted.addTags).toHaveBeenNthCalledWith(1, 1, [{ name: "cat" }], { replace: false });
     expect(hoisted.addTags).toHaveBeenNthCalledWith(2, 3, [{ name: "cat" }], { replace: false });
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+  });
+
+  it("editPostTagsBulkAction splits add/remove tokens and applies both", async () => {
+    hoisted.parseTagString.mockImplementation(raw => {
+      if (raw === "cat creator:bob") return [{ name: "cat" }, { name: "bob", type: "creator" }];
+      if (raw === "dog meta:video") return [{ name: "dog" }, { name: "video", type: "meta" }];
+      return [];
+    });
+
+    const { editPostTagsBulkAction } = await import("../src/lib/actions");
+    await editPostTagsBulkAction([1, "2", "bad", 2], "cat -dog creator:bob -meta:video");
+
+    expect(hoisted.parseTagString).toHaveBeenNthCalledWith(1, "cat creator:bob");
+    expect(hoisted.parseTagString).toHaveBeenNthCalledWith(2, "dog meta:video");
+    expect(hoisted.removeTags).toHaveBeenCalledTimes(2);
+    expect(hoisted.removeTags).toHaveBeenNthCalledWith(1, 1, [{ name: "dog" }, { name: "video", type: "meta" }]);
+    expect(hoisted.removeTags).toHaveBeenNthCalledWith(2, 2, [{ name: "dog" }, { name: "video", type: "meta" }]);
+    expect(hoisted.addTags).toHaveBeenCalledTimes(2);
+    expect(hoisted.addTags).toHaveBeenNthCalledWith(1, 1, [{ name: "cat" }, { name: "bob", type: "creator" }], { replace: false });
+    expect(hoisted.addTags).toHaveBeenNthCalledWith(2, 2, [{ name: "cat" }, { name: "bob", type: "creator" }], { replace: false });
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
   });
 

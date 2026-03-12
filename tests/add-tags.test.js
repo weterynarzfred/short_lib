@@ -78,6 +78,16 @@ function createFakeDb() {
           },
         };
 
+      if (sql.includes("DELETE FROM media_tags") && sql.includes("AND tag_id = ?"))
+        return {
+          run: (mediaId, tagId) => {
+            const set = ensureMediaSet(mediaId);
+            const hadTag = set.has(tagId);
+            set.delete(tagId);
+            return { changes: hadTag ? 1 : 0 };
+          },
+        };
+
       if (sql.includes("DELETE FROM media_tags"))
         return {
           run: mediaId => {
@@ -148,5 +158,22 @@ describe("addTags", () => {
     addTags(77, [], { replace: true });
 
     expect(fake.calls.clearMediaTags).toEqual([77]);
+  });
+
+  it("removeTags unlinks matching tags and decrements post counts", async () => {
+    const fake = createFakeDb();
+    fake.tags.set("cat", { id: 7, type: "general", post_count: 2 });
+    fake.tags.set("dog", { id: 8, type: "general", post_count: 3 });
+    fake.mediaTags.set(55, new Set([7, 8]));
+
+    vi.doMock("@/lib/db", () => ({ default: fake.db }));
+    const { removeTags } = await import("../src/lib/addTags");
+
+    removeTags(55, [{ name: "cat" }, { name: "missing" }]);
+
+    expect(fake.mediaTags.get(55).has(7)).toBe(false);
+    expect(fake.mediaTags.get(55).has(8)).toBe(true);
+    expect(fake.tags.get("cat").post_count).toBe(1);
+    expect(fake.tags.get("dog").post_count).toBe(3);
   });
 });

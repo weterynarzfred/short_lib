@@ -9,10 +9,6 @@ import useCombobox from "@/lib/useCombobox";
 
 import styles from "./Search.module.scss";
 
-// TODO: add support for `OR` operator and parentheses in the search input to be
-// able to type "(raven OR owl) plague_doctor" to find all posts with plague
-// doctors that also have an owl and/or a raven.
-
 export default function Search({ initialValue = "" }) {
   const router = useRouter();
 

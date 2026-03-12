@@ -8,7 +8,12 @@ export default function MediaListingContent({
   sentinelRef,
   search,
   visiblePosts,
-  onOpenMedia,
+  isMultiSelectEnabled,
+  onMultiSelectChange,
+  selectedCount,
+  selectedPostIds,
+  onPostInteract,
+  onClearSelection,
   hasMore,
   isLoadingMore,
   onLoadMore,
@@ -19,10 +24,38 @@ export default function MediaListingContent({
       className={`content content--full ${styles.content}`}
     >
       <h1>media listing</h1>
-      <Search initialValue={search} />
+      <div className={styles.searchTools}>
+        <Search initialValue={search} />
+
+        <div className={styles.multiSelectTools}>
+          <label className={styles.multiSelectToggle}>
+            <input
+              type="checkbox"
+              checked={isMultiSelectEnabled}
+              onChange={event => onMultiSelectChange(event.target.checked)}
+            />
+            <div className={styles.button}>bulk edit</div>
+          </label>
+
+          {selectedCount > 0 ? <div className={styles.selectionCount}>{selectedCount} selected</div> : null}
+          {selectedCount > 0 ? (
+            <button
+              type="button"
+              className={styles.clearSelection}
+              onClick={onClearSelection}
+            >clear selection</button>
+          ) : null}
+        </div>
+      </div>
       <div className={styles.list}>
         {visiblePosts.map(post => (
-          <PostItem key={post.id} post={post} openMediaPanel={onOpenMedia} />
+          <PostItem
+            key={post.id}
+            post={post}
+            isSelected={selectedPostIds.has(post.id)}
+            isMultiSelectEnabled={isMultiSelectEnabled}
+            onInteractPost={onPostInteract}
+          />
         ))}
       </div>
 

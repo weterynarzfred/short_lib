@@ -47,6 +47,11 @@ const linkMediaTag = db.prepare(`
   VALUES (?, ?)
 `);
 
+const unlinkMediaTag = db.prepare(`
+  DELETE FROM media_tags
+  WHERE media_id = ? AND tag_id = ?
+`);
+
 const incrementTagPostCount = db.prepare(`
   UPDATE tags
   SET post_count = post_count + 1
@@ -85,6 +90,27 @@ function replaceMediaTags(mediaId) {
   const existing = getMediaTagIds.all(mediaId);
   for (const row of existing) decrementTagPostCount.run(row.tag_id);
   clearMediaTags.run(mediaId);
+}
+
+export function removeTags(mediaId, tags) {
+  const safeMediaId = ensureMediaId(mediaId);
+
+  const tx = db.transaction((mid, inputTags) => {
+    if (!Array.isArray(inputTags) || inputTags.length === 0) return;
+
+    for (const tag of inputTags) {
+      const normalized = normalizeInputTag(tag);
+      if (!normalized) continue;
+
+      const row = selectTagByName.get(normalized.name);
+      if (!row) continue;
+
+      const unlinkResult = unlinkMediaTag.run(mid, row.id);
+      if (unlinkResult.changes > 0) decrementTagPostCount.run(row.id);
+    }
+  });
+
+  tx(safeMediaId, tags);
 }
 
 export default function addTags(mediaId, tags, { replace = false } = {}) {
