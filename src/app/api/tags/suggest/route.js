@@ -46,6 +46,19 @@ const OPERATORS = [
     label: "notes:",
   },
   {
+    key: "has",
+    label: "has:",
+    values: [
+      "notes",
+      "meta",
+      "rating",
+      "creator",
+      "copyright",
+      "character",
+      "general",
+    ],
+  },
+  {
     key: "image_ratio",
     label: "image_ratio:",
   },

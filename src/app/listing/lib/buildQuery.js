@@ -1,11 +1,12 @@
 export const TAG_ORDER_SQL = `
   CASE t.type
     WHEN 'meta' THEN 0
-    WHEN 'creator' THEN 1
-    WHEN 'copyright' THEN 2
-    WHEN 'character' THEN 3
-    WHEN 'general' THEN 4
-    ELSE 5
+    WHEN 'rating' THEN 1
+    WHEN 'creator' THEN 2
+    WHEN 'copyright' THEN 3
+    WHEN 'character' THEN 4
+    WHEN 'general' THEN 5
+    ELSE 6
   END
 `;
 
@@ -46,6 +47,31 @@ function buildTagPredicate(node, params) {
   }
 
   return null;
+}
+
+function buildHasPredicate(hasFilter, params) {
+  const value = hasFilter?.value;
+  if (!value) return null;
+
+  if (value === "notes") {
+    if (hasFilter.negated) return `COALESCE(TRIM(m.notes_md), '') = ''`;
+    return `COALESCE(TRIM(m.notes_md), '') <> ''`;
+  }
+
+  params.push(value);
+
+  const existsClause = `
+    EXISTS (
+      SELECT 1
+      FROM media_tags mt
+      JOIN tags t ON t.id = mt.tag_id
+      WHERE mt.media_id = m.id
+        AND LOWER(t.type) = ?
+    )
+  `;
+
+  if (hasFilter.negated) return `NOT ${existsClause}`;
+  return existsClause;
 }
 
 export default function buildQuery(parsed, { limit, offset } = {}) {
@@ -133,6 +159,13 @@ export default function buildQuery(parsed, { limit, offset } = {}) {
       AND (CAST(m.width AS REAL) / m.height) ${filters.imageRatio.op} ?
     `);
     params.push(filters.imageRatio.value);
+  }
+
+  if (Array.isArray(filters.has) && filters.has.length) {
+    for (const hasFilter of filters.has) {
+      const hasPredicate = buildHasPredicate(hasFilter, params);
+      if (hasPredicate) where.push(hasPredicate);
+    }
   }
 
   if (filters.notes) {

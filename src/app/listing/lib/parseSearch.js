@@ -115,9 +115,6 @@ function parseTagExpression(tokens = []) {
   return expression;
 }
 
-// TODO: add "has:" and "-has:" operator to search queries, it can filter by
-// "notes" (having not empty notes_md) and by tag types (for example
-// "-has:character" returns all posts that have no character tags)
 export default function parseSearch(searchString = "", options = {}) {
   const tokens = tokenizeSearchString(searchString);
 
@@ -182,6 +179,7 @@ export default function parseSearch(searchString = "", options = {}) {
     duration: null,
     imageRatio: null,
     notes: null,
+    has: [],
   };
 
   function toNotesFtsTerm(rawValue) {
@@ -200,6 +198,16 @@ export default function parseSearch(searchString = "", options = {}) {
     mentionedTags.add(value);
     expressionTokens.push({
       kind: "tag",
+      value,
+      negated,
+    });
+  }
+
+  function addHasToken(rawValue, { negated = false } = {}) {
+    const value = String(rawValue ?? "").trim().toLowerCase();
+    if (!value) return;
+
+    filters.has.push({
       value,
       negated,
     });
@@ -281,6 +289,16 @@ export default function parseSearch(searchString = "", options = {}) {
     if (token.startsWith("notes:")) {
       const term = toNotesFtsTerm(token.slice("notes:".length));
       if (term) filters.notes = filters.notes ? `${filters.notes} ${term}` : term;
+      continue;
+    }
+
+    if (token.startsWith("-has:")) {
+      addHasToken(token.slice("-has:".length), { negated: true });
+      continue;
+    }
+
+    if (token.startsWith("has:")) {
+      addHasToken(token.slice("has:".length));
       continue;
     }
 

@@ -267,6 +267,47 @@ describe("integration: addTags + getPosts", () => {
     expect(phrase[0].id).toBe(m1);
   });
 
+  it("filters posts by has operator for notes and tag types", async () => {
+    const insertMedia = db.prepare(`
+      INSERT INTO media (file_path, created_at, notes_md, variants, checksum)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    const nowMs = Date.now();
+    const m1 = insertMedia.run(
+      "2026/03/h1.jpg",
+      nowMs,
+      "contains notes",
+      null,
+      "h1"
+    ).lastInsertRowid;
+    const m2 = insertMedia.run(
+      "2026/03/h2.jpg",
+      nowMs,
+      null,
+      null,
+      "h2"
+    ).lastInsertRowid;
+    const m3 = insertMedia.run(
+      "2026/03/h3.jpg",
+      nowMs,
+      "   ",
+      null,
+      "h3"
+    ).lastInsertRowid;
+
+    const { default: addTags } = await import("../src/lib/addTags");
+    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+
+    addTags(m1, [{ name: "hero", type: "character" }]);
+    addTags(m2, [{ name: "cat", type: "general" }]);
+
+    expect(getPosts("has:notes").map(p => p.id)).toEqual([m1]);
+    expect(getPosts("-has:notes").map(p => p.id).sort((a, b) => a - b)).toEqual([m2, m3]);
+    expect(getPosts("has:character").map(p => p.id)).toEqual([m1]);
+    expect(getPosts("-has:character").map(p => p.id).sort((a, b) => a - b)).toEqual([m2, m3]);
+  });
+
   it("filters tag stats by name and type and exposes known types", async () => {
     db.prepare(`
       INSERT INTO tags (name, type, post_count)

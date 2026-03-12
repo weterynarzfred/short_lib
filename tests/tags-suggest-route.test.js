@@ -75,6 +75,34 @@ describe("tags suggest route", () => {
     expect(all).toHaveBeenCalledWith("no");
   });
 
+  it("returns has operator suggestions", async () => {
+    const all = vi.fn(() => []);
+    const db = { prepare: vi.fn(() => ({ all })) };
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { GET } = await import("../src/app/api/tags/suggest/route");
+    const res = GET(new Request("http://localhost/api/tags/suggest?q=ha"));
+    const body = await res.json();
+
+    expect(body.tags.some(tag => tag.name === "has:")).toBe(true);
+    expect(all).toHaveBeenCalledWith("ha");
+  });
+
+  it("returns has values after colon and skips DB lookup", async () => {
+    const all = vi.fn(() => [{ id: 1, name: "db-tag", type: "general", post_count: 1 }]);
+    const db = { prepare: vi.fn(() => ({ all })) };
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { GET } = await import("../src/app/api/tags/suggest/route");
+    const res = GET(new Request("http://localhost/api/tags/suggest?q=has:c"));
+    const body = await res.json();
+
+    expect(body.tags.length).toBeGreaterThan(0);
+    expect(body.tags.every(tag => tag.type === "value")).toBe(true);
+    expect(body.tags.some(tag => tag.name === "has:character")).toBe(true);
+    expect(all).not.toHaveBeenCalled();
+  });
+
   it("suppresses operator suggestions in edit mode", async () => {
     const all = vi.fn(() => [{ id: 3, name: "misc", type: "general", post_count: 9 }]);
     const db = { prepare: vi.fn(() => ({ all })) };

@@ -134,8 +134,28 @@ describe("search parser and query builder", () => {
     expect(params).toEqual(["hello world"]);
   });
 
+  it("parses has operators into normalized filters", () => {
+    const parsed = parseSearch("has:notes -has:character has:creator");
+
+    expect(parsed.filters.has).toEqual([
+      { value: "notes", negated: false },
+      { value: "character", negated: true },
+      { value: "creator", negated: false },
+    ]);
+  });
+
+  it("adds has predicates and tag-type params to SQL", () => {
+    const parsed = parseSearch("has:notes -has:character has:creator");
+    const { sql, params } = buildQuery(parsed);
+
+    expect(sql).toContain("COALESCE(TRIM(m.notes_md), '') <> ''");
+    expect(sql).toContain("NOT");
+    expect(sql).toContain("LOWER(t.type) = ?");
+    expect(params).toEqual(["character", "creator"]);
+  });
+
   it("ignores malformed operator tokens", () => {
-    const parsed = parseSearch("file_size:abc age:-- order:nope mpixels:x duration:- image_ratio:1/0 tag1");
+    const parsed = parseSearch("file_size:abc age:-- order:nope mpixels:x duration:- image_ratio:1/0 has: -has: tag1");
 
     expect(parsed.includeTags).toEqual(["tag1"]);
     expect(parsed.filters.fileSize).toBeNull();
@@ -143,6 +163,7 @@ describe("search parser and query builder", () => {
     expect(parsed.filters.mpixels).toBeNull();
     expect(parsed.filters.duration).toBeNull();
     expect(parsed.filters.imageRatio).toBeNull();
+    expect(parsed.filters.has).toEqual([]);
     expect(parsed.filters.orderBy).toBe("m.created_at DESC");
   });
 
