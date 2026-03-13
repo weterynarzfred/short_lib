@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 
+// TODO: load mimi_type and has:<type> values from the DB
 const OPERATORS = [
   {
     key: "mime_type",

@@ -3,3 +3,4 @@
 /build
 /storage
 shortlib.db
+.env

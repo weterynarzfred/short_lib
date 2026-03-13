@@ -1,3 +1,5 @@
+// TODO: add this order to the settings page, based on all types that exist in
+// the DB
 export const TAG_ORDER_SQL = `
   CASE t.type
     WHEN 'meta' THEN 0

@@ -13,7 +13,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "better-sqlite3": "^12.6.2",
     "classnames": "^2.5.1",
-    "file-type": "^21.3.1",
+    "file-type": "^21.3.2",
     "formidable": "^3.5.4",
     "mime-types": "^3.0.2",
     "next": "16.1.6",
@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "babel-plugin-react-compiler": "1.0.0",
-    "sass": "^1.97.3",
-    "vitest": "^4.0.18"
+    "sass": "^1.98.0",
+    "vitest": "^4.1.0"
   }
 }
