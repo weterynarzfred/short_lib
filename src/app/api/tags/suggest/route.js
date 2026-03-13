@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 
-// TODO: load mimi_type and has:<type> values from the DB
 const OPERATORS = [
   {
     key: "mime_type",
     label: "mime_type:",
-    values: ["video/mp4", "video/webm", "image/jpeg", "image/png", "image/gif"],
   },
   {
     key: "file_size",
@@ -49,15 +47,6 @@ const OPERATORS = [
   {
     key: "has",
     label: "has:",
-    values: [
-      "notes",
-      "meta",
-      "rating",
-      "creator",
-      "copyright",
-      "character",
-      "general",
-    ],
   },
   {
     key: "image_ratio",
@@ -80,6 +69,42 @@ const stmt = db.prepare(`
   ORDER BY t.post_count DESC, t.id ASC
   LIMIT 16
 `);
+
+const mimeTypeValuesStmt = db.prepare(`
+  SELECT
+    LOWER(TRIM(m.mime_type)) AS value
+  FROM media m
+  WHERE TRIM(COALESCE(m.mime_type, '')) <> ''
+  GROUP BY LOWER(TRIM(m.mime_type))
+  ORDER BY COUNT(*) DESC, value ASC
+  LIMIT 32
+`);
+
+const hasTypeValuesStmt = db.prepare(`
+  SELECT
+    LOWER(TRIM(t.type)) AS value
+  FROM tags t
+  WHERE TRIM(COALESCE(t.type, '')) <> ''
+  GROUP BY LOWER(TRIM(t.type))
+  ORDER BY COUNT(*) DESC, value ASC
+  LIMIT 32
+`);
+
+function getOperatorValues(operator) {
+  if (!operator) return [];
+
+  if (Array.isArray(operator.values)) return operator.values;
+
+  if (operator.key === "mime_type")
+    return mimeTypeValuesStmt.all().map(row => row.value).filter(Boolean);
+
+  if (operator.key === "has") {
+    const types = hasTypeValuesStmt.all().map(row => row.value).filter(Boolean);
+    return [...new Set(["notes", ...types])];
+  }
+
+  return [];
+}
 
 export function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -108,9 +133,10 @@ export function GET(req) {
       const prefix = q.slice(0, colonIndex + 1);
       const valuePart = q.slice(colonIndex + 1);
       const operator = OPERATORS.find(op => op.label === prefix);
+      const operatorValues = getOperatorValues(operator);
 
-      if (operator?.values) {
-        const matchingValues = operator.values.filter(v =>
+      if (operatorValues.length) {
+        const matchingValues = operatorValues.filter(v =>
           v.toLowerCase().startsWith(valuePart)
         );
 

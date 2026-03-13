@@ -155,6 +155,35 @@ describe("integration: addTags + getPosts", () => {
     ]);
   });
 
+  it("loads mime_type and has values for operator suggestions from DB", async () => {
+    const insertMedia = db.prepare(`
+      INSERT INTO media (file_path, created_at, variants, checksum, mime_type)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    const nowMs = Date.now();
+    const mediaId = insertMedia.run(
+      "2026/03/mime.jpg",
+      nowMs,
+      null,
+      "mime",
+      "image/jpeg"
+    ).lastInsertRowid;
+
+    const { default: addTags } = await import("../src/lib/addTags");
+    addTags(mediaId, [{ name: "artist_name", type: "creator" }]);
+
+    const { GET } = await import("../src/app/api/tags/suggest/route");
+
+    const mimeRes = GET(new Request("http://localhost/api/tags/suggest?q=mime_type:image/"));
+    const mimeBody = await mimeRes.json();
+    expect(mimeBody.tags.some(t => t.name === "mime_type:image/jpeg")).toBe(true);
+
+    const hasRes = GET(new Request("http://localhost/api/tags/suggest?q=has:c"));
+    const hasBody = await hasRes.json();
+    expect(hasBody.tags.some(t => t.name === "has:creator")).toBe(true);
+  });
+
   it("supports age filters when created_at is stored as unix milliseconds", async () => {
     const insertMedia = db.prepare(`
       INSERT INTO media (file_path, created_at, variants, checksum)
