@@ -1,21 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const SUPPORTED_MEDIA_TYPES = new Set(["image", "video", "audio"]);
-
 export default function useMediaListingPanelNavigation({ visiblePosts, mediaRef }) {
   const [activePostId, setActivePostId] = useState(null);
 
-  const supportedPosts = useMemo(
-    () => visiblePosts.filter(post => {
-      const mediaType = post?.mime_type?.split("/")?.[0];
-      return SUPPORTED_MEDIA_TYPES.has(mediaType);
-    }),
-    [visiblePosts]
-  );
-
   const active = useMemo(
-    () => supportedPosts.find(post => post.id === activePostId) ?? null,
-    [supportedPosts, activePostId]
+    () => visiblePosts.find(post => post.id === activePostId) ?? null,
+    [visiblePosts, activePostId]
   );
 
   const close = useCallback(() => setActivePostId(null), []);
@@ -23,35 +13,35 @@ export default function useMediaListingPanelNavigation({ visiblePosts, mediaRef 
 
   const prev = useCallback(() => {
     setActivePostId(currentId => {
-      if (currentId == null || supportedPosts.length < 2) return currentId;
+      if (currentId == null || visiblePosts.length < 2) return currentId;
 
-      const index = supportedPosts.findIndex(post => post.id === currentId);
+      const index = visiblePosts.findIndex(post => post.id === currentId);
       if (index === -1) return null;
 
-      const nextIndex = index === 0 ? supportedPosts.length - 1 : index - 1;
-      return supportedPosts[nextIndex]?.id ?? null;
+      const nextIndex = index === 0 ? visiblePosts.length - 1 : index - 1;
+      return visiblePosts[nextIndex]?.id ?? null;
     });
-  }, [supportedPosts]);
+  }, [visiblePosts]);
 
   const next = useCallback(() => {
     setActivePostId(currentId => {
-      if (currentId == null || supportedPosts.length < 2) return currentId;
+      if (currentId == null || visiblePosts.length < 2) return currentId;
 
-      const index = supportedPosts.findIndex(post => post.id === currentId);
+      const index = visiblePosts.findIndex(post => post.id === currentId);
       if (index === -1) return null;
 
-      const nextIndex = index === supportedPosts.length - 1 ? 0 : index + 1;
-      return supportedPosts[nextIndex]?.id ?? null;
+      const nextIndex = index === visiblePosts.length - 1 ? 0 : index + 1;
+      return visiblePosts[nextIndex]?.id ?? null;
     });
-  }, [supportedPosts]);
+  }, [visiblePosts]);
 
   useEffect(() => {
     if (activePostId == null) return;
-    if (supportedPosts.some(post => post.id === activePostId)) return;
+    if (visiblePosts.some(post => post.id === activePostId)) return;
 
     setActivePostId(null);
     mediaRef.current = null;
-  }, [supportedPosts, activePostId, mediaRef]);
+  }, [visiblePosts, activePostId, mediaRef]);
 
   useEffect(() => {
     if (!active) return;

@@ -71,7 +71,7 @@ export default function useMediaPanelSlideshow({ isSlideshowOn, postId, mimeType
     clearRetryAdvanceTimer();
 
     if (!isSlideshowOn) return;
-    if (!mimeType?.startsWith("image")) return;
+    if (mimeType?.startsWith("video") || mimeType?.startsWith("audio")) return;
     if (postId == null) return;
 
     const expectedPostId = postId;

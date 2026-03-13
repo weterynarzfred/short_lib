@@ -51,7 +51,7 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
         onClose={close}
       />
 
-      <MediaPreview
+      {Boolean(post?.variants?.thumb) ? <MediaPreview
         src={post.file_path}
         mime_type={post.mime_type}
         mediaRef={mediaRef}
@@ -60,7 +60,7 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
           [styles.previewFullscreen]: toggles.fullscreen,
         })}
         onEnded={handleMediaEnded}
-      />
+      /> : null}
 
       <MediaPanelMeta
         post={post}

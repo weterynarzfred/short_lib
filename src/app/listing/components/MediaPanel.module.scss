@@ -5,7 +5,11 @@
   width: 1.5rem;
   height: 1.5rem;
 
-  @include buttonBase($padding: 0, $borderColor: $colorBorder, $background: $colorBg);
+  @include buttonBase(
+    $padding: 0,
+    $borderColor: $colorBorder,
+    $background: $colorBg
+  );
 }
 
 .mediaPanel {
@@ -70,6 +74,7 @@
   padding: 0.5rem;
   background-color: $colorBg;
   border: 1px solid $colorBorder;
+  z-index: 2;
 
   label {
     input[type="checkbox"] {
@@ -80,7 +85,7 @@
       @include buttonBase(
         $padding: 0.2rem $spacingQuarter,
         $borderColor: $colorBorder,
-        $background: $colorBg2,
+        $background: $colorBg2
       );
     }
 
