@@ -6,26 +6,54 @@
   box-shadow: 0 0 0 1px $colorBorder;
   border-radius: $radiusMd;
   cursor: pointer;
-  transition: box-shadow $controlTransition, background-color $controlTransition;
+  transition:
+    box-shadow $controlTransition,
+    background-color $controlTransition;
 
   &:hover {
     box-shadow: 0 0 0 1px $colorBorder2;
   }
 
   .imageContainer {
+    position: relative;
     display: flex;
     align-items: center;
+    justify-content: center;
     margin-bottom: 0.3rem;
     width: 100%;
     height: 18rem;
 
     img {
       display: block;
-      width: 100%;
+      width: auto;
+      max-width: 100%;
       max-height: 100%;
       border-radius: $radiusMd;
       object-fit: contain;
     }
+  }
+
+  .fileExtBadge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.1rem 0.3rem;
+    border: 1px solid $colorBorder;
+    border-radius: $radiusSm;
+    background: $colorBg;
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+    pointer-events: none;
+  }
+
+  .fileExtFallback {
+    padding: 0.2rem 0.3rem 0.1rem 0.3rem;
+    border: 1px solid $colorBorder;
+    border-radius: $radiusSm;
+    background: $colorBg;
+    font-weight: 700;
+    line-height: 1.2;
   }
 
   .postName {
