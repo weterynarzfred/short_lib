@@ -3,7 +3,7 @@
 ## Runtime Shape
 
 - Framework: Next.js App Router
-- DB: single local SQLite file `shortlib.db`
+- DB: single local SQLite file `STORAGE_DIR/shortlib.db` (falls back to project root if `STORAGE_DIR` is unset)
 - Media files: filesystem under `STORAGE_DIR`
 - Main sourcecode split:
   - `src/app/*` for pages and API routes

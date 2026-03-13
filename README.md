@@ -97,12 +97,9 @@ Deleting a post moves files into the `/deleted` folder. It can be cleared manual
 
 ### Backup and migration
 
-To move or back up the full library, keep both:
+To move or back up the full library, keep the entire `STORAGE_DIR` folder (all media + derivatives + `shortlib.db`).
 
-- `shortlib.db` (project root, SQLite database)
-- the entire `STORAGE_DIR` folder (all media + derivatives)
-
-When restoring on another machine/path, copy both and update `.env` (`STORAGE_DIR=...`) if the storage location changes.
+When restoring on another machine/path, copy `STORAGE_DIR` and update `.env` (`STORAGE_DIR=...`) if the storage location changes.
 
 ### Architecture notes
 
