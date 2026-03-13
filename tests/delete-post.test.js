@@ -45,13 +45,16 @@ function writeFile(filePath) {
 describe("deletePost", () => {
   let db;
   let tempDir;
+  let storageRootDir;
   let storageDir;
 
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
     ({ db, tempDir } = createTempDb());
-    storageDir = fs.mkdtempSync(path.join(os.tmpdir(), "short-lib-storage-"));
+    storageRootDir = fs.mkdtempSync(path.join(os.tmpdir(), "short-lib-storage-root-"));
+    storageDir = path.join(storageRootDir, "storage");
+    fs.mkdirSync(storageDir, { recursive: true });
     vi.stubEnv("STORAGE_DIR", storageDir);
     vi.doMock("@/lib/db", () => ({ default: db }));
   });
@@ -59,7 +62,7 @@ describe("deletePost", () => {
   afterEach(() => {
     if (db) db.close();
     if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
-    if (storageDir) fs.rmSync(storageDir, { recursive: true, force: true });
+    if (storageRootDir) fs.rmSync(storageRootDir, { recursive: true, force: true });
   });
 
   it("moves media files to deleted storage and decrements linked tag post counts", async () => {
@@ -115,5 +118,22 @@ describe("deletePost", () => {
   it("throws when media id is missing", async () => {
     const { default: deletePost } = await import("../src/lib/deletePost");
     await expect(deletePost(99999)).rejects.toThrow("Media not found");
+  });
+
+  it("rejects media file paths that attempt to escape storage root", async () => {
+    const mediaId = db.prepare(`
+      INSERT INTO media (file_path, created_at, checksum)
+      VALUES (?, ?, ?)
+    `).run("../../outside.mp4", Date.now(), "escape").lastInsertRowid;
+
+    const escapedTarget = path.join(storageRootDir, "outside.mp4");
+    writeFile(escapedTarget);
+
+    const { default: deletePost } = await import("../src/lib/deletePost");
+    await expect(deletePost(mediaId)).rejects.toThrow("Invalid media file path");
+
+    expect(fs.existsSync(escapedTarget)).toBe(true);
+    const mediaRow = db.prepare(`SELECT id FROM media WHERE id = ?`).get(mediaId);
+    expect(mediaRow).toEqual({ id: mediaId });
   });
 });

@@ -1,3 +1,4 @@
+import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => ({
@@ -40,7 +41,6 @@ describe("generateMediaDerivatives", () => {
   });
 });
 
-// TODO: make this test work outside Windows
 describe("addMediaToDb", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -48,7 +48,8 @@ describe("addMediaToDb", () => {
   });
 
   it("stores relative paths, returns inserted media, and adds meta tags from upload metadata", async () => {
-    vi.stubEnv("STORAGE_DIR", "C:\\storage");
+    const storageDir = path.resolve("storage");
+    vi.stubEnv("STORAGE_DIR", storageDir);
 
     const inserted = [];
     const addTags = vi.fn();
@@ -90,7 +91,7 @@ describe("addMediaToDb", () => {
     const uploadDate = new Date("2026-03-08T10:00:00.000Z");
     const fileData = new Map([
       ["a", {
-        filepath: "C:\\storage\\full\\2026\\03\\abc.jpg",
+        filepath: path.join(storageDir, "full", "2026", "03", "abc.jpg"),
         uploadDate,
         size: 123,
         mimetype: "image/jpeg",
@@ -103,7 +104,7 @@ describe("addMediaToDb", () => {
         hasAudio: false,
       }],
       ["b", {
-        filepath: "C:\\storage\\full\\2026\\03\\def.mp4",
+        filepath: path.join(storageDir, "full", "2026", "03", "def.mp4"),
         uploadDate,
         size: 999,
         mimetype: "video/mp4",

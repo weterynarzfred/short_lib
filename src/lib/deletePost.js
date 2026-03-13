@@ -3,6 +3,30 @@ import fs from "fs";
 import path from "path";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
+const DRIVE_PATH_RE = /^[a-zA-Z]:\//;
+
+function parseStoredMediaPath(filePath) {
+  const normalized = String(filePath ?? "").trim().replace(/\\/g, "/");
+  if (!normalized) throw new Error("Invalid media file path");
+
+  if (normalized.startsWith("/") || normalized.startsWith("//") || DRIVE_PATH_RE.test(normalized))
+    throw new Error("Invalid media file path");
+
+  const segments = normalized.split("/").filter(Boolean);
+  if (!segments.length) throw new Error("Invalid media file path");
+  if (segments.some(segment => segment === "." || segment === ".."))
+    throw new Error("Invalid media file path");
+
+  const parsed = path.posix.parse(segments.join("/"));
+  if (!parsed.dir || !parsed.name || !parsed.ext)
+    throw new Error("Invalid media file path");
+
+  return {
+    yearMonthDir: parsed.dir,
+    checksum: parsed.name,
+    ext: parsed.ext,
+  };
+}
 
 export default async function deletePost(id) {
   const media = db
@@ -11,16 +35,22 @@ export default async function deletePost(id) {
 
   if (!media) throw new Error("Media not found");
 
-  const parsed = path.parse(media.file_path);
-  const yearMonthDir = parsed.dir;
-  const checksum = parsed.name;
-  const ext = parsed.ext;
+  const { yearMonthDir, checksum, ext } = parseStoredMediaPath(media.file_path);
+  const storageRoot = path.resolve(STORAGE_DIR);
+
+  const resolveStoragePath = pathElements => {
+    const fullPath = path.resolve(storageRoot, ...pathElements);
+    const relative = path.relative(storageRoot, fullPath);
+    if (relative.startsWith("..") || path.isAbsolute(relative))
+      throw new Error("Invalid media file path");
+    return fullPath;
+  };
 
   const moveIfExists = pathElements => {
-    const src = path.join(STORAGE_DIR, ...pathElements);
+    const src = resolveStoragePath(pathElements);
     if (!fs.existsSync(src)) return;
 
-    const dst = path.join(STORAGE_DIR, "deleted", ...pathElements);
+    const dst = resolveStoragePath(["deleted", ...pathElements]);
     fs.mkdirSync(path.dirname(dst), { recursive: true });
     fs.renameSync(src, dst);
   };

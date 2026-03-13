@@ -28,15 +28,16 @@ function extractFrame(input, output, duration) {
 
 export default async function processVideo(metadata) {
   const tempFrame = getTempPath(`${metadata.checksum}-frame.jpg`);
-  await extractFrame(metadata.filepath, tempFrame, metadata.duration);
 
-  const variants = await processImage({
-    filepath: tempFrame,
-    checksum: metadata.checksum,
-    uploadDate: metadata.uploadDate,
-  });
+  try {
+    await extractFrame(metadata.filepath, tempFrame, metadata.duration);
 
-  await fs.unlink(tempFrame).catch(() => { });
-
-  return variants;
+    return await processImage({
+      filepath: tempFrame,
+      checksum: metadata.checksum,
+      uploadDate: metadata.uploadDate,
+    });
+  } finally {
+    await fs.unlink(tempFrame).catch(() => { });
+  }
 }
