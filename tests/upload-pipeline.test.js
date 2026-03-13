@@ -85,6 +85,9 @@ describe("addMediaToDb", () => {
 
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/addTags", () => ({ default: addTags }));
+    vi.doMock("@/lib/userSettings", () => ({
+      getTagTypeOrderSql: () => "CASE WHEN 'meta' THEN 0 ELSE 1 END",
+    }));
 
     const { default: addMediaToDb } = await import("../src/app/api/upload/addMediaToDb");
 

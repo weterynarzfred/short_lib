@@ -24,7 +24,7 @@ function normalizePosts(posts) {
   });
 }
 
-export function getPostsPage(search, { offset = 0, limit, defaultExcludedTags } = {}) {
+export function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, tagOrderSql } = {}) {
   const parsed = parseSearch(search, { defaultExcludedTags });
   const requestedLimit = clampInt(limit ?? parsed.filters.limit, {
     min: 1,
@@ -42,6 +42,7 @@ export function getPostsPage(search, { offset = 0, limit, defaultExcludedTags } 
   const { sql, params } = buildQuery(parsed, {
     limit: requestedLimit + 1,
     offset: safeOffset,
+    tagOrderSql,
   });
 
   let rows = [];

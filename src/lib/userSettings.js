@@ -1,4 +1,11 @@
 import db from "@/lib/db";
+import {
+  buildTagTypeOrderSql,
+  DEFAULT_TAG_TYPE_ORDER,
+  mergeTagTypeOrder,
+  normalizeTagTypeOrder,
+  parseStoredTagTypeOrder,
+} from "@/lib/tagTypeOrder";
 
 export const MEDIA_SETTINGS_DEFAULTS = {
   autoplay: false,
@@ -8,6 +15,7 @@ export const MEDIA_SETTINGS_DEFAULTS = {
   fullscreen: false,
 };
 export const BLACKLISTED_TAGS_KEY = "listing.blacklisted_tags";
+export const TAG_TYPE_ORDER_KEY = "listing.tag_type_order";
 
 const MEDIA_SETTING_KEYS = new Set(Object.keys(MEDIA_SETTINGS_DEFAULTS));
 
@@ -21,6 +29,12 @@ const getSettingStmt = db.prepare(`
   FROM user_settings
   WHERE key = ?
   LIMIT 1
+`);
+const getTagTypesStmt = db.prepare(`
+  SELECT DISTINCT LOWER(TRIM(type)) AS type
+  FROM tags
+  WHERE TRIM(type) <> ''
+  ORDER BY type COLLATE NOCASE ASC
 `);
 
 const upsertSettingStmt = db.prepare(`
@@ -99,6 +113,17 @@ function parseStoredTagNames(rawValue) {
   return normalizeTagNames(trimmed);
 }
 
+function getAvailableTagTypes() {
+  try {
+    return getTagTypesStmt
+      .all()
+      .map(row => row?.type)
+      .filter(type => typeof type === "string" && type.length > 0);
+  } catch {
+    return [];
+  }
+}
+
 export function getMediaSettings() {
   const rows = getMediaRowsStmt.all();
   const settings = { ...MEDIA_SETTINGS_DEFAULTS };
@@ -147,4 +172,36 @@ export function setBlacklistedTags(rawTagString) {
   );
 
   return tags;
+}
+
+export function getTagTypeOrder() {
+  const availableTypes = getAvailableTagTypes();
+
+  try {
+    const row = getSettingStmt.get(TAG_TYPE_ORDER_KEY);
+    const storedOrder = parseStoredTagTypeOrder(row?.value);
+
+    if (!storedOrder.length)
+      return mergeTagTypeOrder(DEFAULT_TAG_TYPE_ORDER, availableTypes);
+
+    return mergeTagTypeOrder(storedOrder, availableTypes);
+  } catch {
+    return mergeTagTypeOrder(DEFAULT_TAG_TYPE_ORDER, availableTypes);
+  }
+}
+
+export function setTagTypeOrder(rawTagTypeOrder) {
+  const normalizedOrder = normalizeTagTypeOrder(rawTagTypeOrder);
+
+  upsertSettingStmt.run(
+    TAG_TYPE_ORDER_KEY,
+    JSON.stringify(normalizedOrder),
+    Date.now()
+  );
+
+  return getTagTypeOrder();
+}
+
+export function getTagTypeOrderSql() {
+  return buildTagTypeOrderSql(getTagTypeOrder());
 }

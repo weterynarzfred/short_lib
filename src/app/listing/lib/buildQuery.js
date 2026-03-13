@@ -1,16 +1,6 @@
-// TODO: add this order to the settings page, based on all types that exist in
-// the DB
-export const TAG_ORDER_SQL = `
-  CASE t.type
-    WHEN 'meta' THEN 0
-    WHEN 'rating' THEN 1
-    WHEN 'creator' THEN 2
-    WHEN 'copyright' THEN 3
-    WHEN 'character' THEN 4
-    WHEN 'general' THEN 5
-    ELSE 6
-  END
-`;
+import { buildTagTypeOrderSql } from "@/lib/tagTypeOrder";
+
+export const TAG_ORDER_SQL = buildTagTypeOrderSql();
 
 function clampInt(value, { min, max, fallback }) {
   const parsed = Number.parseInt(value, 10);
@@ -76,7 +66,7 @@ function buildHasPredicate(hasFilter, params) {
   return existsClause;
 }
 
-export default function buildQuery(parsed, { limit, offset } = {}) {
+export default function buildQuery(parsed, { limit, offset, tagOrderSql = TAG_ORDER_SQL } = {}) {
   const { filters, tagExpression } = parsed;
   const safeLimit = clampInt(limit ?? filters.limit, {
     min: 1,
@@ -116,7 +106,7 @@ export default function buildQuery(parsed, { limit, offset } = {}) {
           JOIN tags t ON t.id = mt.tag_id
           WHERE mt.media_id = m.id
           ORDER BY
-            ${TAG_ORDER_SQL},
+            ${tagOrderSql},
             t.name COLLATE NOCASE
         ) t
       ), '[]') AS tags

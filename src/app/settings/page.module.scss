@@ -95,7 +95,73 @@
 }
 
 .mediaSettingDescription {
-  margin-top: -0.2rem;
-
   @include subtleText();
+
+  margin-top: -0.2rem;
+}
+
+.tagTypeOrderEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tagTypeOrderList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tagTypeOrderItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid $colorBg2;
+  border-radius: $radiusSm;
+  background: $colorBg2;
+
+  &[data-dragging] {
+    opacity: 0.8;
+  }
+}
+
+.tagTypeOrderHandle {
+  @include buttonBase($padding: 0.2rem, $background: transparent);
+
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  svg {
+    width: 1rem;
+    height: auto;
+    stroke: $colorContent2;
+    fill: none;
+  }
+}
+
+.tagTypeOrderName {
+  flex: 1 1 auto;
+  font-size: 0.8rem;
+}
+
+.tagTypeOrderItemActions {
+  display: flex;
+  gap: 0.5rem;
+
+  .settingButton {
+    @include buttonBase($padding: 0, $borderColor: $colorBorder);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
 }

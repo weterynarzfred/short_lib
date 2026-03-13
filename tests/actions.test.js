@@ -12,6 +12,8 @@ const hoisted = vi.hoisted(() => ({
   deleteTagById: vi.fn(),
   setBlacklistedTags: vi.fn(),
   setMediaSettings: vi.fn(),
+  setTagTypeOrder: vi.fn(),
+  getTagTypeOrderSql: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -46,6 +48,8 @@ vi.mock("@/lib/manageTag", () => ({
 vi.mock("@/lib/userSettings", () => ({
   setBlacklistedTags: hoisted.setBlacklistedTags,
   setMediaSettings: hoisted.setMediaSettings,
+  setTagTypeOrder: hoisted.setTagTypeOrder,
+  getTagTypeOrderSql: hoisted.getTagTypeOrderSql,
 }));
 
 describe("server actions", () => {
@@ -64,6 +68,9 @@ describe("server actions", () => {
     hoisted.deleteTagById.mockReset();
     hoisted.setBlacklistedTags.mockReset();
     hoisted.setMediaSettings.mockReset();
+    hoisted.setTagTypeOrder.mockReset();
+    hoisted.getTagTypeOrderSql.mockReset();
+    hoisted.getTagTypeOrderSql.mockReturnValue("CASE WHEN 'general' THEN 0 ELSE 1 END");
   });
 
   it("updatePostNotesAction rejects invalid media id values", async () => {
@@ -205,5 +212,20 @@ describe("server actions", () => {
     expect(result).toEqual({ deleted: true });
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/tags");
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+  });
+
+  it("updateTagTypeOrderAction stores order and revalidates listing/settings", async () => {
+    hoisted.setTagTypeOrder.mockReturnValue(["meta", "creator", "general"]);
+
+    const { updateTagTypeOrderAction } = await import("../src/lib/actions");
+    const result = await updateTagTypeOrderAction("meta creator general");
+
+    expect(hoisted.setTagTypeOrder).toHaveBeenCalledWith("meta creator general");
+    expect(result).toEqual({
+      tagTypeOrder: ["meta", "creator", "general"],
+      tagTypeOrderValue: "meta creator general",
+    });
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/settings");
   });
 });

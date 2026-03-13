@@ -27,6 +27,14 @@ function mockDb(initial = {}) {
         };
       }
 
+      if (sql.includes("SELECT DISTINCT LOWER(TRIM(type)) AS type")) {
+        return {
+          all: () => [...store.entries()]
+            .filter(([key]) => key.startsWith("__tag_type__:"))
+            .map(([, value]) => ({ type: value })),
+        };
+      }
+
       throw new Error(`Unexpected SQL: ${sql}`);
     }),
     transaction: vi.fn(fn => rows => fn(rows)),
@@ -69,6 +77,62 @@ describe("userSettings blacklist", () => {
 
     const { getBlacklistedTags } = await import("../src/lib/userSettings");
     expect(getBlacklistedTags()).toEqual(["nsfw", "spoiler"]);
+  });
+});
+
+describe("userSettings tag type order", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("returns default order plus DB-only types when not configured", async () => {
+    const { db } = mockDb({
+      "__tag_type__:1": "meta",
+      "__tag_type__:2": "special",
+    });
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { getTagTypeOrder } = await import("../src/lib/userSettings");
+    expect(getTagTypeOrder()).toEqual([
+      "meta",
+      "rating",
+      "creator",
+      "copyright",
+      "character",
+      "general",
+      "special",
+    ]);
+  });
+
+  it("stores and reads normalized tag type order", async () => {
+    const { db, store } = mockDb({
+      "__tag_type__:1": "meta",
+      "__tag_type__:2": "custom",
+    });
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { TAG_TYPE_ORDER_KEY, setTagTypeOrder } = await import("../src/lib/userSettings");
+    const tagTypeOrder = setTagTypeOrder("META creator meta");
+
+    expect(store.get(TAG_TYPE_ORDER_KEY)).toBe("[\"meta\",\"creator\"]");
+    expect(tagTypeOrder).toEqual(["meta", "creator", "custom"]);
+  });
+
+  it("builds SQL CASE from configured order", async () => {
+    const { db } = mockDb({
+      "listing.tag_type_order": "[\"creator\",\"meta\"]",
+      "__tag_type__:1": "meta",
+      "__tag_type__:2": "creator",
+      "__tag_type__:3": "general",
+    });
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { getTagTypeOrderSql } = await import("../src/lib/userSettings");
+    const sql = getTagTypeOrderSql();
+
+    expect(sql).toContain("WHEN 'creator' THEN 0");
+    expect(sql).toContain("WHEN 'meta' THEN 1");
+    expect(sql).toContain("WHEN 'general' THEN 2");
   });
 });
 

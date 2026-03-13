@@ -7,8 +7,12 @@ import db from "@/lib/db";
 import deletePost from "@/lib/deletePost";
 import clearDeletedStorage from "@/lib/clearDeletedStorage";
 import { deleteTagById, updateTagById } from "@/lib/manageTag";
-import { setBlacklistedTags, setMediaSettings } from "@/lib/userSettings";
-import { TAG_ORDER_SQL } from "@/app/listing/lib/buildQuery";
+import {
+  getTagTypeOrderSql,
+  setBlacklistedTags,
+  setMediaSettings,
+  setTagTypeOrder,
+} from "@/lib/userSettings";
 
 function normalizePostIds(postIds) {
   return Array.isArray(postIds)
@@ -134,7 +138,7 @@ export async function getPostTagValuesAction(postIds) {
     WHERE mt.media_id IN (${placeholders})
     ORDER BY
       mt.media_id,
-      ${TAG_ORDER_SQL},
+      ${getTagTypeOrderSql()},
       t.name COLLATE NOCASE
   `).all(...ids);
 
@@ -183,5 +187,17 @@ export async function updateBlacklistedTagsAction(rawTagString) {
   return {
     tags,
     tagsValue: tags.join(" "),
+  };
+}
+
+export async function updateTagTypeOrderAction(rawTagTypeOrder) {
+  const tagTypeOrder = setTagTypeOrder(rawTagTypeOrder);
+
+  revalidatePath("/listing");
+  revalidatePath("/settings");
+
+  return {
+    tagTypeOrder,
+    tagTypeOrderValue: tagTypeOrder.join(" "),
   };
 }

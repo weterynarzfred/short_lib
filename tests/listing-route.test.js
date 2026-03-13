@@ -9,9 +9,10 @@ describe("listing route", () => {
   it("returns 400 when offset is invalid", async () => {
     const getPostsPage = vi.fn(() => ({ posts: [], hasMore: false, nextOffset: 0 }));
     const getBlacklistedTags = vi.fn(() => ["nsfw"]);
+    const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
     vi.doMock("@/app/listing/lib/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = GET(new Request("http://localhost/api/listing?offset=-1"));
@@ -25,9 +26,10 @@ describe("listing route", () => {
   it("returns 400 when limit is out of bounds", async () => {
     const getPostsPage = vi.fn(() => ({ posts: [], hasMore: false, nextOffset: 0 }));
     const getBlacklistedTags = vi.fn(() => []);
+    const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
     vi.doMock("@/app/listing/lib/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = GET(new Request("http://localhost/api/listing?limit=999"));
@@ -46,9 +48,10 @@ describe("listing route", () => {
     };
     const getPostsPage = vi.fn(() => result);
     const getBlacklistedTags = vi.fn(() => ["nsfw", "spoiler"]);
+    const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'meta' THEN 0 ELSE 1 END");
 
     vi.doMock("@/app/listing/lib/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = GET(new Request("http://localhost/api/listing?search=cat&offset=50&limit=25"));
@@ -60,6 +63,7 @@ describe("listing route", () => {
       offset: 50,
       limit: 25,
       defaultExcludedTags: ["nsfw", "spoiler"],
+      tagOrderSql: "CASE WHEN 'meta' THEN 0 ELSE 1 END",
     });
     expect(body).toEqual(result);
   });
@@ -68,9 +72,10 @@ describe("listing route", () => {
     const result = { posts: [], hasMore: false, nextOffset: 0 };
     const getPostsPage = vi.fn(() => result);
     const getBlacklistedTags = vi.fn(() => []);
+    const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
     vi.doMock("@/app/listing/lib/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = GET(new Request("http://localhost/api/listing"));
@@ -81,6 +86,7 @@ describe("listing route", () => {
       offset: 0,
       limit: undefined,
       defaultExcludedTags: [],
+      tagOrderSql: "CASE WHEN 'general' THEN 0 ELSE 1 END",
     });
     expect(body).toEqual(result);
   });

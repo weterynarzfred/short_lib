@@ -1,13 +1,15 @@
 import Nav from "@/components/Nav";
-import { getBlacklistedTags, getMediaSettings } from "@/lib/userSettings";
+import { getBlacklistedTags, getMediaSettings, getTagTypeOrder } from "@/lib/userSettings";
 import BlacklistedTagsSetting from "./components/BlacklistedTagsSetting";
 import MediaSettingsSetting from "./components/MediaSettingsSetting";
+import TagTypeOrderSetting from "./components/TagTypeOrderSetting";
 
 import styles from "./page.module.scss";
 
 export default function SettingsPage() {
   const blacklistedTags = getBlacklistedTags();
   const mediaSettings = getMediaSettings();
+  const tagTypeOrder = getTagTypeOrder();
 
   return (
     <div className="page-settings">
@@ -27,6 +29,17 @@ export default function SettingsPage() {
 
           <BlacklistedTagsSetting
             initialValue={blacklistedTags.join(" ")}
+          />
+        </section>
+
+        <section className={styles.settingCard}>
+          <h2 className={styles.settingTitle}>tag type order</h2>
+          <p className={styles.settingDescription}>
+            controls tag sorting in listing and editors. includes known types from the database.
+          </p>
+
+          <TagTypeOrderSetting
+            initialValue={tagTypeOrder.join(" ")}
           />
         </section>
 
