@@ -114,6 +114,14 @@
   }
 }
 
+.preview-audio {
+  margin-top: 2.3rem;
+
+  audio {
+    display: block;
+  }
+}
+
 .metaFullscreen {
   padding: $spacingHalf;
   max-width: 40rem;

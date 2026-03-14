@@ -51,14 +51,15 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
         onClose={close}
       />
 
-      {Boolean(post?.variants?.thumb) ? <MediaPreview
+      {Boolean(['video', 'image', 'audio'].includes(post?.mime_type.split("/")[0])) ? <MediaPreview
         src={post.file_path}
         mime_type={post.mime_type}
         mediaRef={mediaRef}
         settings={toggles}
-        className={classNames({
-          [styles.previewFullscreen]: toggles.fullscreen,
-        })}
+        className={classNames(
+          styles[`preview-${post?.mime_type.split("/")[0]}`],
+          { [styles.previewFullscreen]: toggles.fullscreen }
+        )}
         onEnded={handleMediaEnded}
       /> : null}
 
