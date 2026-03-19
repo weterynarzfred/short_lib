@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
-    "start": "next start",
+    "start": "next start --port 3774",
     "test": "vitest run",
     "test:watch": "vitest"
   },
