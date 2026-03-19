@@ -201,7 +201,6 @@ export async function deleteTagAction(tagId) {
 
 export async function updateMediaSettingsAction(partialSettings) {
   const media = setMediaSettings(partialSettings);
-  revalidatePath("/listing");
   return media;
 }
 
