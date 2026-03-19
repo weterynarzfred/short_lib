@@ -8,7 +8,12 @@ import { deletePostsBulkAction, editPostTagsBulkAction } from "@/lib/actions";
 
 import styles from "./MediaPanelBulkTagEditor.module.scss";
 
-export default function MediaPanelBulkTagEditor({ postIds, className, onDeleteAll }) {
+export default function MediaPanelBulkTagEditor({
+  postIds,
+  className,
+  onDeleteAll,
+  onPatchPost,
+}) {
   const [value, setValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -31,7 +36,14 @@ export default function MediaPanelBulkTagEditor({ postIds, className, onDeleteAl
     setNote("");
 
     try {
-      await editPostTagsBulkAction(uniquePostIds, value.trim());
+      const updates = await editPostTagsBulkAction(uniquePostIds, value.trim());
+      if (Array.isArray(updates)) {
+        for (const update of updates) {
+          if (!Number.isInteger(update?.mediaId)) continue;
+          if (!Array.isArray(update?.tags)) continue;
+          onPatchPost?.(update.mediaId, { tags: update.tags });
+        }
+      }
       setValue("");
       setNote(`updated ${count} item(s)`);
     } catch {

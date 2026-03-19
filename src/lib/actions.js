@@ -87,7 +87,7 @@ export async function addPostTagsBulkAction(postIds, rawTagString) {
 
 export async function editPostTagsBulkAction(postIds, rawTagString) {
   const ids = normalizePostIds(postIds);
-  if (!ids.length) return;
+  if (!ids.length) return [];
 
   const tokens = String(rawTagString ?? "")
     .split(/\s+/)
@@ -114,7 +114,39 @@ export async function editPostTagsBulkAction(postIds, rawTagString) {
     if (tagsToAdd.length) addTags(postId, tagsToAdd, { replace: false });
   }
 
-  revalidatePath("/listing");
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = db.prepare(`
+    SELECT
+      mt.media_id AS mediaId,
+      t.id AS id,
+      t.name AS name,
+      t.type AS type
+    FROM media_tags mt
+    JOIN tags t ON t.id = mt.tag_id
+    WHERE mt.media_id IN (${placeholders})
+    ORDER BY
+      mt.media_id,
+      ${getTagTypeOrderSql()},
+      t.name COLLATE NOCASE
+  `).all(...ids);
+
+  const tagsByMediaId = new Map(ids.map(id => [id, []]));
+  for (const row of rows) {
+    const name = typeof row.name === "string" ? row.name.trim() : "";
+    const type = typeof row.type === "string" ? row.type.trim() : "";
+    if (!name) continue;
+
+    tagsByMediaId.get(row.mediaId)?.push({
+      id: row.id,
+      name,
+      type,
+    });
+  }
+
+  return ids.map(mediaId => ({
+    mediaId,
+    tags: tagsByMediaId.get(mediaId) ?? [],
+  }));
 }
 
 export async function updatePostNotesAction(postId, notesMd) {

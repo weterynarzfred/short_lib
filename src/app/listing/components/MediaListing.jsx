@@ -179,6 +179,7 @@ export default function MediaListing({
           <MediaPanelBulkTagEditor
             postIds={selectedPostIds}
             onDeleteAll={clearSelection}
+            onPatchPost={patchVisiblePost}
           />
         ) : active && (
           <MediaPanel
