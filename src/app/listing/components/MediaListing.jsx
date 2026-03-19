@@ -27,6 +27,7 @@ export default function MediaListing({
     contentRef,
     sentinelRef,
     visiblePosts,
+    patchVisiblePost,
     hasMore,
     isLoadingMore,
     loadMore,
@@ -187,6 +188,7 @@ export default function MediaListing({
             next={next}
             mediaRef={mediaRef}
             initialSettings={mediaSettings}
+            onPatchPost={patchVisiblePost}
           />
         )}
       </div>

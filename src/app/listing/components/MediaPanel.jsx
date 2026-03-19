@@ -16,7 +16,15 @@ const DEFAULT_TOGGLES = {
   fullscreen: false
 };
 
-export default function MediaPanel({ post, close, prev, next, mediaRef, initialSettings }) {
+export default function MediaPanel({
+  post,
+  close,
+  prev,
+  next,
+  mediaRef,
+  initialSettings,
+  onPatchPost,
+}) {
   const [, startTransition] = useTransition();
   const [toggles, setToggles] = useState({
     ...DEFAULT_TOGGLES,
@@ -67,6 +75,7 @@ export default function MediaPanel({ post, close, prev, next, mediaRef, initialS
         post={post}
         prev={prev}
         next={next}
+        onPatchPost={onPatchPost}
         isSlideshowOn={toggles.slideshow}
         className={classNames({
           [styles.metaFullscreen]: toggles.fullscreen,

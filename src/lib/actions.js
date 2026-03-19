@@ -40,9 +40,35 @@ export async function clearDeletedStorageAction() {
 }
 
 export async function updatePostTagsAction(postId, rawTagString) {
+  const safePostId = Number(postId);
+  if (!Number.isInteger(safePostId) || safePostId <= 0)
+    throw new Error("Invalid media id");
+
   const tags = parseTagString(rawTagString);
-  addTags(postId, tags, { replace: true });
-  revalidatePath("/listing");
+  addTags(safePostId, tags, { replace: true });
+
+  const rows = db.prepare(`
+    SELECT
+      t.id AS id,
+      t.name AS name,
+      t.type AS type
+    FROM media_tags mt
+    JOIN tags t ON t.id = mt.tag_id
+    WHERE mt.media_id = ?
+    ORDER BY
+      ${getTagTypeOrderSql()},
+      t.name COLLATE NOCASE
+  `).all(safePostId);
+
+  return {
+    tags: rows
+      .map(row => ({
+        id: row.id,
+        name: typeof row.name === "string" ? row.name.trim() : "",
+        type: typeof row.type === "string" ? row.type.trim() : "",
+      }))
+      .filter(tag => Boolean(tag.name)),
+  };
 }
 
 export async function addPostTagsAction(postId, rawTagString) {
@@ -104,7 +130,7 @@ export async function updatePostNotesAction(postId, notesMd) {
     WHERE id = ?
   `).run(nextNotes, safePostId);
 
-  revalidatePath("/listing");
+  return { notes_md: nextNotes };
 }
 
 export async function updatePostOriginalFilenameAction(postId, originalFilename) {
@@ -120,7 +146,7 @@ export async function updatePostOriginalFilenameAction(postId, originalFilename)
     WHERE id = ?
   `).run(nextOriginalFilename, safePostId);
 
-  revalidatePath("/listing");
+  return { original_filename: nextOriginalFilename };
 }
 
 export async function getPostTagValuesAction(postIds) {

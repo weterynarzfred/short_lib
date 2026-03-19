@@ -1,4 +1,4 @@
-import InactiveDetection from "@/app/InactiveDetection";
+import InactiveDetection from "@/app/components/InactiveDetection";
 
 import '@/scss/main.scss';
 

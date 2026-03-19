@@ -61,6 +61,17 @@ export default function useMediaListingPagination({
     }
   }, [hasMore, isLoadingMore, nextOffset, search]);
 
+  const patchVisiblePost = useCallback((postId, patchOrUpdater) => {
+    setVisiblePosts(previous => previous.map(post => {
+      if (post.id !== postId) return post;
+
+      if (typeof patchOrUpdater === "function")
+        return patchOrUpdater(post);
+
+      return { ...post, ...patchOrUpdater };
+    }));
+  }, []);
+
   useEffect(() => {
     if (!hasMore || isLoadingMore) return;
     if (!contentRef.current || !sentinelRef.current) return;
@@ -84,6 +95,7 @@ export default function useMediaListingPagination({
     contentRef,
     sentinelRef,
     visiblePosts,
+    patchVisiblePost,
     hasMore,
     isLoadingMore,
     loadMore,

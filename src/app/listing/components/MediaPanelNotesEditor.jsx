@@ -5,7 +5,7 @@ import { updatePostNotesAction } from "@/lib/actions";
 
 import styles from "./MediaPanelNotesEditor.module.scss";
 
-export default function MediaPanelNotesEditor({ postId, initialValue }) {
+export default function MediaPanelNotesEditor({ postId, initialValue, onPatchPost }) {
   const [notesValue, setNotesValue] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
@@ -23,7 +23,9 @@ export default function MediaPanelNotesEditor({ postId, initialValue }) {
 
     setIsSavingNotes(true);
     try {
-      await updatePostNotesAction(postId, notesValue);
+      const result = await updatePostNotesAction(postId, notesValue);
+      if (typeof result?.notes_md === "string")
+        onPatchPost?.(postId, { notes_md: result.notes_md });
     } finally {
       setIsSavingNotes(false);
     }

@@ -15,6 +15,7 @@ export default function MediaPanelMeta({
   post,
   prev,
   next,
+  onPatchPost,
   className,
   isSlideshowOn = false,
 }) {
@@ -48,7 +49,11 @@ export default function MediaPanelMeta({
 
     const nextValue = tagsValue.trim();
     startTagsTransition(() => {
-      updatePostTagsAction(post.id, nextValue);
+      updatePostTagsAction(post.id, nextValue)
+        .then(result => {
+          if (Array.isArray(result?.tags)) onPatchPost?.(post.id, { tags: result.tags });
+        })
+        .catch(error => console.error(error));
     });
   };
 
@@ -56,7 +61,12 @@ export default function MediaPanelMeta({
     if (!isFilenameDirty) return;
 
     startFilenameTransition(() => {
-      updatePostOriginalFilenameAction(post.id, filenameValue);
+      updatePostOriginalFilenameAction(post.id, filenameValue)
+        .then(result => {
+          if (typeof result?.original_filename === "string")
+            onPatchPost?.(post.id, { original_filename: result.original_filename });
+        })
+        .catch(error => console.error(error));
     });
   };
 
@@ -117,6 +127,7 @@ export default function MediaPanelMeta({
       <MediaPanelNotesEditor
         postId={post.id}
         initialValue={post.notes_md}
+        onPatchPost={onPatchPost}
       />
 
       <div className={styles.edit}>
