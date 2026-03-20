@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import mimetypeToType from "@/app/api/upload/mimetypeToType";
 
 const IMAGE_SLIDESHOW_DELAY_MS = 4000;
 const RETRY_ADVANCE_DELAY_MS = 300;
@@ -71,7 +72,8 @@ export default function useMediaPanelSlideshow({ isSlideshowOn, postId, mimeType
     clearRetryAdvanceTimer();
 
     if (!isSlideshowOn) return;
-    if (mimeType?.startsWith("video") || mimeType?.startsWith("audio")) return;
+    const mediaType = mimetypeToType(mimeType);
+    if (mediaType === "video" || mediaType === "audio") return;
     if (postId == null) return;
 
     const expectedPostId = postId;

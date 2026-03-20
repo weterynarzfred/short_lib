@@ -13,3 +13,13 @@
     height: auto;
   }
 }
+
+.textPreview {
+  width: 100%;
+  max-height: 26rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  padding: $spacingHalf;
+  font-family: monospace;
+  font-size: 0.9rem;
+}

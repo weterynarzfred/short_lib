@@ -22,6 +22,8 @@ describe("mimetypeToType", () => {
     expect(mimetypeToType("image/png")).toBe("image");
     expect(mimetypeToType("video/mp4")).toBe("video");
     expect(mimetypeToType("audio/mpeg")).toBe("audio");
+    expect(mimetypeToType("text/markdown")).toBe("text");
+    expect(mimetypeToType(" IMAGE/PNG ")).toBe("image");
     expect(mimetypeToType("application/pdf")).toBe("other");
     expect(mimetypeToType()).toBe("other");
   });

@@ -4,6 +4,7 @@ import MediaPanelMeta from "./MediaPanelMeta";
 import MediaPanelControls from "./MediaPanelControls";
 import useMediaPanelSlideshow from "../lib/useMediaPanelSlideshow";
 import MediaPreview from "../../../components/MediaPreview";
+import mimetypeToType from "@/app/api/upload/mimetypeToType";
 import { updateMediaSettingsAction } from "@/lib/actions";
 
 import styles from "./MediaPanel.module.scss";
@@ -49,9 +50,15 @@ export default function MediaPanel({
   const { handleMediaEnded } = useMediaPanelSlideshow({
     isSlideshowOn: toggles.slideshow,
     postId: post?.id,
-    mimeType: post?.mime_type,
+    mimeType: typeof post?.mime_type === "string" ? post.mime_type : "",
     onAdvance: next,
   });
+
+  const mimeType = typeof post?.mime_type === "string"
+    ? post.mime_type
+    : "";
+  const mediaType = mimetypeToType(mimeType);
+  const canPreview = ["video", "image", "audio", "text"].includes(mediaType);
 
   return (
     <div
@@ -65,17 +72,17 @@ export default function MediaPanel({
         onClose={close}
       />
 
-      {Boolean(['video', 'image', 'audio'].includes(post?.mime_type.split("/")[0])) ? <MediaPreview
+      {canPreview ? <MediaPreview
         src={post.file_path}
-        mime_type={post.mime_type}
+        mime_type={mimeType}
         mediaRef={mediaRef}
         settings={toggles}
         className={classNames(
-          styles[`preview-${post?.mime_type.split("/")[0]}`],
+          styles[`preview-${mediaType}`],
           { [styles.previewFullscreen]: toggles.fullscreen }
         )}
         onEnded={handleMediaEnded}
-      /> : null}
+      /> : <div className={styles.previewNull}></div>}
 
       <MediaPanelMeta
         post={post}

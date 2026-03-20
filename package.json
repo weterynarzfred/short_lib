@@ -12,12 +12,13 @@
   "dependencies": {
     "@dnd-kit/sortable": "^10.0.0",
     "@radix-ui/react-select": "^2.2.6",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.8.0",
     "classnames": "^2.5.1",
-    "file-type": "^21.3.2",
+    "file-type": "^21.3.3",
     "formidable": "^3.5.4",
+    "istextorbinary": "^9.5.0",
     "mime-types": "^3.0.2",
-    "next": "16.1.6",
+    "next": "16.2.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "sharp": "^0.34.5"

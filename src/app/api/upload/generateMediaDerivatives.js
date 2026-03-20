@@ -1,15 +1,18 @@
 import processImage from "./processImage";
 import processVideo from "./processVideo";
+import mimetypeToType from "./mimetypeToType";
 
 export default async function generateMediaDerivatives(fileData) {
   for (const metadata of fileData.values()) {
     const { mimetype } = metadata;
     if (!mimetype) continue;
 
+    const mediaType = mimetypeToType(mimetype);
+
     let variants = null;
-    if (mimetype.startsWith("image/"))
+    if (mediaType === "image")
       variants = await processImage(metadata);
-    else if (mimetype.startsWith("video/"))
+    else if (mediaType === "video")
       variants = await processVideo(metadata);
 
     if (variants) metadata.variants = variants;

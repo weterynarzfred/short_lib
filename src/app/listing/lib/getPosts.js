@@ -21,6 +21,9 @@ function normalizePosts(posts) {
   posts.forEach(post => {
     post.variants = parseJsonWithFallback(post.variants, null);
     post.tags = parseJsonWithFallback(post.tags, []);
+    post.mime_type = typeof post.mime_type === "string"
+      ? post.mime_type.trim().toLowerCase()
+      : "";
   });
 }
 

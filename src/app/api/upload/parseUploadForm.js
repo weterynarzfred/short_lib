@@ -76,7 +76,9 @@ export default async function parseUploadForm(req) {
 
     file.filepath = finalPath;
 
-    const meta = await extractMetadata(file.filepath);
+    const meta = await extractMetadata(file.filepath, {
+      fallbackMimeType: file.mimetype,
+    });
 
     file.size = meta.size;
     file.mimetype = meta.mimetype;

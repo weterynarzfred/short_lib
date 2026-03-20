@@ -129,7 +129,10 @@ describe("parseUploadForm", () => {
       `C:\\storage\\full\\2026\\03\\${file.checksum}.jpg`
     );
     expect(hoisted.unlink).toHaveBeenCalledWith("C:\\storage\\tmp\\temp-upload.jpg");
-    expect(hoisted.extractMetadata).toHaveBeenCalledWith(`C:\\storage\\full\\2026\\03\\${file.checksum}.jpg`);
+    expect(hoisted.extractMetadata).toHaveBeenCalledWith(
+      `C:\\storage\\full\\2026\\03\\${file.checksum}.jpg`,
+      { fallbackMimeType: "image/jpeg" }
+    );
   });
 
   it("rethrows rename errors other than EEXIST", async () => {
