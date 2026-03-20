@@ -19,6 +19,9 @@ export default function MediaListing({
   initialNextOffset = 0,
 }) {
   const mediaRef = useRef(null);
+  const [panelSettings, setPanelSettings] = useState(() => ({
+    ...mediaSettings,
+  }));
   const [isMultiSelectEnabled, setIsMultiSelectEnabled] = useState(false);
   const [selectedPostIds, setSelectedPostIds] = useState([]);
   const [selectionAnchorId, setSelectionAnchorId] = useState(null);
@@ -156,6 +159,10 @@ export default function MediaListing({
     );
   }, [visiblePostIds]);
 
+  useEffect(() => {
+    setPanelSettings({ ...mediaSettings });
+  }, [mediaSettings]);
+
   return (
     <div className={styles.mediaListing}>
       <MediaListingContent
@@ -188,8 +195,9 @@ export default function MediaListing({
             prev={prev}
             next={next}
             mediaRef={mediaRef}
-            initialSettings={mediaSettings}
+            initialSettings={panelSettings}
             onPatchPost={patchVisiblePost}
+            onSettingsChange={setPanelSettings}
           />
         )}
       </div>

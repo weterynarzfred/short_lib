@@ -81,7 +81,7 @@ describe("server actions", () => {
     expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("updatePostNotesAction writes sanitized notes and revalidates listing", async () => {
+  it("updatePostNotesAction writes sanitized notes without listing revalidation", async () => {
     const run = vi.fn();
     hoisted.dbPrepare.mockReturnValue({ run });
 
@@ -90,7 +90,7 @@ describe("server actions", () => {
 
     expect(hoisted.dbPrepare).toHaveBeenCalled();
     expect(run).toHaveBeenCalledWith("", 7);
-    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("updatePostOriginalFilenameAction rejects invalid media id values", async () => {
@@ -103,7 +103,7 @@ describe("server actions", () => {
     expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("updatePostOriginalFilenameAction writes sanitized filename and revalidates listing", async () => {
+  it("updatePostOriginalFilenameAction writes sanitized filename without listing revalidation", async () => {
     const run = vi.fn();
     hoisted.dbPrepare.mockReturnValue({ run });
 
@@ -112,7 +112,7 @@ describe("server actions", () => {
 
     expect(hoisted.dbPrepare).toHaveBeenCalled();
     expect(run).toHaveBeenCalledWith("", 7);
-    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("deletePostsBulkAction deletes only integer ids and revalidates listing", async () => {
@@ -152,15 +152,50 @@ describe("server actions", () => {
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
   });
 
-  it("editPostTagsBulkAction splits add/remove tokens and applies both", async () => {
+  it("updatePostTagsAction replaces tags, normalizes output, and skips listing revalidation", async () => {
+    hoisted.parseTagString.mockReturnValue([{ name: "cat" }, { name: "bob", type: "creator" }]);
+    const all = vi.fn(() => ([
+      { mediaId: 7, id: 101, name: "  cat  ", type: "general" },
+      { mediaId: 7, id: 102, name: "bob", type: " creator " },
+      { mediaId: 7, id: 103, name: "   ", type: "meta" },
+    ]));
+    hoisted.dbPrepare.mockReturnValue({ all });
+
+    const { updatePostTagsAction } = await import("../src/lib/actions");
+    const result = await updatePostTagsAction("7", "cat creator:bob");
+
+    expect(hoisted.parseTagString).toHaveBeenCalledWith("cat creator:bob");
+    expect(hoisted.addTags).toHaveBeenCalledWith(
+      7,
+      [{ name: "cat" }, { name: "bob", type: "creator" }],
+      { replace: true }
+    );
+    expect(all).toHaveBeenCalledWith(7);
+    expect(result).toEqual({
+      tags: [
+        { id: 101, name: "cat", type: "general" },
+        { id: 102, name: "bob", type: "creator" },
+      ],
+    });
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("editPostTagsBulkAction splits add/remove tokens, applies both, and skips listing revalidation", async () => {
     hoisted.parseTagString.mockImplementation(raw => {
       if (raw === "cat creator:bob") return [{ name: "cat" }, { name: "bob", type: "creator" }];
       if (raw === "dog meta:video") return [{ name: "dog" }, { name: "video", type: "meta" }];
       return [];
     });
+    const all = vi.fn(() => ([
+      { mediaId: 1, id: 11, name: "cat", type: "general" },
+      { mediaId: 1, id: 12, name: "bob", type: "creator" },
+      { mediaId: 2, id: 21, name: "cat", type: "general" },
+      { mediaId: 2, id: 22, name: "bob", type: "creator" },
+    ]));
+    hoisted.dbPrepare.mockReturnValue({ all });
 
     const { editPostTagsBulkAction } = await import("../src/lib/actions");
-    await editPostTagsBulkAction([1, "2", "bad", 2], "cat -dog creator:bob -meta:video");
+    const result = await editPostTagsBulkAction([1, "2", "bad", 2], "cat -dog creator:bob -meta:video");
 
     expect(hoisted.parseTagString).toHaveBeenNthCalledWith(1, "cat creator:bob");
     expect(hoisted.parseTagString).toHaveBeenNthCalledWith(2, "dog meta:video");
@@ -170,7 +205,24 @@ describe("server actions", () => {
     expect(hoisted.addTags).toHaveBeenCalledTimes(2);
     expect(hoisted.addTags).toHaveBeenNthCalledWith(1, 1, [{ name: "cat" }, { name: "bob", type: "creator" }], { replace: false });
     expect(hoisted.addTags).toHaveBeenNthCalledWith(2, 2, [{ name: "cat" }, { name: "bob", type: "creator" }], { replace: false });
-    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+    expect(all).toHaveBeenCalledWith(1, 2);
+    expect(result).toEqual([
+      {
+        mediaId: 1,
+        tags: [
+          { id: 11, name: "cat", type: "general" },
+          { id: 12, name: "bob", type: "creator" },
+        ],
+      },
+      {
+        mediaId: 2,
+        tags: [
+          { id: 21, name: "cat", type: "general" },
+          { id: 22, name: "bob", type: "creator" },
+        ],
+      },
+    ]);
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("getPostTagValuesAction de-duplicates ids and formats typed tags", async () => {

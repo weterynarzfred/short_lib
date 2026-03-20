@@ -24,6 +24,7 @@ export default function MediaPanel({
   mediaRef,
   initialSettings,
   onPatchPost,
+  onSettingsChange,
 }) {
   const [, startTransition] = useTransition();
   const [toggles, setToggles] = useState({
@@ -33,12 +34,17 @@ export default function MediaPanel({
 
   const toggleOption = useCallback((key) => {
     const nextValue = !toggles[key];
-    setToggles(prev => ({ ...prev, [key]: nextValue }));
+    const nextToggles = {
+      ...toggles,
+      [key]: nextValue,
+    };
+    setToggles(nextToggles);
+    onSettingsChange?.(nextToggles);
 
     startTransition(() => {
       updateMediaSettingsAction({ [key]: nextValue });
     });
-  }, [startTransition, toggles]);
+  }, [onSettingsChange, startTransition, toggles]);
 
   const { handleMediaEnded } = useMediaPanelSlideshow({
     isSlideshowOn: toggles.slideshow,

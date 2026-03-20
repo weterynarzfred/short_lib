@@ -16,8 +16,64 @@ import {
 
 function normalizePostIds(postIds) {
   return Array.isArray(postIds)
-    ? [...new Set(postIds.map(Number).filter(Number.isInteger))]
+    ? [...new Set(postIds.map(Number).filter(id => Number.isInteger(id) && id > 0))]
     : [];
+}
+
+function normalizePostId(postId) {
+  const safePostId = Number(postId);
+  if (!Number.isInteger(safePostId) || safePostId <= 0)
+    throw new Error("Invalid media id");
+
+  return safePostId;
+}
+
+function normalizeTagRow(row) {
+  const name = typeof row?.name === "string" ? row.name.trim() : "";
+  if (!name) return null;
+
+  return {
+    id: row.id,
+    name,
+    type: typeof row?.type === "string" ? row.type.trim() : "",
+  };
+}
+
+function formatTagValue(tag) {
+  return tag.type && tag.type !== "general"
+    ? `${tag.type}:${tag.name}`
+    : tag.name;
+}
+
+function getTagsByMediaIds(postIds) {
+  const ids = normalizePostIds(postIds);
+  if (!ids.length) return new Map();
+
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = db.prepare(`
+    SELECT
+      mt.media_id AS mediaId,
+      t.id AS id,
+      t.name AS name,
+      t.type AS type
+    FROM media_tags mt
+    JOIN tags t ON t.id = mt.tag_id
+    WHERE mt.media_id IN (${placeholders})
+    ORDER BY
+      mt.media_id,
+      ${getTagTypeOrderSql()},
+      t.name COLLATE NOCASE
+  `).all(...ids);
+
+  const tagsByMediaId = new Map(ids.map(id => [id, []]));
+  for (const row of rows) {
+    const tag = normalizeTagRow(row);
+    if (!tag) continue;
+
+    tagsByMediaId.get(row.mediaId)?.push(tag);
+  }
+
+  return tagsByMediaId;
 }
 
 export async function deletePostAction(postId) {
@@ -40,40 +96,21 @@ export async function clearDeletedStorageAction() {
 }
 
 export async function updatePostTagsAction(postId, rawTagString) {
-  const safePostId = Number(postId);
-  if (!Number.isInteger(safePostId) || safePostId <= 0)
-    throw new Error("Invalid media id");
+  const safePostId = normalizePostId(postId);
 
   const tags = parseTagString(rawTagString);
   addTags(safePostId, tags, { replace: true });
-
-  const rows = db.prepare(`
-    SELECT
-      t.id AS id,
-      t.name AS name,
-      t.type AS type
-    FROM media_tags mt
-    JOIN tags t ON t.id = mt.tag_id
-    WHERE mt.media_id = ?
-    ORDER BY
-      ${getTagTypeOrderSql()},
-      t.name COLLATE NOCASE
-  `).all(safePostId);
+  const tagsByMediaId = getTagsByMediaIds([safePostId]);
 
   return {
-    tags: rows
-      .map(row => ({
-        id: row.id,
-        name: typeof row.name === "string" ? row.name.trim() : "",
-        type: typeof row.type === "string" ? row.type.trim() : "",
-      }))
-      .filter(tag => Boolean(tag.name)),
+    tags: tagsByMediaId.get(safePostId) ?? [],
   };
 }
 
 export async function addPostTagsAction(postId, rawTagString) {
+  const safePostId = normalizePostId(postId);
   const tags = parseTagString(rawTagString);
-  addTags(postId, tags, { replace: false });
+  addTags(safePostId, tags, { replace: false });
   revalidatePath("/listing");
 }
 
@@ -113,35 +150,7 @@ export async function editPostTagsBulkAction(postIds, rawTagString) {
     if (tagsToRemove.length) removeTags(postId, tagsToRemove);
     if (tagsToAdd.length) addTags(postId, tagsToAdd, { replace: false });
   }
-
-  const placeholders = ids.map(() => "?").join(",");
-  const rows = db.prepare(`
-    SELECT
-      mt.media_id AS mediaId,
-      t.id AS id,
-      t.name AS name,
-      t.type AS type
-    FROM media_tags mt
-    JOIN tags t ON t.id = mt.tag_id
-    WHERE mt.media_id IN (${placeholders})
-    ORDER BY
-      mt.media_id,
-      ${getTagTypeOrderSql()},
-      t.name COLLATE NOCASE
-  `).all(...ids);
-
-  const tagsByMediaId = new Map(ids.map(id => [id, []]));
-  for (const row of rows) {
-    const name = typeof row.name === "string" ? row.name.trim() : "";
-    const type = typeof row.type === "string" ? row.type.trim() : "";
-    if (!name) continue;
-
-    tagsByMediaId.get(row.mediaId)?.push({
-      id: row.id,
-      name,
-      type,
-    });
-  }
+  const tagsByMediaId = getTagsByMediaIds(ids);
 
   return ids.map(mediaId => ({
     mediaId,
@@ -150,9 +159,7 @@ export async function editPostTagsBulkAction(postIds, rawTagString) {
 }
 
 export async function updatePostNotesAction(postId, notesMd) {
-  const safePostId = Number(postId);
-  if (!Number.isInteger(safePostId) || safePostId <= 0)
-    throw new Error("Invalid media id");
+  const safePostId = normalizePostId(postId);
 
   const nextNotes = typeof notesMd === "string" ? notesMd : "";
 
@@ -166,9 +173,7 @@ export async function updatePostNotesAction(postId, notesMd) {
 }
 
 export async function updatePostOriginalFilenameAction(postId, originalFilename) {
-  const safePostId = Number(postId);
-  if (!Number.isInteger(safePostId) || safePostId <= 0)
-    throw new Error("Invalid media id");
+  const safePostId = normalizePostId(postId);
 
   const nextOriginalFilename = typeof originalFilename === "string" ? originalFilename : "";
 
@@ -184,36 +189,13 @@ export async function updatePostOriginalFilenameAction(postId, originalFilename)
 export async function getPostTagValuesAction(postIds) {
   const ids = normalizePostIds(postIds);
   if (!ids.length) return [];
-
-  const placeholders = ids.map(() => "?").join(",");
-  const rows = db.prepare(`
-    SELECT
-      mt.media_id AS mediaId,
-      t.name AS name,
-      t.type AS type
-    FROM media_tags mt
-    JOIN tags t ON t.id = mt.tag_id
-    WHERE mt.media_id IN (${placeholders})
-    ORDER BY
-      mt.media_id,
-      ${getTagTypeOrderSql()},
-      t.name COLLATE NOCASE
-  `).all(...ids);
-
-  const byMediaId = new Map(ids.map(id => [id, []]));
-  for (const row of rows) {
-    const type = typeof row.type === "string" ? row.type.trim() : "";
-    const name = typeof row.name === "string" ? row.name.trim() : "";
-    if (!name) continue;
-
-    byMediaId.get(row.mediaId)?.push(
-      type && type !== "general" ? `${type}:${name}` : name
-    );
-  }
+  const tagsByMediaId = getTagsByMediaIds(ids);
 
   return ids.map(mediaId => ({
     mediaId,
-    tagsValue: byMediaId.get(mediaId)?.join(" ") ?? "",
+    tagsValue: (tagsByMediaId.get(mediaId) ?? [])
+      .map(formatTagValue)
+      .join(" "),
   }));
 }
 
