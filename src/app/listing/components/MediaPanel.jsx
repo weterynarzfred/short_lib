@@ -1,4 +1,4 @@
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import classNames from "classnames";
 import MediaPanelMeta from "./MediaPanelMeta";
 import MediaPanelControls from "./MediaPanelControls";
@@ -46,6 +46,19 @@ export default function MediaPanel({
       updateMediaSettingsAction({ [key]: nextValue });
     });
   }, [onSettingsChange, startTransition, toggles]);
+
+  useEffect(() => {
+    const handleKeydown = event => {
+      if (event.repeat) return;
+      if (!event.altKey || event.key !== "Enter") return;
+
+      event.preventDefault();
+      toggleOption("fullscreen");
+    };
+
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, [toggleOption]);
 
   const { handleMediaEnded } = useMediaPanelSlideshow({
     isSlideshowOn: toggles.slideshow,

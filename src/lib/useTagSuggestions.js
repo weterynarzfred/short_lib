@@ -28,8 +28,21 @@ export default function useTagSuggestions(value, options = {}) {
     }
 
     const start = before.lastIndexOf(" ") + 1;
+    const nextSpace = value.indexOf(" ", pos);
+    const end = nextSpace === -1 ? value.length : nextSpace;
     const query = value.slice(start, pos).replace(/^-/, "");
-    const parts = value.trim().replace(/(^| )-/, "").split(/\s+/);
+    const usedTags = new Set();
+
+    for (const match of value.matchAll(/\S+/g)) {
+      const token = match[0];
+      const tokenStart = match.index ?? 0;
+      const tokenEnd = tokenStart + token.length;
+      const overlapsCurrentToken = tokenStart < end && tokenEnd > start;
+      if (overlapsCurrentToken) continue;
+
+      const normalizedToken = token.replace(/^-/, "");
+      if (normalizedToken) usedTags.add(normalizedToken);
+    }
 
     if (!query) {
       if (abortRef.current) abortRef.current.abort();
@@ -54,7 +67,7 @@ export default function useTagSuggestions(value, options = {}) {
 
         const data = await res.json();
         const tags = (Array.isArray(data.tags) ? data.tags : []).filter(
-          tag => !parts.includes(tag.name)
+          tag => !usedTags.has(tag.name)
         );
 
         setItems(tags);

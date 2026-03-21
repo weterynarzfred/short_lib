@@ -65,7 +65,14 @@ export default function TagEditor({
             return;
           }
           if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            if (combobox.isOpen) {
+              event.stopPropagation();
+              combinedInputProps.onKeyDown(event);
+              return;
+            }
+
             event.preventDefault();
+            event.stopPropagation();
             saveTags();
             return;
           }
