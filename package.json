@@ -7,7 +7,11 @@
     "build": "next build --webpack",
     "start": "next start --port 3774",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typesense:up": "docker compose -f docker-compose.typesense.yml up -d",
+    "typesense:down": "docker compose -f docker-compose.typesense.yml down",
+    "typesense:logs": "docker compose -f docker-compose.typesense.yml logs -f typesense",
+    "typesense:status": "docker compose -f docker-compose.typesense.yml ps"
   },
   "dependencies": {
     "@dnd-kit/sortable": "^10.0.0",
@@ -21,7 +25,8 @@
     "next": "16.2.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "typesense": "^3.0.3"
   },
   "devDependencies": {
     "babel-plugin-react-compiler": "1.0.0",

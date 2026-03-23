@@ -7,7 +7,7 @@ export default async function ListingPage({ searchParams }) {
   const search = (await searchParams)?.search ?? "";
   const blacklistedTags = getBlacklistedTags();
   const tagOrderSql = getTagTypeOrderSql();
-  const { posts, hasMore, nextOffset } = getPostsPage(search, {
+  const { posts, hasMore, nextOffset } = await getPostsPage(search, {
     defaultExcludedTags: blacklistedTags,
     tagOrderSql,
   });

@@ -1,0 +1,15 @@
+services:
+  typesense:
+    image: typesense/typesense:30.1
+    container_name: short_lib_typesense
+    restart: unless-stopped
+    ports:
+      - "8108:8108"
+    volumes:
+      - ./storage/typesense:/data
+    command:
+      - --data-dir
+      - /data
+      - --api-key
+      - ${TYPESENSE_API_KEY:-dev-typesense-api-key-change-me}
+      - --enable-cors

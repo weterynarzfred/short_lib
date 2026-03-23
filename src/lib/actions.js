@@ -13,6 +13,7 @@ import {
   setMediaSettings,
   setTagTypeOrder,
 } from "@/lib/userSettings";
+import { markMediaNotesIndexDirty } from "@/lib/typesense/search";
 
 function normalizePostIds(postIds) {
   return Array.isArray(postIds)
@@ -168,6 +169,7 @@ export async function updatePostNotesAction(postId, notesMd) {
     SET notes_md = ?
     WHERE id = ?
   `).run(nextNotes, safePostId);
+  markMediaNotesIndexDirty();
 
   return { notes_md: nextNotes };
 }

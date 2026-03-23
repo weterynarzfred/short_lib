@@ -3,6 +3,7 @@ import path from "path";
 import db from "@/lib/db";
 import addTags from "@/lib/addTags";
 import { getTagTypeOrderSql } from "@/lib/userSettings";
+import { markMediaNotesIndexDirty, markTagsIndexDirty } from "@/lib/typesense/search";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
 
@@ -79,5 +80,8 @@ export default async function addMediaToDb(fileData) {
     return insertedMedia;
   });
 
-  return insertMany(fileData);
+  const insertedMedia = insertMany(fileData);
+  markTagsIndexDirty();
+  markMediaNotesIndexDirty();
+  return insertedMedia;
 }
