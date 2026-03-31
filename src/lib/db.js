@@ -29,31 +29,10 @@ db.exec(`
 `);
 
 db.exec(`
-  CREATE VIRTUAL TABLE IF NOT EXISTS media_notes_fts
-  USING fts5(notes_md, content='media', content_rowid='id');
-
-  CREATE TRIGGER IF NOT EXISTS media_notes_fts_ai
-  AFTER INSERT ON media
-  BEGIN
-    INSERT INTO media_notes_fts (rowid, notes_md)
-    VALUES (NEW.id, COALESCE(NEW.notes_md, ''));
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS media_notes_fts_ad
-  AFTER DELETE ON media
-  BEGIN
-    INSERT INTO media_notes_fts (media_notes_fts, rowid, notes_md)
-    VALUES ('delete', OLD.id, COALESCE(OLD.notes_md, ''));
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS media_notes_fts_au
-  AFTER UPDATE OF notes_md ON media
-  BEGIN
-    INSERT INTO media_notes_fts (media_notes_fts, rowid, notes_md)
-    VALUES ('delete', OLD.id, COALESCE(OLD.notes_md, ''));
-    INSERT INTO media_notes_fts (rowid, notes_md)
-    VALUES (NEW.id, COALESCE(NEW.notes_md, ''));
-  END;
+  DROP TRIGGER IF EXISTS media_notes_fts_ai;
+  DROP TRIGGER IF EXISTS media_notes_fts_ad;
+  DROP TRIGGER IF EXISTS media_notes_fts_au;
+  DROP TABLE IF EXISTS media_notes_fts;
 `);
 
 db.exec(`

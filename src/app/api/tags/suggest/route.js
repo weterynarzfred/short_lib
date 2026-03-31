@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import { searchTagSuggestions } from "@/lib/typesense/search";
 
 const OPERATORS = [
   {
@@ -58,18 +59,6 @@ const OPERATORS = [
   },
 ];
 
-const stmt = db.prepare(`
-  SELECT
-    t.id,
-    t.name,
-    t.type,
-    t.post_count
-  FROM tags t
-  WHERE t.name LIKE ? || '%'
-  ORDER BY t.post_count DESC, t.id ASC
-  LIMIT 16
-`);
-
 const mimeTypeValuesStmt = db.prepare(`
   SELECT
     LOWER(TRIM(m.mime_type)) AS value
@@ -106,7 +95,7 @@ function getOperatorValues(operator) {
   return [];
 }
 
-export function GET(req) {
+export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") ?? "").trim();
   if (!q) return NextResponse.json({ tags: [] });
@@ -154,13 +143,7 @@ export function GET(req) {
     }
   }
 
-  const rows = stmt.all(q);
-  const tagSuggestions = rows.map(r => ({
-    id: r.id,
-    name: r.name,
-    type: r.type,
-    postCount: r.post_count,
-  }));
+  const tagSuggestions = await searchTagSuggestions(q, { limit: 16 });
 
   return NextResponse.json({
     tags: [...suggestions, ...tagSuggestions],

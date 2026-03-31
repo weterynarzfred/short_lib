@@ -15,7 +15,7 @@ describe("listing route", () => {
     vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
-    const res = GET(new Request("http://localhost/api/listing?offset=-1"));
+    const res = await GET(new Request("http://localhost/api/listing?offset=-1"));
     const body = await res.json();
 
     expect(res.status).toBe(400);
@@ -32,7 +32,7 @@ describe("listing route", () => {
     vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
-    const res = GET(new Request("http://localhost/api/listing?limit=999"));
+    const res = await GET(new Request("http://localhost/api/listing?limit=999"));
     const body = await res.json();
 
     expect(res.status).toBe(400);
@@ -54,7 +54,7 @@ describe("listing route", () => {
     vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
-    const res = GET(new Request("http://localhost/api/listing?search=cat&offset=50&limit=25"));
+    const res = await GET(new Request("http://localhost/api/listing?search=cat&offset=50&limit=25"));
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -78,7 +78,7 @@ describe("listing route", () => {
     vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
-    const res = GET(new Request("http://localhost/api/listing"));
+    const res = await GET(new Request("http://localhost/api/listing"));
     const body = await res.json();
 
     expect(res.status).toBe(200);

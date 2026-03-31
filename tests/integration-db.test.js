@@ -41,31 +41,6 @@ function createTempDb() {
       FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
     );
 
-    CREATE VIRTUAL TABLE media_notes_fts
-    USING fts5(notes_md, content='media', content_rowid='id');
-
-    CREATE TRIGGER media_notes_fts_ai
-    AFTER INSERT ON media
-    BEGIN
-      INSERT INTO media_notes_fts (rowid, notes_md)
-      VALUES (NEW.id, COALESCE(NEW.notes_md, ''));
-    END;
-
-    CREATE TRIGGER media_notes_fts_ad
-    AFTER DELETE ON media
-    BEGIN
-      INSERT INTO media_notes_fts (media_notes_fts, rowid, notes_md)
-      VALUES ('delete', OLD.id, COALESCE(OLD.notes_md, ''));
-    END;
-
-    CREATE TRIGGER media_notes_fts_au
-    AFTER UPDATE OF notes_md ON media
-    BEGIN
-      INSERT INTO media_notes_fts (media_notes_fts, rowid, notes_md)
-      VALUES ('delete', OLD.id, COALESCE(OLD.notes_md, ''));
-      INSERT INTO media_notes_fts (rowid, notes_md)
-      VALUES (NEW.id, COALESCE(NEW.notes_md, ''));
-    END;
   `);
 
   return { db, tempDir };
@@ -79,6 +54,55 @@ describe("integration: addTags + getPosts", () => {
     vi.resetModules();
     ({ db, tempDir } = createTempDb());
     vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/typesense/search", () => ({
+      markTagsIndexDirty: vi.fn(),
+      markMediaNotesIndexDirty: vi.fn(),
+      searchTagSuggestions: vi.fn(async (query, { limit = 16 } = {}) => {
+        const safeQuery = String(query ?? "").trim();
+        if (!safeQuery) return [];
+
+        const rows = db.prepare(`
+          SELECT id, name, type, post_count
+          FROM tags
+          WHERE name LIKE ? || '%'
+          ORDER BY post_count DESC, id ASC
+          LIMIT ?
+        `).all(safeQuery, limit);
+
+        return rows.map(row => ({
+          id: row.id,
+          name: row.name,
+          type: row.type,
+          postCount: row.post_count,
+        }));
+      }),
+      searchMediaIdsByNotes: vi.fn(async query => {
+        const terms = String(query ?? "")
+          .trim()
+          .split(/\s+/)
+          .map(token => token.trim().toLowerCase())
+          .filter(Boolean);
+        if (!terms.length) return [];
+
+        const where = [];
+        const params = [];
+
+        for (const term of terms) {
+          where.push("LOWER(COALESCE(notes_md, '')) LIKE ?");
+          params.push(`%${term}%`);
+        }
+
+        const rows = db.prepare(`
+          SELECT id
+          FROM media
+          WHERE ${where.join(" AND ")}
+          ORDER BY id ASC
+          LIMIT 10000
+        `).all(...params);
+
+        return rows.map(row => row.id);
+      }),
+    }));
   });
 
   afterEach(() => {
@@ -101,7 +125,7 @@ describe("integration: addTags + getPosts", () => {
     addTags(first, [{ name: "red" }, { name: "cat" }]);
     addTags(second, [{ name: "red" }, { name: "dog" }]);
 
-    const posts = getPosts("red -dog");
+    const posts = await getPosts("red -dog");
 
     expect(posts).toHaveLength(1);
     expect(posts[0].id).toBe(first);
@@ -123,8 +147,8 @@ describe("integration: addTags + getPosts", () => {
     addTags(mediaId, [{ name: "cat" }, { name: "old" }]);
     addTags(mediaId, [{ name: "new" }], { replace: true });
 
-    expect(getPosts("cat")).toHaveLength(0);
-    const posts = getPosts("new");
+    expect(await getPosts("cat")).toHaveLength(0);
+    const posts = await getPosts("new");
     expect(posts).toHaveLength(1);
     expect(posts[0].id).toBe(mediaId);
   });
@@ -145,7 +169,7 @@ describe("integration: addTags + getPosts", () => {
     addTags(m3, [{ name: "car", type: "general" }]);
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
-    const res = GET(new Request("http://localhost/api/tags/suggest?q=ca"));
+    const res = await GET(new Request("http://localhost/api/tags/suggest?q=ca"));
     const body = await res.json();
 
     const dbTags = body.tags.filter(t => t.type !== "operator" && t.type !== "value");
@@ -175,11 +199,11 @@ describe("integration: addTags + getPosts", () => {
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
 
-    const mimeRes = GET(new Request("http://localhost/api/tags/suggest?q=mime_type:image/"));
+    const mimeRes = await GET(new Request("http://localhost/api/tags/suggest?q=mime_type:image/"));
     const mimeBody = await mimeRes.json();
     expect(mimeBody.tags.some(t => t.name === "mime_type:image/jpeg")).toBe(true);
 
-    const hasRes = GET(new Request("http://localhost/api/tags/suggest?q=has:c"));
+    const hasRes = await GET(new Request("http://localhost/api/tags/suggest?q=has:c"));
     const hasBody = await hasRes.json();
     expect(hasBody.tags.some(t => t.name === "has:creator")).toBe(true);
   });
@@ -196,11 +220,11 @@ describe("integration: addTags + getPosts", () => {
 
     const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
 
-    const recentPosts = getPosts("age:<1h");
+    const recentPosts = await getPosts("age:<1h");
     expect(recentPosts).toHaveLength(1);
     expect(recentPosts[0].id).toBe(recent);
 
-    const oldEnoughPosts = getPosts("age:>=1d");
+    const oldEnoughPosts = await getPosts("age:>=1d");
     expect(oldEnoughPosts).toHaveLength(1);
     expect(oldEnoughPosts[0].checksum).toBe("old");
   });
@@ -252,15 +276,15 @@ describe("integration: addTags + getPosts", () => {
     addTags(p2, [{ name: "a" }, { name: "b" }]);
     addTags(p3, [{ name: "a" }]);
 
-    expect(getPosts("mpixels:>=2").map(p => p.checksum).sort()).toEqual(["p1", "p2"]);
-    expect(getPosts("duration:<1m").map(p => p.checksum).sort()).toEqual(["p2", "p3"]);
-    expect(getPosts("image_ratio:>=16/9").map(p => p.checksum).sort()).toEqual(["p1", "p2"]);
+    expect((await getPosts("mpixels:>=2")).map(p => p.checksum).sort()).toEqual(["p1", "p2"]);
+    expect((await getPosts("duration:<1m")).map(p => p.checksum).sort()).toEqual(["p2", "p3"]);
+    expect((await getPosts("image_ratio:>=16/9")).map(p => p.checksum).sort()).toEqual(["p1", "p2"]);
 
-    expect(getPosts("order:pixelcount limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
-    expect(getPosts("order:image_ratio limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
-    expect(getPosts("order:tag_count limit:3").map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
-    expect(getPosts("order:pixelcount_asc limit:3").map(p => p.checksum)).toEqual(["p3", "p2", "p1"]);
-    expect(getPosts("order:duration_asc limit:3").map(p => p.checksum)).toEqual(["p3", "p2", "p1"]);
+    expect((await getPosts("order:pixelcount limit:3")).map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
+    expect((await getPosts("order:image_ratio limit:3")).map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
+    expect((await getPosts("order:tag_count limit:3")).map(p => p.checksum)).toEqual(["p1", "p2", "p3"]);
+    expect((await getPosts("order:pixelcount_asc limit:3")).map(p => p.checksum)).toEqual(["p3", "p2", "p1"]);
+    expect((await getPosts("order:duration_asc limit:3")).map(p => p.checksum)).toEqual(["p3", "p2", "p1"]);
   });
 
   it("filters posts by notes full-text search", async () => {
@@ -287,11 +311,11 @@ describe("integration: addTags + getPosts", () => {
 
     const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
 
-    const fox = getPosts("notes:fox");
+    const fox = await getPosts("notes:fox");
     expect(fox).toHaveLength(1);
     expect(fox[0].id).toBe(m1);
 
-    const phrase = getPosts("notes:\"quick brown\"");
+    const phrase = await getPosts("notes:\"quick brown\"");
     expect(phrase).toHaveLength(1);
     expect(phrase[0].id).toBe(m1);
   });
@@ -331,10 +355,10 @@ describe("integration: addTags + getPosts", () => {
     addTags(m1, [{ name: "hero", type: "character" }]);
     addTags(m2, [{ name: "cat", type: "general" }]);
 
-    expect(getPosts("has:notes").map(p => p.id)).toEqual([m1]);
-    expect(getPosts("-has:notes").map(p => p.id).sort((a, b) => a - b)).toEqual([m2, m3]);
-    expect(getPosts("has:character").map(p => p.id)).toEqual([m1]);
-    expect(getPosts("-has:character").map(p => p.id).sort((a, b) => a - b)).toEqual([m2, m3]);
+    expect((await getPosts("has:notes")).map(p => p.id)).toEqual([m1]);
+    expect((await getPosts("-has:notes")).map(p => p.id).sort((a, b) => a - b)).toEqual([m2, m3]);
+    expect((await getPosts("has:character")).map(p => p.id)).toEqual([m1]);
+    expect((await getPosts("-has:character")).map(p => p.id).sort((a, b) => a - b)).toEqual([m2, m3]);
   });
 
   it("filters tag stats by name and type and exposes known types", async () => {

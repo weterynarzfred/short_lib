@@ -98,18 +98,16 @@ Examples:
 - `image_ratio:16/9`
 - `image_ratio:>=1.5`
 
-### `notes:<fts-term>`
+### `notes:<term>`
 
-Matches `media.notes_md` using SQLite FTS5.
-Multiple `notes:` terms are combined.
+Matches `media.notes_md` using Typesense full-text search.
+Multiple `notes:` terms are combined into one full-text query.
 Use quotes for strings with spaces.
-Add an asterisk `*` after words to treat them as prefixes.
 
 Examples:
 
 - `notes:fox`
 - `notes:"quick brown"`
-- `notes:"qu* br* f*"` - finds notes that have at least word starting with each of "qu", "br", and "f", they don't have to be in order.
 
 ### `has:<value>` and `-has:<value>`
 
@@ -132,3 +130,5 @@ Example:
 - Blacklist contains `nsfw`
 - Query `cat` behaves like `cat -nsfw`
 - Query `nsfw` disables that default exclusion for `nsfw`
+
+

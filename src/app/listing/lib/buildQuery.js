@@ -66,6 +66,21 @@ function buildHasPredicate(hasFilter, params) {
   return existsClause;
 }
 
+function buildIdsPredicate(column, ids, params, chunkSize = 900) {
+  if (!Array.isArray(ids) || ids.length === 0) return null;
+
+  const chunks = [];
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    const slice = ids.slice(index, index + chunkSize);
+    const placeholders = slice.map(() => "?").join(", ");
+    chunks.push(`${column} IN (${placeholders})`);
+    params.push(...slice);
+  }
+
+  if (chunks.length === 1) return chunks[0];
+  return `(${chunks.join(" OR ")})`;
+}
+
 export default function buildQuery(parsed, { limit, offset, tagOrderSql = TAG_ORDER_SQL } = {}) {
   const { filters, tagExpression } = parsed;
   const safeLimit = clampInt(limit ?? filters.limit, {
@@ -161,14 +176,13 @@ export default function buildQuery(parsed, { limit, offset, tagOrderSql = TAG_OR
   }
 
   if (filters.notes) {
-    where.push(`
-      m.id IN (
-        SELECT rowid
-        FROM media_notes_fts
-        WHERE media_notes_fts MATCH ?
-      )
-    `);
-    params.push(filters.notes);
+    const noteIds = Array.isArray(filters.notesMediaIds)
+      ? filters.notesMediaIds.filter(id => Number.isInteger(id) && id > 0)
+      : [];
+
+    const idsPredicate = buildIdsPredicate("m.id", noteIds, params);
+    if (idsPredicate) where.push(idsPredicate);
+    else where.push("1 = 0");
   }
 
   if (where.length) {

@@ -125,13 +125,22 @@ describe("search parser and query builder", () => {
     expect(parsed.filters.notes).toBe("hello world cat");
   });
 
-  it("adds FTS notes clause and parameter to SQL", () => {
+  it("adds notes id clause when notes matches are pre-resolved", () => {
+    const parsed = parseSearch("notes:\"hello world\"");
+    parsed.filters.notesMediaIds = [7, 9];
+    const { sql, params } = buildQuery(parsed);
+
+    expect(sql).toContain("m.id IN (?, ?)");
+    expect(sql).not.toContain("media_notes_fts");
+    expect(params).toEqual([7, 9]);
+  });
+
+  it("forces empty result when notes query has no resolved ids", () => {
     const parsed = parseSearch("notes:\"hello world\"");
     const { sql, params } = buildQuery(parsed);
 
-    expect(sql).toContain("FROM media_notes_fts");
-    expect(sql).toContain("media_notes_fts MATCH ?");
-    expect(params).toEqual(["hello world"]);
+    expect(sql).toContain("1 = 0");
+    expect(params).toEqual([]);
   });
 
   it("parses has operators into normalized filters", () => {
@@ -201,9 +210,12 @@ describe("getPosts", () => {
     };
 
     vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/typesense/search", () => ({
+      searchMediaIdsByNotes: vi.fn(async () => []),
+    }));
 
     const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
-    const posts = getPosts("tag1");
+    const posts = await getPosts("tag1");
 
     expect(posts[0].variants).toBeNull();
     expect(posts[0].tags).toEqual([{ id: 1, name: "tag1" }]);
@@ -225,9 +237,12 @@ describe("getPosts", () => {
     };
 
     vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/typesense/search", () => ({
+      searchMediaIdsByNotes: vi.fn(async () => []),
+    }));
 
     const { getPostsPage } = await import("../src/app/listing/lib/getPosts");
-    const page = getPostsPage("", { limit: 2, offset: 0 });
+    const page = await getPostsPage("", { limit: 2, offset: 0 });
 
     expect(page.posts.map(post => post.id)).toEqual([1, 2]);
     expect(page.hasMore).toBe(true);

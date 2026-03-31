@@ -1,6 +1,7 @@
 import db from "@/lib/db";
 import buildQuery from "./buildQuery";
 import parseSearch from "./parseSearch";
+import { searchMediaIdsByNotes } from "@/lib/typesense/search";
 
 function clampInt(value, { min, max, fallback }) {
   const parsed = Number.parseInt(value, 10);
@@ -27,7 +28,7 @@ function normalizePosts(posts) {
   });
 }
 
-export function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, tagOrderSql } = {}) {
+export async function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, tagOrderSql } = {}) {
   const parsed = parseSearch(search, { defaultExcludedTags });
   const requestedLimit = clampInt(limit ?? parsed.filters.limit, {
     min: 1,
@@ -40,6 +41,19 @@ export function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, t
     max: Number.MAX_SAFE_INTEGER,
     fallback: 0,
   });
+
+  if (parsed.filters.notes) {
+    const noteMediaIds = await searchMediaIdsByNotes(parsed.filters.notes, { limit: 10000 });
+    if (!noteMediaIds.length) {
+      return {
+        posts: [],
+        hasMore: false,
+        nextOffset: safeOffset,
+      };
+    }
+
+    parsed.filters.notesMediaIds = noteMediaIds;
+  }
 
   // Fetch one extra row to determine whether a next page exists.
   const { sql, params } = buildQuery(parsed, {
@@ -63,6 +77,6 @@ export function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, t
   };
 }
 
-export default function getPosts(search, options = {}) {
-  return getPostsPage(search, options).posts;
+export default async function getPosts(search, options = {}) {
+  return (await getPostsPage(search, options)).posts;
 }

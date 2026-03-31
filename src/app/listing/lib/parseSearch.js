@@ -182,7 +182,7 @@ export default function parseSearch(searchString = "", options = {}) {
     has: [],
   };
 
-  function toNotesFtsTerm(rawValue) {
+  function toNotesSearchTerm(rawValue) {
     const trimmed = rawValue.trim();
     if (!trimmed) return null;
     return trimmed.replace(/(^"|"$)/, "");
@@ -287,7 +287,7 @@ export default function parseSearch(searchString = "", options = {}) {
     }
 
     if (token.startsWith("notes:")) {
-      const term = toNotesFtsTerm(token.slice("notes:".length));
+      const term = toNotesSearchTerm(token.slice("notes:".length));
       if (term) filters.notes = filters.notes ? `${filters.notes} ${term}` : term;
       continue;
     }

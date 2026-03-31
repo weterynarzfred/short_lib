@@ -81,6 +81,38 @@ npm run dev
 
 4. Open `http://localhost:3000`.
 
+## Typesense via Docker
+
+This repo includes a local Typesense service definition for search indexing:
+
+1. Make sure Docker Desktop is running.
+2. Set these in your `.env`:
+
+```env
+TYPESENSE_HOST=http://localhost:8108
+TYPESENSE_API_KEY=replace-me-with-a-long-random-string
+```
+
+3. Start Typesense:
+
+```bash
+npm run typesense:up
+```
+
+4. Check service health:
+
+```bash
+curl http://localhost:8108/health
+```
+
+5. Stop it when needed:
+
+```bash
+npm run typesense:down
+```
+
+Typesense data is persisted under `./storage/typesense`.
+
 ## Implementation details
 
 ### Storage layout
