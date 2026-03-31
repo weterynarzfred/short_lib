@@ -11,6 +11,7 @@ import {
   getTagTypeOrderSql,
   setBlacklistedTags,
   setMediaSettings,
+  setTagTypeColors,
   setTagTypeOrder,
 } from "@/lib/userSettings";
 import { markMediaNotesIndexDirty } from "@/lib/typesense/search";
@@ -231,14 +232,24 @@ export async function updateBlacklistedTagsAction(rawTagString) {
   };
 }
 
-export async function updateTagTypeOrderAction(rawTagTypeOrder) {
+export async function updateTagTypeOrderAction(rawTagTypeOrder, rawTagTypeColors) {
   const tagTypeOrder = setTagTypeOrder(rawTagTypeOrder);
+  const tagTypeColors = rawTagTypeColors === undefined
+    ? undefined
+    : setTagTypeColors(rawTagTypeColors);
 
   revalidatePath("/listing");
   revalidatePath("/settings");
+  revalidatePath("/tags");
+  revalidatePath("/upload");
 
-  return {
+  const result = {
     tagTypeOrder,
     tagTypeOrderValue: tagTypeOrder.join(" "),
   };
+
+  if (tagTypeColors)
+    result.tagTypeColors = tagTypeColors;
+
+  return result;
 }

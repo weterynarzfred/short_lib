@@ -136,6 +136,64 @@ describe("userSettings tag type order", () => {
   });
 });
 
+describe("userSettings tag type colors", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("reads normalized colors only for tag types present in DB", async () => {
+    const { db } = mockDb({
+      "__tag_type__:1": "meta",
+      "__tag_type__:2": "creator",
+      "listing.tag_type_colors": "{\"meta\":\"#abc\",\"creator\":\"#00ff00\",\"stale\":\"#123456\"}",
+    });
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { getTagTypeColors } = await import("../src/lib/userSettings");
+    expect(getTagTypeColors()).toEqual({
+      meta: "#abc",
+      creator: "#00ff00",
+    });
+  });
+
+  it("stores color settings as JSON and drops non-existing tag types", async () => {
+    const { db, store } = mockDb({
+      "__tag_type__:1": "meta",
+      "__tag_type__:2": "special",
+    });
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { TAG_TYPE_COLORS_KEY, setTagTypeColors } = await import("../src/lib/userSettings");
+    const colors = setTagTypeColors({
+      meta: "#123abc",
+      stale: "#FFFFFF",
+    });
+
+    expect(colors).toEqual({
+      meta: "#123abc",
+      special: "#EEEEEE",
+    });
+    expect(store.get(TAG_TYPE_COLORS_KEY)).toBe("{\"meta\":\"#123abc\",\"special\":\"#EEEEEE\"}");
+  });
+
+  it("builds global css class rules from stored tag type colors", async () => {
+    const { db } = mockDb({
+      "__tag_type__:1": "meta",
+      "__tag_type__:2": "creator",
+      "__tag_type__:3": "artist.name",
+      "listing.tag_type_colors": "{\"meta\":\"#FF0000\",\"creator\":\"#00FF00\",\"artist.name\":\"#123456\"}",
+    });
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { getTagTypeColorsCss } = await import("../src/lib/userSettings");
+    const css = getTagTypeColorsCss();
+
+    expect(css).toContain(".tag-type-meta { color: #FF0000; }");
+    expect(css).toContain(".tag-type-creator { color: #00FF00; }");
+    expect(css).toContain(".tag-type-artist_name { color: #123456; }");
+  });
+});
+
 describe("userSettings media", () => {
   beforeEach(() => {
     vi.resetModules();

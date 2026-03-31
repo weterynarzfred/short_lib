@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { getTagTypeClassName } from "@/lib/tagTypeOrder";
+
 import styles from "./TagTable.module.scss";
 
 export default function TagTableRow({ tag, editor }) {
@@ -26,7 +28,7 @@ export default function TagTableRow({ tag, editor }) {
   const isSaveDisabled = !isDirty(tag) || isRowPending;
 
   return <tr>
-    <td>
+    <td className={getTagTypeClassName(tag.type) || undefined}>
       {isBeingEdited ? <input
         type="text"
         value={draft.name}

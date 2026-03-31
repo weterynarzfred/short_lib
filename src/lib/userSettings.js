@@ -1,10 +1,11 @@
 import db from "@/lib/db";
 import {
-  buildTagTypeOrderSql,
+  DEFAULT_TAG_TYPE_COLOR,
   DEFAULT_TAG_TYPE_ORDER,
-  mergeTagTypeOrder,
+  buildTagTypeColorsCss,
+  buildTagTypeOrderSql,
+  normalizeTagTypeColor,
   normalizeTagTypeOrder,
-  parseStoredTagTypeOrder,
 } from "@/lib/tagTypeOrder";
 
 export const MEDIA_SETTINGS_DEFAULTS = {
@@ -16,6 +17,7 @@ export const MEDIA_SETTINGS_DEFAULTS = {
 };
 export const BLACKLISTED_TAGS_KEY = "listing.blacklisted_tags";
 export const TAG_TYPE_ORDER_KEY = "listing.tag_type_order";
+export const TAG_TYPE_COLORS_KEY = "listing.tag_type_colors";
 
 const MEDIA_SETTING_KEYS = new Set(Object.keys(MEDIA_SETTINGS_DEFAULTS));
 
@@ -113,6 +115,75 @@ function parseStoredTagNames(rawValue) {
   return normalizeTagNames(trimmed);
 }
 
+function parseStoredTagTypeOrder(rawValue) {
+  if (typeof rawValue !== "string") return [];
+
+  const trimmed = rawValue.trim();
+  if (!trimmed) return [];
+
+  try {
+    return normalizeTagTypeOrder(JSON.parse(trimmed));
+  } catch { }
+
+  return normalizeTagTypeOrder(trimmed);
+}
+
+function mergeTagTypeOrder(preferredOrder = [], availableTypes = []) {
+  const merged = [];
+  const seen = new Set();
+
+  for (const rawType of [...preferredOrder, ...availableTypes]) {
+    const type = String(rawType ?? "").trim().toLowerCase();
+    if (!type || seen.has(type)) continue;
+    seen.add(type);
+    merged.push(type);
+  }
+
+  return merged.length ? merged : [...DEFAULT_TAG_TYPE_ORDER];
+}
+
+function normalizeTagTypeColors(rawValue) {
+  const normalized = {};
+  if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue))
+    return normalized;
+
+  for (const [rawType, rawColor] of Object.entries(rawValue)) {
+    const type = String(rawType ?? "").trim().toLowerCase();
+    if (!type) continue;
+    normalized[type] = normalizeTagTypeColor(rawColor);
+  }
+
+  return normalized;
+}
+
+function parseStoredTagTypeColors(rawValue) {
+  if (typeof rawValue !== "string") return {};
+
+  const trimmed = rawValue.trim();
+  if (!trimmed) return {};
+
+  try {
+    return normalizeTagTypeColors(JSON.parse(trimmed));
+  } catch {
+    return {};
+  }
+}
+
+function mergeTagTypeColors(preferredColors = {}, availableTypes = []) {
+  const normalizedColors = normalizeTagTypeColors(preferredColors);
+  const merged = {};
+  const seen = new Set();
+
+  for (const rawType of availableTypes) {
+    const type = String(rawType ?? "").trim().toLowerCase();
+    if (!type || seen.has(type)) continue;
+    seen.add(type);
+    merged[type] = normalizedColors[type] ?? DEFAULT_TAG_TYPE_COLOR;
+  }
+
+  return merged;
+}
+
 function getAvailableTagTypes() {
   try {
     return getTagTypesStmt
@@ -180,11 +251,8 @@ export function getTagTypeOrder() {
   try {
     const row = getSettingStmt.get(TAG_TYPE_ORDER_KEY);
     const storedOrder = parseStoredTagTypeOrder(row?.value);
-
-    if (!storedOrder.length)
-      return mergeTagTypeOrder(DEFAULT_TAG_TYPE_ORDER, availableTypes);
-
-    return mergeTagTypeOrder(storedOrder, availableTypes);
+    const preferredOrder = storedOrder.length ? storedOrder : DEFAULT_TAG_TYPE_ORDER;
+    return mergeTagTypeOrder(preferredOrder, availableTypes);
   } catch {
     return mergeTagTypeOrder(DEFAULT_TAG_TYPE_ORDER, availableTypes);
   }
@@ -202,6 +270,36 @@ export function setTagTypeOrder(rawTagTypeOrder) {
   return getTagTypeOrder();
 }
 
+export function getTagTypeColors() {
+  const availableTypes = getAvailableTagTypes();
+
+  try {
+    const row = getSettingStmt.get(TAG_TYPE_COLORS_KEY);
+    const storedColors = parseStoredTagTypeColors(row?.value);
+    return mergeTagTypeColors(storedColors, availableTypes);
+  } catch {
+    return mergeTagTypeColors({}, availableTypes);
+  }
+}
+
+export function setTagTypeColors(rawTagTypeColors) {
+  const availableTypes = getAvailableTagTypes();
+  const normalizedColors = normalizeTagTypeColors(rawTagTypeColors);
+  const sanitizedColors = mergeTagTypeColors(normalizedColors, availableTypes);
+
+  upsertSettingStmt.run(
+    TAG_TYPE_COLORS_KEY,
+    JSON.stringify(sanitizedColors),
+    Date.now()
+  );
+
+  return sanitizedColors;
+}
+
 export function getTagTypeOrderSql() {
   return buildTagTypeOrderSql(getTagTypeOrder());
+}
+
+export function getTagTypeColorsCss() {
+  return buildTagTypeColorsCss(getTagTypeColors());
 }

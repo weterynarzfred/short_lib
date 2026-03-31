@@ -12,6 +12,7 @@ const hoisted = vi.hoisted(() => ({
   deleteTagById: vi.fn(),
   setBlacklistedTags: vi.fn(),
   setMediaSettings: vi.fn(),
+  setTagTypeColors: vi.fn(),
   setTagTypeOrder: vi.fn(),
   getTagTypeOrderSql: vi.fn(),
 }));
@@ -48,6 +49,7 @@ vi.mock("@/lib/manageTag", () => ({
 vi.mock("@/lib/userSettings", () => ({
   setBlacklistedTags: hoisted.setBlacklistedTags,
   setMediaSettings: hoisted.setMediaSettings,
+  setTagTypeColors: hoisted.setTagTypeColors,
   setTagTypeOrder: hoisted.setTagTypeOrder,
   getTagTypeOrderSql: hoisted.getTagTypeOrderSql,
 }));
@@ -68,6 +70,7 @@ describe("server actions", () => {
     hoisted.deleteTagById.mockReset();
     hoisted.setBlacklistedTags.mockReset();
     hoisted.setMediaSettings.mockReset();
+    hoisted.setTagTypeColors.mockReset();
     hoisted.setTagTypeOrder.mockReset();
     hoisted.getTagTypeOrderSql.mockReset();
     hoisted.getTagTypeOrderSql.mockReturnValue("CASE WHEN 'general' THEN 0 ELSE 1 END");
@@ -273,11 +276,48 @@ describe("server actions", () => {
     const result = await updateTagTypeOrderAction("meta creator general");
 
     expect(hoisted.setTagTypeOrder).toHaveBeenCalledWith("meta creator general");
+    expect(hoisted.setTagTypeColors).not.toHaveBeenCalled();
     expect(result).toEqual({
       tagTypeOrder: ["meta", "creator", "general"],
       tagTypeOrderValue: "meta creator general",
     });
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/settings");
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/tags");
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/upload");
+  });
+
+  it("updateTagTypeOrderAction stores optional colors payload", async () => {
+    hoisted.setTagTypeOrder.mockReturnValue(["meta", "creator", "general"]);
+    hoisted.setTagTypeColors.mockReturnValue({
+      meta: "#FF0000",
+      creator: "#00FF00",
+      general: "#EEEEEE",
+    });
+
+    const { updateTagTypeOrderAction } = await import("../src/lib/actions");
+    const result = await updateTagTypeOrderAction("meta creator general", {
+      meta: "#ff0000",
+      creator: "#00ff00",
+    });
+
+    expect(hoisted.setTagTypeOrder).toHaveBeenCalledWith("meta creator general");
+    expect(hoisted.setTagTypeColors).toHaveBeenCalledWith({
+      meta: "#ff0000",
+      creator: "#00ff00",
+    });
+    expect(result).toEqual({
+      tagTypeOrder: ["meta", "creator", "general"],
+      tagTypeOrderValue: "meta creator general",
+      tagTypeColors: {
+        meta: "#FF0000",
+        creator: "#00FF00",
+        general: "#EEEEEE",
+      },
+    });
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/settings");
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/tags");
+    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/upload");
   });
 });

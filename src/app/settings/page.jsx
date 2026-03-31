@@ -1,5 +1,10 @@
 import Nav from "@/components/Nav";
-import { getBlacklistedTags, getMediaSettings, getTagTypeOrder } from "@/lib/userSettings";
+import {
+  getBlacklistedTags,
+  getMediaSettings,
+  getTagTypeColors,
+  getTagTypeOrder,
+} from "@/lib/userSettings";
 import BlacklistedTagsSetting from "./components/BlacklistedTagsSetting";
 import MediaSettingsSetting from "./components/MediaSettingsSetting";
 import TagTypeOrderSetting from "./components/TagTypeOrderSetting";
@@ -10,6 +15,7 @@ export default function SettingsPage() {
   const blacklistedTags = getBlacklistedTags();
   const mediaSettings = getMediaSettings();
   const tagTypeOrder = getTagTypeOrder();
+  const tagTypeColors = getTagTypeColors();
 
   return (
     <div className="page-settings">
@@ -35,11 +41,12 @@ export default function SettingsPage() {
         <section className={styles.settingCard}>
           <h2 className={styles.settingTitle}>tag type order</h2>
           <p className={styles.settingDescription}>
-            controls tag sorting in listing and editors. includes known types from the database.
+            reorder tag types and set display colors used across the app.
           </p>
 
           <TagTypeOrderSetting
             initialValue={tagTypeOrder.join(" ")}
+            initialColors={tagTypeColors}
           />
         </section>
 

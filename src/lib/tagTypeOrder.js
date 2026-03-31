@@ -6,88 +6,73 @@ export const DEFAULT_TAG_TYPE_ORDER = [
   "character",
   "general",
 ];
+export const DEFAULT_TAG_TYPE_COLOR = "#EEEEEE";
 
-function toTagType(value) {
-  return String(value ?? "").trim().toLowerCase();
-}
+const TAG_TYPE_COLOR_PATTERN = /^#?[0-9a-fA-F]{3,6}$/;
+const TAG_TYPE_CLASS_CHAR_PATTERN = /[^a-zA-Z0-9_]/g;
 
 export function normalizeTagTypeOrder(rawValue) {
-  const normalized = [];
+  const tokens = Array.isArray(rawValue)
+    ? rawValue
+    : typeof rawValue === "string"
+      ? rawValue.split(/\s+/)
+      : [];
+  const types = [];
   const seen = new Set();
 
-  const pushType = value => {
-    const type = toTagType(value);
-    if (!type || seen.has(type)) return;
+  for (const token of tokens) {
+    const type = String(token ?? "").trim().toLowerCase();
+    if (!type || seen.has(type)) continue;
     seen.add(type);
-    normalized.push(type);
-  };
-
-  if (Array.isArray(rawValue)) {
-    for (const item of rawValue) pushType(item);
-    return normalized;
+    types.push(type);
   }
 
-  if (typeof rawValue !== "string") return normalized;
-
-  for (const token of rawValue.split(/\s+/))
-    pushType(token);
-
-  return normalized;
+  return types;
 }
 
-export function parseStoredTagTypeOrder(rawValue) {
-  if (typeof rawValue !== "string") return [];
+export function normalizeTagTypeColor(value) {
+  const color = typeof value === "string" ? value.trim() : "";
+  if (!TAG_TYPE_COLOR_PATTERN.test(color))
+    return DEFAULT_TAG_TYPE_COLOR;
 
-  const trimmed = rawValue.trim();
-  if (!trimmed) return [];
-
-  try {
-    return normalizeTagTypeOrder(JSON.parse(trimmed));
-  } catch { }
-
-  return normalizeTagTypeOrder(trimmed);
+  return color.startsWith("#") ? color : `#${color}`;
 }
 
-export function mergeTagTypeOrder(preferredOrder = [], availableTypes = []) {
-  const merged = [];
+export function getTagTypeClassName(value) {
+  const suffix = String(value ?? "").trim().replace(TAG_TYPE_CLASS_CHAR_PATTERN, "_");
+  return suffix ? `tag-type-${suffix}` : "";
+}
+
+export function buildTagTypeColorsCss(tagTypeColors = {}) {
+  if (!tagTypeColors || typeof tagTypeColors !== "object" || Array.isArray(tagTypeColors))
+    return "";
+
+  const rules = [];
   const seen = new Set();
 
-  const pushType = value => {
-    const type = toTagType(value);
-    if (!type || seen.has(type)) return;
-    seen.add(type);
-    merged.push(type);
-  };
+  for (const [rawType, rawColor] of Object.entries(tagTypeColors)) {
+    const type = String(rawType ?? "").trim().toLowerCase();
+    const className = getTagTypeClassName(type);
+    if (!className || seen.has(className)) continue;
 
-  for (const type of preferredOrder) pushType(type);
-  for (const type of availableTypes) pushType(type);
-
-  if (!merged.length) {
-    for (const type of DEFAULT_TAG_TYPE_ORDER)
-      pushType(type);
+    seen.add(className);
+    rules.push(`.${className} { color: ${normalizeTagTypeColor(rawColor)}; }`);
   }
 
-  return merged;
-}
-
-function escapeSqlString(value) {
-  return value.replace(/'/g, "''");
+  return rules.join("\n");
 }
 
 export function buildTagTypeOrderSql(tagTypeOrder = DEFAULT_TAG_TYPE_ORDER) {
-  const normalizedOrder = normalizeTagTypeOrder(tagTypeOrder);
-  const safeOrder = normalizedOrder.length
-    ? normalizedOrder
-    : DEFAULT_TAG_TYPE_ORDER;
-
-  const whenClauses = safeOrder
-    .map((type, index) => `WHEN '${escapeSqlString(type)}' THEN ${index}`)
+  const safeOrder = normalizeTagTypeOrder(tagTypeOrder);
+  const orderedTypes = safeOrder.length ? safeOrder : DEFAULT_TAG_TYPE_ORDER;
+  const whenClauses = orderedTypes
+    .map((type, index) => `WHEN '${type.replace(/'/g, "''")}' THEN ${index}`)
     .join("\n    ");
 
   return `
   CASE LOWER(COALESCE(t.type, ''))
     ${whenClauses}
-    ELSE ${safeOrder.length}
+    ELSE ${orderedTypes.length}
   END
 `;
 }

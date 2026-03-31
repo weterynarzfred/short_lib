@@ -22,12 +22,8 @@
     font-family: "Fira Code", monospace;
     font-size: 0.75rem;
 
-    a {
-      color: $colorLink;
-
-      &:hover {
-        color: $colorContent;
-      }
+    a:hover {
+      color: $colorContent2;
     }
   }
 }
@@ -48,10 +44,7 @@
 
 .button,
 .deleteButton {
-  @include buttonBase(
-    $padding: 0.2rem 0.45rem,
-    $borderColor: $colorBorder2,
-  );
+  @include buttonBase($padding: 0.2rem 0.45rem, $borderColor: $colorBorder2);
 
   font-family: inherit;
   font-size: inherit;
