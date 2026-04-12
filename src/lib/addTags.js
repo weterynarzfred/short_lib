@@ -1,5 +1,5 @@
 import db from "@/lib/db";
-import { markTagsIndexDirty } from "@/lib/typesense/search";
+import { markTagsIndexDirty } from "@/lib/search";
 
 export function parseTagString(raw = "") {
   return raw

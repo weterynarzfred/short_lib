@@ -14,7 +14,7 @@ import {
   setTagTypeColors,
   setTagTypeOrder,
 } from "@/lib/userSettings";
-import { markMediaNotesIndexDirty } from "@/lib/typesense/search";
+import { markMediaNotesIndexDirty } from "@/lib/search";
 
 function normalizePostIds(postIds) {
   return Array.isArray(postIds)

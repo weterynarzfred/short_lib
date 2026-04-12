@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import fs from "fs";
 import path from "path";
-import { markMediaNotesIndexDirty, markTagsIndexDirty } from "@/lib/typesense/search";
+import { markMediaNotesIndexDirty, markTagsIndexDirty } from "@/lib/search";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
 const DRIVE_PATH_RE = /^[a-zA-Z]:\//;

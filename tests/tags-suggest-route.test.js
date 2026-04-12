@@ -26,7 +26,7 @@ describe("tags suggest route", () => {
     const { db } = createDbMock();
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q="));
@@ -36,13 +36,13 @@ describe("tags suggest route", () => {
     expect(searchTagSuggestions).not.toHaveBeenCalled();
   });
 
-  it("returns operator suggestions and Typesense tag suggestions", async () => {
+  it("returns operator suggestions and search tag suggestions", async () => {
     const { db } = createDbMock();
     const searchTagSuggestions = vi.fn(async () => [
       { id: 2, name: "mime", type: "general", postCount: 7 },
     ]);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=mi"));
@@ -56,13 +56,13 @@ describe("tags suggest route", () => {
     expect(searchTagSuggestions).toHaveBeenCalledWith("mi", { limit: 16 });
   });
 
-  it("returns operator values after colon and skips Typesense tag lookup", async () => {
+  it("returns operator values after colon and skips tag lookup", async () => {
     const { db, mimeAll } = createDbMock({
       mimeRows: [{ value: "video/mp4" }, { value: "video/webm" }],
     });
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=mime_type:video/"));
@@ -79,7 +79,7 @@ describe("tags suggest route", () => {
     const { db } = createDbMock();
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=order:im"));
@@ -94,7 +94,7 @@ describe("tags suggest route", () => {
     const { db } = createDbMock();
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=no"));
@@ -110,7 +110,7 @@ describe("tags suggest route", () => {
     });
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=has:c"));
@@ -129,7 +129,7 @@ describe("tags suggest route", () => {
       { id: 3, name: "misc", type: "general", postCount: 9 },
     ]);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=mi&is_edit=true"));

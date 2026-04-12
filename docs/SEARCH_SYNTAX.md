@@ -100,7 +100,7 @@ Examples:
 
 ### `notes:<term>`
 
-Matches `media.notes_md` using Typesense full-text search.
+Matches `media.notes_md` using in-memory Fuse search.
 Multiple `notes:` terms are combined into one full-text query.
 Use quotes for strings with spaces.
 

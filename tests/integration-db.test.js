@@ -54,7 +54,7 @@ describe("integration: addTags + getPosts", () => {
     vi.resetModules();
     ({ db, tempDir } = createTempDb());
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({
+    vi.doMock("@/lib/search", () => ({
       markTagsIndexDirty: vi.fn(),
       markMediaNotesIndexDirty: vi.fn(),
       searchTagSuggestions: vi.fn(async (query, { limit = 16 } = {}) => {

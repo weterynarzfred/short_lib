@@ -1,6 +1,7 @@
-/node_modules
-/.next
-/build
-/storage
+node_modules/
+.next/
+build/
+storage/
+.grayspace/
 shortlib.db
 .env

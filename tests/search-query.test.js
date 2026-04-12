@@ -120,7 +120,7 @@ describe("search parser and query builder", () => {
     expect(params).toEqual(["video/mp4", 10485760, 604800, 2000000, 90000, 16 / 9]);
   });
 
-  it("parses notes operator into an FTS query filter", () => {
+  it("parses notes operator into a notes query filter", () => {
     const parsed = parseSearch("notes:\"hello world\" notes:cat");
     expect(parsed.filters.notes).toBe("hello world cat");
   });
@@ -210,7 +210,7 @@ describe("getPosts", () => {
     };
 
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({
+    vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
     }));
 
@@ -237,7 +237,7 @@ describe("getPosts", () => {
     };
 
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/typesense/search", () => ({
+    vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
     }));
 

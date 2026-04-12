@@ -7,11 +7,7 @@
     "build": "next build --webpack",
     "start": "next start --port 3774",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "typesense:up": "docker compose -f docker-compose.typesense.yml up -d",
-    "typesense:down": "docker compose -f docker-compose.typesense.yml down",
-    "typesense:logs": "docker compose -f docker-compose.typesense.yml logs -f typesense",
-    "typesense:status": "docker compose -f docker-compose.typesense.yml ps"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@dnd-kit/sortable": "^10.0.0",
@@ -19,6 +15,7 @@
     "better-sqlite3": "^12.8.0",
     "classnames": "^2.5.1",
     "file-type": "^21.3.3",
+    "fuse.js": "^7.1.0",
     "formidable": "^3.5.4",
     "istextorbinary": "^9.5.0",
     "mime-types": "^3.0.2",
@@ -26,8 +23,7 @@
     "react": "19.2.4",
     "react-colorful": "^5.6.1",
     "react-dom": "19.2.4",
-    "sharp": "^0.34.5",
-    "typesense": "^3.0.3"
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "babel-plugin-react-compiler": "1.0.0",

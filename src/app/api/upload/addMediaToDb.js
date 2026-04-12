@@ -3,7 +3,7 @@ import path from "path";
 import db from "@/lib/db";
 import addTags from "@/lib/addTags";
 import { getTagTypeOrderSql } from "@/lib/userSettings";
-import { markMediaNotesIndexDirty, markTagsIndexDirty } from "@/lib/typesense/search";
+import { markMediaNotesIndexDirty, markTagsIndexDirty } from "@/lib/search";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
 

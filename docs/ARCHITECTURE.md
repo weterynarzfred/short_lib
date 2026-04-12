@@ -23,9 +23,6 @@ Initialized in `src/lib/db.js`:
   - join table (`media_id`, `tag_id`) with cascade deletes
 - `user_settings`
   - key/value store for UI defaults
-- Typesense collections (external search service)
-  - `short_lib_tags` for tag prefix suggestions
-  - `short_lib_media_notes` for `notes:` full-text search
 
 ## API Routes
 
@@ -40,7 +37,7 @@ Initialized in `src/lib/db.js`:
   - Applies default blacklisted tags from user settings.
 
 - `GET /api/tags/suggest?q=&is_edit=` 
-  - Returns operator suggestions + Typesense-backed tag suggestions for search and tag editors.
+  - Returns operator suggestions + in-memory Fuse-backed tag suggestions for search and tag editors.
 
 - `GET /api/media/[year]/[month]/[file]?size=thumb|prev`
   - Streams full media or derived variants.
@@ -82,7 +79,7 @@ Primary modules:
 
 - `parseSearch.js` -> parses query string into filters + tag expression tree
 - `buildQuery.js` -> builds parameterized SQL
-- `getPosts.js` -> resolves `notes:` media ids through Typesense, then executes SQL with pagination + JSON normalization
+- `getPosts.js` -> resolves `notes:` media ids through in-memory Fuse search, then executes SQL with pagination + JSON normalization
 
 [SEARCH_SYNTAX.md](SEARCH_SYNTAX.md) for full grammar.
 

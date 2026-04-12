@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import buildQuery from "./buildQuery";
 import parseSearch from "./parseSearch";
-import { searchMediaIdsByNotes } from "@/lib/typesense/search";
+import { searchMediaIdsByNotes } from "@/lib/search";
 
 function clampInt(value, { min, max, fallback }) {
   const parsed = Number.parseInt(value, 10);
