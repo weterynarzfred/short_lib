@@ -11,6 +11,8 @@ import TagTypeOrderSetting from "./components/TagTypeOrderSetting";
 
 import styles from "./page.module.scss";
 
+export const dynamic = "force-dynamic";
+
 export default function SettingsPage() {
   const blacklistedTags = getBlacklistedTags();
   const mediaSettings = getMediaSettings();
