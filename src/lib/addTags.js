@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { markTagsIndexDirty } from "@/lib/search";
 
 export function parseTagString(raw = "") {
   return raw
@@ -112,7 +111,7 @@ export function removeTags(mediaId, tags) {
   });
 
   tx(safeMediaId, tags);
-  markTagsIndexDirty();
+
 }
 
 export default function addTags(mediaId, tags, { replace = false } = {}) {
@@ -140,5 +139,5 @@ export default function addTags(mediaId, tags, { replace = false } = {}) {
   });
 
   tx(safeMediaId, tags, replace);
-  markTagsIndexDirty();
+
 }

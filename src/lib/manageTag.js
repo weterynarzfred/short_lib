@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { markTagsIndexDirty } from "@/lib/search";
 
 function toSafeTagId(tagId) {
   const parsed = Number(tagId);
@@ -107,9 +106,7 @@ export function updateTagById(tagId, { name, type } = {}) {
     return applyMerge(id, conflictingPreexistingTag);
   });
 
-  const result = tx(id, desiredName, desiredType);
-  markTagsIndexDirty();
-  return result;
+  return tx(id, desiredName, desiredType);
 }
 
 export function deleteTagById(tagId) {
@@ -118,7 +115,5 @@ export function deleteTagById(tagId) {
     DELETE FROM tags
     WHERE id = ?
   `).run(safeId);
-  if (result.changes > 0) markTagsIndexDirty();
-
   return result.changes > 0;
 }

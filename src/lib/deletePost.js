@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import fs from "fs";
 import path from "path";
-import { markMediaNotesIndexDirty, markTagsIndexDirty } from "@/lib/search";
+import { markMediaNotesIndexDirty } from "@/lib/search";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
 const DRIVE_PATH_RE = /^[a-zA-Z]:\//;
@@ -83,6 +83,5 @@ export default async function deletePost(id) {
   });
 
   tx();
-  markTagsIndexDirty();
   markMediaNotesIndexDirty();
 }

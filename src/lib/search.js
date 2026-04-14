@@ -16,11 +16,8 @@ const NOTES_FUSE_OPTIONS = {
   keys: ["notesMd"],
 };
 
-let tagsDirty = true;
 let mediaNotesDirty = true;
-let tagRows = [];
 let mediaNotesRows = [];
-let tagsFuse = null;
 let mediaNotesFuse = null;
 
 function splitTerms(raw = "") {
@@ -35,8 +32,8 @@ function normalizeScore(score) {
   return Number.isFinite(score) ? score : 1;
 }
 
-function rebuildTagsIndex() {
-  tagRows = db.prepare(`
+function buildTagsIndex() {
+  const rows = db.prepare(`
     SELECT
       t.id,
       t.name,
@@ -47,8 +44,7 @@ function rebuildTagsIndex() {
     ORDER BY t.id ASC
   `).all();
 
-  tagsFuse = new Fuse(tagRows, TAG_FUSE_OPTIONS);
-  tagsDirty = false;
+  return { rows, fuse: new Fuse(rows, TAG_FUSE_OPTIONS) };
 }
 
 function rebuildMediaNotesIndex() {
@@ -65,18 +61,9 @@ function rebuildMediaNotesIndex() {
   mediaNotesDirty = false;
 }
 
-function ensureTagsIndex() {
-  if (!tagsDirty && tagsFuse) return;
-  rebuildTagsIndex();
-}
-
 function ensureMediaNotesIndex() {
   if (!mediaNotesDirty && mediaNotesFuse) return;
   rebuildMediaNotesIndex();
-}
-
-export function markTagsIndexDirty() {
-  tagsDirty = true;
 }
 
 export function markMediaNotesIndexDirty() {
@@ -89,7 +76,7 @@ export async function searchTagSuggestions(query, { limit = 16 } = {}) {
   if (!/[\p{L}\p{N}]/u.test(safeQuery)) return [];
 
   const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 16;
-  ensureTagsIndex();
+  const { rows: tagRows, fuse: tagsFuse } = buildTagsIndex();
   if (!tagRows.length) return [];
 
   const normalizedQuery = safeQuery.toLowerCase();
