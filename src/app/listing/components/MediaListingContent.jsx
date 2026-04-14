@@ -9,7 +9,6 @@ export default function MediaListingContent({
   search,
   visiblePosts,
   isMultiSelectEnabled,
-  onMultiSelectChange,
   selectedCount,
   selectedPostIds,
   onPostInteract,
@@ -28,15 +27,6 @@ export default function MediaListingContent({
         <Search initialValue={search} />
 
         <div className={styles.multiSelectTools}>
-          <label className={styles.multiSelectToggle}>
-            <input
-              type="checkbox"
-              checked={isMultiSelectEnabled}
-              onChange={event => onMultiSelectChange(event.target.checked)}
-            />
-            <div className={styles.toggleButton}>bulk edit</div>
-          </label>
-
           {selectedCount > 0 ? <>
             <div className={styles.selectionCount}>{selectedCount} selected</div>
             <button

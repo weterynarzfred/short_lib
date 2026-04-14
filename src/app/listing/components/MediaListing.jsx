@@ -160,6 +160,12 @@ export default function MediaListing({
   }, [visiblePostIds]);
 
   useEffect(() => {
+    if (isMultiSelectEnabled && selectedPostIds.length === 0) {
+      setMultiSelect(false);
+    }
+  }, [isMultiSelectEnabled, selectedPostIds, setMultiSelect]);
+
+  useEffect(() => {
     setPanelSettings({ ...mediaSettings });
   }, [mediaSettings]);
 
@@ -171,7 +177,6 @@ export default function MediaListing({
         search={search}
         visiblePosts={visiblePosts}
         isMultiSelectEnabled={isMultiSelectEnabled}
-        onMultiSelectChange={setMultiSelect}
         selectedCount={selectedCount}
         selectedPostIds={selectedPostIdsSet}
         onPostInteract={interactWithPost}

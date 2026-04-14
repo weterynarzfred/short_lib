@@ -10,7 +10,7 @@ const TOGGLE_OPTIONS = [
   { key: "muted", label: "muted" },
 ];
 
-export default function MediaPanelControls({ toggles, onToggle, onClose }) {
+export default function MediaPanelControls({ toggles, onToggle, onClose, isMetaPanelOpen, onToggleMeta }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -25,6 +25,19 @@ export default function MediaPanelControls({ toggles, onToggle, onClose }) {
       >
         fullscreen
       </button>
+
+      {toggles.fullscreen && (
+        <button
+          type="button"
+          className={classNames(styles.fullscreenToggle, {
+            [styles.buttonActive]: isMetaPanelOpen,
+          })}
+          aria-label="Toggle info panel"
+          onClick={onToggleMeta}
+        >
+          info
+        </button>
+      )}
 
       <button
         type="button"

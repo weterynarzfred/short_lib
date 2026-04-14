@@ -11,6 +11,8 @@ export default function UploadList({
   uploads,
   setUploadTagsValue,
   saveUploadTags,
+  setUploadNotesValue,
+  saveUploadNotes,
 }) {
   return (
     <div className={styles.uploadList}>
@@ -78,6 +80,33 @@ export default function UploadList({
                 </button>
                 {file.tagsSaveNote ? (
                   <div className={styles.tagNote}>{file.tagsSaveNote}</div>
+                ) : null}
+              </div>
+
+              <textarea
+                className={styles.tagInput}
+                placeholder="notes"
+                value={typeof file.notesValue === "string" ? file.notesValue : ""}
+                onChange={e => setUploadNotesValue(file.id, e.target.value)}
+                onKeyDown={e => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    saveUploadNotes(file.id);
+                  }
+                }}
+              />
+
+              <div className={styles.tagActions}>
+                <button
+                  type="button"
+                  className={styles.tagButton}
+                  onClick={() => saveUploadNotes(file.id)}
+                  disabled={file.isSavingNotes}
+                >
+                  {file.isSavingNotes ? "saving..." : "save notes"}
+                </button>
+                {file.notesSaveNote ? (
+                  <div className={styles.tagNote}>{file.notesSaveNote}</div>
                 ) : null}
               </div>
             </div>

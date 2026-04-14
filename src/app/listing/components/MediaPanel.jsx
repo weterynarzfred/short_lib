@@ -32,6 +32,7 @@ export default function MediaPanel({
     ...DEFAULT_TOGGLES,
     ...initialSettings,
   });
+  const [isMetaPanelOpen, setIsMetaPanelOpen] = useState(true);
 
   const toggleOption = useCallback((key) => {
     const nextValue = !toggles[key];
@@ -73,12 +74,47 @@ export default function MediaPanel({
   const mediaType = mimetypeToType(mimeType);
   const canPreview = ["video", "image", "audio", "text"].includes(mediaType);
 
+  if (toggles.fullscreen) {
+    return (
+      <div className={classNames(styles.mediaPanel, styles.fullscreen)}>
+        <div className={styles.fullscreenMedia}>
+          <MediaPanelControls
+            toggles={toggles}
+            onToggle={toggleOption}
+            onClose={close}
+            isMetaPanelOpen={isMetaPanelOpen}
+            onToggleMeta={() => setIsMetaPanelOpen(v => !v)}
+          />
+          {canPreview ? <MediaPreview
+            src={post.file_path}
+            mime_type={mimeType}
+            mediaRef={mediaRef}
+            settings={toggles}
+            className={classNames(
+              styles[`preview-${mediaType}`],
+              styles.previewFullscreen,
+            )}
+            onEnded={handleMediaEnded}
+          /> : <div className={styles.previewNull}></div>}
+        </div>
+
+        {isMetaPanelOpen && (
+          <div className={styles.fullscreenSidePanel}>
+            <MediaPanelMeta
+              post={post}
+              prev={prev}
+              next={next}
+              onPatchPost={onPatchPost}
+              isSlideshowOn={toggles.slideshow}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={classNames(styles.mediaPanel, {
-        [styles.fullscreen]: toggles.fullscreen,
-      })}
-    >
+    <div className={styles.mediaPanel}>
       <MediaPanelControls
         toggles={toggles}
         onToggle={toggleOption}
@@ -90,10 +126,7 @@ export default function MediaPanel({
         mime_type={mimeType}
         mediaRef={mediaRef}
         settings={toggles}
-        className={classNames(
-          styles[`preview-${mediaType}`],
-          { [styles.previewFullscreen]: toggles.fullscreen }
-        )}
+        className={styles[`preview-${mediaType}`]}
         onEnded={handleMediaEnded}
       /> : <div className={styles.previewNull}></div>}
 
@@ -103,9 +136,6 @@ export default function MediaPanel({
         next={next}
         onPatchPost={onPatchPost}
         isSlideshowOn={toggles.slideshow}
-        className={classNames({
-          [styles.metaFullscreen]: toggles.fullscreen,
-        })}
       />
     </div>
   );

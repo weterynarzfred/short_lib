@@ -12,6 +12,7 @@ export default function useCombobox({
 
   const rootRef = useRef(null);
   const listId = useMemo(() => `cb-${Math.random().toString(36).slice(2)}`, []);
+  const hasUserTypedRef = useRef(false);
 
   const onFocus = useCallback(() => {
     if (items.length > 0) setIsOpen(true);
@@ -20,12 +21,15 @@ export default function useCombobox({
   const close = useCallback(() => {
     setIsOpen(false);
     setActiveIndex(-1);
+    hasUserTypedRef.current = false;
   }, []);
 
   useEffect(() => {
     if (items.length > 0) {
-      setIsOpen(true);
-      setActiveIndex(0);
+      if (hasUserTypedRef.current) {
+        setIsOpen(true);
+        setActiveIndex(0);
+      }
     } else {
       setIsOpen(false);
       setActiveIndex(-1);
@@ -90,6 +94,7 @@ export default function useCombobox({
     return {
       onKeyDown,
       onFocus,
+      onInput: () => { hasUserTypedRef.current = true; },
       role: "combobox",
       "aria-autocomplete": "list",
       "aria-expanded": isOpen,
@@ -119,6 +124,7 @@ export default function useCombobox({
     listId,
     isOpen,
     activeIndex,
+    close,
     getInputProps,
     getItemProps,
   };

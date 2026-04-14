@@ -7,6 +7,7 @@ import {
   addPostTagsBulkAction,
   getPostTagValuesAction,
   updatePostTagsAction,
+  updatePostNotesAction,
 } from "@/lib/actions";
 import UploadBulkTagPanel from "./UploadBulkTagPanel";
 import UploadList from "./UploadList";
@@ -26,6 +27,9 @@ export default function UploadForm() {
     setUploadTagsValue,
     setUploadTagSaving,
     setUploadTagNote,
+    setUploadNotesValue,
+    setUploadNoteSaving,
+    setUploadNoteNote,
     applyMediaTagValues,
   } = useUploadQueue();
 
@@ -52,6 +56,23 @@ export default function UploadForm() {
     } catch {
       setUploadTagSaving(uploadId, false);
       setUploadTagNote(uploadId, "save failed");
+    }
+  }
+
+  async function saveUploadNotes(uploadId) {
+    const upload = uploads.find(item => item.id === uploadId);
+    if (!upload?.mediaId) return;
+    const notesValue = typeof upload.notesValue === "string" ? upload.notesValue : "";
+
+    setUploadNoteSaving(uploadId, true);
+
+    try {
+      await updatePostNotesAction(upload.mediaId, notesValue);
+      setUploadNoteNote(uploadId, "saved");
+    } catch {
+      setUploadNoteNote(uploadId, "save failed");
+    } finally {
+      setUploadNoteSaving(uploadId, false);
     }
   }
 
@@ -120,6 +141,8 @@ export default function UploadForm() {
           uploads={uploads}
           setUploadTagsValue={setUploadTagsValue}
           saveUploadTags={saveUploadTags}
+          setUploadNotesValue={setUploadNotesValue}
+          saveUploadNotes={saveUploadNotes}
         />
       </div>
     </div>

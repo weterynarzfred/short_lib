@@ -17,6 +17,7 @@ export default function MediaPanelBulkTagEditor({
   const [value, setValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [note, setNote] = useState("");
 
@@ -28,6 +29,7 @@ export default function MediaPanelBulkTagEditor({
   const isInputDisabled = count === 0 || isSaving || isDeleting;
   const canSave = value.trim().length > 0 && count > 0 && !isSaving && !isDeleting;
   const canDeleteAll = count > 0 && !isSaving && !isDeleting;
+  const canDownload = count > 0 && !isDownloading;
 
   async function saveTags() {
     if (!canSave) return;
@@ -53,6 +55,37 @@ export default function MediaPanelBulkTagEditor({
     }
   }
 
+  async function downloadAll() {
+    if (!canDownload) return;
+
+    setIsDownloading(true);
+    setNote("");
+
+    try {
+      const res = await fetch("/api/download/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postIds: uniquePostIds }),
+      });
+
+      if (!res.ok) throw new Error("Download failed");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "media.zip";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setNote("download failed");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
   async function deleteAll() {
     if (!canDeleteAll) return;
 
@@ -74,7 +107,7 @@ export default function MediaPanelBulkTagEditor({
 
   return (
     <div className={classNames(className, styles.bulkTagEditor)}>
-      <h2>bulk tag edit</h2>
+      <h2>bulk selection</h2>
       <div className={styles.subtitle}>{count} selected</div>
 
       <div className={styles.edit}>
@@ -135,6 +168,13 @@ export default function MediaPanelBulkTagEditor({
           >{isDeleting ? "deleting..." : "confirm delete all"}</button>
         </>
       )}
+
+      <button
+        type="button"
+        className={styles.tagButton}
+        onClick={downloadAll}
+        disabled={!canDownload}
+      >{isDownloading ? "downloading..." : "download all"}</button>
     </div>
   );
 }

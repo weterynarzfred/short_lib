@@ -15,6 +15,9 @@ function createUploadEntry(file) {
     tagsValue: "",
     isSavingTags: false,
     tagsSaveNote: "",
+    notesValue: "",
+    isSavingNotes: false,
+    notesSaveNote: "",
   };
 }
 
@@ -175,6 +178,24 @@ export default function useUploadQueue() {
     updateUpload(uploadId, upload => ({ ...upload, tagsSaveNote }));
   }
 
+  function setUploadNotesValue(uploadId, nextValue) {
+    updateUpload(uploadId, upload => ({
+      ...upload,
+      notesValue: typeof nextValue === "function"
+        ? nextValue(typeof upload.notesValue === "string" ? upload.notesValue : "")
+        : nextValue,
+      notesSaveNote: "",
+    }));
+  }
+
+  function setUploadNoteSaving(uploadId, isSavingNotes) {
+    updateUpload(uploadId, upload => ({ ...upload, isSavingNotes }));
+  }
+
+  function setUploadNoteNote(uploadId, notesSaveNote) {
+    updateUpload(uploadId, upload => ({ ...upload, notesSaveNote }));
+  }
+
   function applyMediaTagValues(values) {
     const tagValueByMediaId = new Map(
       (Array.isArray(values) ? values : [])
@@ -202,6 +223,9 @@ export default function useUploadQueue() {
     setUploadTagsValue,
     setUploadTagSaving,
     setUploadTagNote,
+    setUploadNotesValue,
+    setUploadNoteSaving,
+    setUploadNoteNote,
     applyMediaTagValues,
   };
 }

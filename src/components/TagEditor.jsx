@@ -73,6 +73,7 @@ export default function TagEditor({
 
             event.preventDefault();
             event.stopPropagation();
+            combobox.close();
             saveTags();
             return;
           }
