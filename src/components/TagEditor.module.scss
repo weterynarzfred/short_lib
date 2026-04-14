@@ -15,6 +15,7 @@
     height: 100%;
     --pce-bg: transparent;
     --pce-cursor: #ccc;
+    --pce-selection: rgba(148, 207, 97, 0.35);
     --padding-inline: 0;
   }
 
@@ -25,5 +26,9 @@
   :global(.pce-textarea::placeholder) {
     color: $colorBorder2;
     opacity: 1;
+  }
+
+  :global(.pce-textarea::selection) {
+    background: var(--pce-selection);
   }
 }

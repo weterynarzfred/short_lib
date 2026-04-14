@@ -71,6 +71,7 @@ export default function TagEditor({
       language: "tags",
       value: prevValueRef.current,
       lineNumbers: false,
+      wordWrap: true,
       readOnly: Boolean(disabled),
     });
 
