@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import classNames from "classnames";
 
 import {
@@ -19,6 +19,9 @@ export default function MediaPanelMeta({
   className,
   isSlideshowOn = false,
 }) {
+  const tagFocusRef = useRef(null);
+  const notesFocusRef = useRef(null);
+
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");
   const [filenameValue, setFilenameValue] = useState("");
@@ -35,6 +38,23 @@ export default function MediaPanelMeta({
   );
 
   useEffect(() => {
+    function handleKeydown(event) {
+      if (event.repeat) return;
+      const active = document.activeElement;
+      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) return;
+      if (event.key === "e") {
+        event.preventDefault();
+        tagFocusRef.current?.focus();
+      } else if (event.key === "n") {
+        event.preventDefault();
+        notesFocusRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, []);
+
+  useEffect(() => {
     setTagsValue(originalTags);
   }, [originalTags]);
   useEffect(() => {
@@ -47,6 +67,7 @@ export default function MediaPanelMeta({
   const saveTags = () => {
     if (!isTagsDirty) return;
 
+    tagFocusRef.current?.blur();
     const nextValue = tagsValue.trim();
     startTagsTransition(() => {
       updatePostTagsAction(post.id, nextValue)
@@ -93,6 +114,7 @@ export default function MediaPanelMeta({
           value={tagsValue}
           setValue={setTagsValue}
           saveTags={saveTags}
+          focusRef={tagFocusRef}
           inputProps={{
             className: classNames(styles.tagList, {
               [styles.tagListDirty]: isTagsDirty,
@@ -128,6 +150,7 @@ export default function MediaPanelMeta({
         postId={post.id}
         initialValue={post.notes_md}
         onPatchPost={onPatchPost}
+        focusRef={notesFocusRef}
       />
 
       <div className={styles.edit}>

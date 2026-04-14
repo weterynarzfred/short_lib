@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
 
 import { updatePostNotesAction } from "@/lib/actions";
 
 import styles from "./MediaPanelNotesEditor.module.scss";
 
-export default function MediaPanelNotesEditor({ postId, initialValue, onPatchPost }) {
+export default function MediaPanelNotesEditor({ postId, initialValue, onPatchPost, focusRef }) {
+  const textareaRef = useRef(null);
   const [notesValue, setNotesValue] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
@@ -21,6 +22,7 @@ export default function MediaPanelNotesEditor({ postId, initialValue, onPatchPos
   const saveNotes = async () => {
     if (!isNotesDirty) return;
 
+    textareaRef.current?.blur();
     setIsSavingNotes(true);
     try {
       const result = await updatePostNotesAction(postId, notesValue);
@@ -38,6 +40,10 @@ export default function MediaPanelNotesEditor({ postId, initialValue, onPatchPos
         htmlFor={`media-notes-${postId}`}
       >notes</label>
       <textarea
+        ref={el => {
+          textareaRef.current = el;
+          if (focusRef) focusRef.current = el;
+        }}
         id={`media-notes-${postId}`}
         className={classNames(styles.notesInput, {
           [styles.notesInputDirty]: isNotesDirty,

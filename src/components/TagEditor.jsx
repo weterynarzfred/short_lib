@@ -13,6 +13,7 @@ export default function TagEditor({
   value,
   setValue,
   saveTags,
+  focusRef,
   inputProps = {},
 }) {
   const inputRef = useRef(null);
@@ -48,7 +49,10 @@ export default function TagEditor({
   return (
     <div ref={combobox.rootRef} className={styles.tagEditor}>
       <textarea
-        ref={inputRef}
+        ref={el => {
+          inputRef.current = el;
+          if (focusRef) focusRef.current = el;
+        }}
         value={value}
         onChange={e => {
           setValue(e.target.value);
