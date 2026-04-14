@@ -228,12 +228,12 @@ describe("server actions", () => {
     expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("getPostTagValuesAction de-duplicates ids and formats typed tags", async () => {
+  it("getPostTagValuesAction de-duplicates ids and normalizes to bare names", async () => {
     const all = vi.fn(() => ([
-      { mediaId: 2, name: "nsfw", type: "meta" },
-      { mediaId: 2, name: "cat", type: "general" },
-      { mediaId: 3, name: "artist_name", type: "creator" },
-      { mediaId: 3, name: "  ", type: "meta" },
+      { mediaId: 2, id: 21, name: "nsfw", type: "meta" },
+      { mediaId: 2, id: 22, name: "cat", type: "general" },
+      { mediaId: 3, id: 31, name: "artist_name", type: "creator" },
+      { mediaId: 3, id: 32, name: "  ", type: "meta" },
     ]));
     hoisted.dbPrepare.mockReturnValue({ all });
 
@@ -242,8 +242,21 @@ describe("server actions", () => {
 
     expect(all).toHaveBeenCalledWith(2, 3);
     expect(result).toEqual([
-      { mediaId: 2, tagsValue: "meta:nsfw cat" },
-      { mediaId: 3, tagsValue: "creator:artist_name" },
+      {
+        mediaId: 2,
+        tags: [
+          { id: 21, name: "nsfw", type: "meta" },
+          { id: 22, name: "cat", type: "general" },
+        ],
+        tagsValue: "nsfw cat",
+      },
+      {
+        mediaId: 3,
+        tags: [
+          { id: 31, name: "artist_name", type: "creator" },
+        ],
+        tagsValue: "artist_name",
+      },
     ]);
   });
 

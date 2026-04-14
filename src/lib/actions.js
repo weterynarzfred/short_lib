@@ -41,12 +41,6 @@ function normalizeTagRow(row) {
   };
 }
 
-function formatTagValue(tag) {
-  return tag.type && tag.type !== "general"
-    ? `${tag.type}:${tag.name}`
-    : tag.name;
-}
-
 function getTagsByMediaIds(postIds) {
   const ids = normalizePostIds(postIds);
   if (!ids.length) return new Map();
@@ -194,12 +188,15 @@ export async function getPostTagValuesAction(postIds) {
   if (!ids.length) return [];
   const tagsByMediaId = getTagsByMediaIds(ids);
 
-  return ids.map(mediaId => ({
-    mediaId,
-    tagsValue: (tagsByMediaId.get(mediaId) ?? [])
-      .map(formatTagValue)
-      .join(" "),
-  }));
+  return ids.map(mediaId => {
+    const tags = tagsByMediaId.get(mediaId) ?? [];
+
+    return {
+      mediaId,
+      tags,
+      tagsValue: tags.map(tag => tag.name).join(" "),
+    };
+  });
 }
 
 export async function updateTagAction(tagId, nextTagData) {

@@ -114,6 +114,7 @@ export default function MediaPanelMeta({
           value={tagsValue}
           setValue={setTagsValue}
           saveTags={saveTags}
+          knownTags={post.tags}
           focusRef={tagFocusRef}
           inputProps={{
             className: classNames(styles.tagList, {

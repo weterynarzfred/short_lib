@@ -27,6 +27,7 @@ export default function UploadForm() {
     setUploadTagsValue,
     setUploadTagSaving,
     setUploadTagNote,
+    setUploadKnownTags,
     setUploadNotesValue,
     setUploadNoteSaving,
     setUploadNoteNote,
@@ -44,25 +45,25 @@ export default function UploadForm() {
   async function saveUploadTags(uploadId) {
     const upload = uploads.find(item => item.id === uploadId);
     if (!upload?.mediaId) return;
-    const rawTagsValue =
-      typeof upload.tagsValue === "string" ? upload.tagsValue : "";
+    const rawTagsValue = upload.tagsValue;
 
     setUploadTagSaving(uploadId, true);
 
     try {
-      await updatePostTagsAction(upload.mediaId, rawTagsValue);
-      setUploadTagSaving(uploadId, false);
+      const result = await updatePostTagsAction(upload.mediaId, rawTagsValue);
+      setUploadKnownTags(uploadId, result.tags);
       setUploadTagNote(uploadId, "saved");
     } catch {
-      setUploadTagSaving(uploadId, false);
       setUploadTagNote(uploadId, "save failed");
+    } finally {
+      setUploadTagSaving(uploadId, false);
     }
   }
 
   async function saveUploadNotes(uploadId) {
     const upload = uploads.find(item => item.id === uploadId);
     if (!upload?.mediaId) return;
-    const notesValue = typeof upload.notesValue === "string" ? upload.notesValue : "";
+    const notesValue = upload.notesValue;
 
     setUploadNoteSaving(uploadId, true);
 

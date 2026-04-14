@@ -13,6 +13,7 @@ function createUploadEntry(file) {
     existingPost: null,
     mediaId: null,
     tagsValue: "",
+    knownTags: [],
     isSavingTags: false,
     tagsSaveNote: "",
     notesValue: "",
@@ -21,25 +22,22 @@ function createUploadEntry(file) {
   };
 }
 
-function resolveUploadedMatch(uploaded, fileName) {
-  return uploaded.find(item => item.originalFilename === fileName) ?? uploaded[0] ?? null;
-}
-
-function formatTagToken(tag) {
-  const name = typeof tag?.name === "string" ? tag.name.trim() : "";
-  if (!name) return null;
-
-  const type = typeof tag?.type === "string" ? tag.type.trim() : "";
-  return type && type !== "general" ? `${type}:${name}` : name;
-}
-
 function buildTagEditorValue(tags) {
-  if (!Array.isArray(tags)) return "";
+  return normalizeKnownTags(tags).map(tag => tag.name).join(" ");
+}
+
+function normalizeKnownTags(tags) {
+  if (!Array.isArray(tags)) return [];
 
   return tags
-    .map(formatTagToken)
-    .filter(Boolean)
-    .join(" ");
+    .map(tag => {
+      const name = typeof tag?.name === "string" ? tag.name.trim() : "";
+      if (!name) return null;
+
+      const type = typeof tag?.type === "string" ? tag.type.trim() : "";
+      return { name, type: type || "general" };
+    })
+    .filter(Boolean);
 }
 
 export default function useUploadQueue() {
@@ -130,17 +128,22 @@ export default function useUploadQueue() {
           return;
         }
 
-        const uploaded = Array.isArray(res.uploaded) ? res.uploaded : [];
-        const match = resolveUploadedMatch(uploaded, file.name);
+        const uploaded = Array.isArray(res.uploaded) ? res.uploaded : null;
+        const match = uploaded?.[0];
+        if (!match || !Number.isInteger(match.id)) {
+          markFailed(entry.id, "Invalid server response");
+          return;
+        }
 
         updateUpload(entry.id, upload => ({
           ...upload,
           progress: 100,
           done: true,
-          mediaId: Number.isInteger(match?.id) ? match.id : null,
+          mediaId: match.id,
           mime_type: match?.mimeType,
           filePath: match.filePath,
           tagsValue: buildTagEditorValue(match?.tags),
+          knownTags: normalizeKnownTags(match?.tags),
         }));
       } catch {
         markFailed(entry.id, "Invalid server response");
@@ -160,7 +163,7 @@ export default function useUploadQueue() {
     updateUpload(uploadId, upload => ({
       ...upload,
       tagsValue: typeof nextValue === "function"
-        ? nextValue(typeof upload.tagsValue === "string" ? upload.tagsValue : "")
+        ? nextValue(upload.tagsValue)
         : nextValue,
       tagsSaveNote: "",
     }));
@@ -178,12 +181,21 @@ export default function useUploadQueue() {
     updateUpload(uploadId, upload => ({ ...upload, tagsSaveNote }));
   }
 
+  function setUploadKnownTags(uploadId, tags) {
+    const normalizedTags = normalizeKnownTags(tags);
+
+    updateUpload(uploadId, upload => ({
+      ...upload,
+      knownTags: normalizedTags,
+      tagsValue: buildTagEditorValue(normalizedTags),
+      tagsSaveNote: "",
+    }));
+  }
+
   function setUploadNotesValue(uploadId, nextValue) {
     updateUpload(uploadId, upload => ({
       ...upload,
-      notesValue: typeof nextValue === "function"
-        ? nextValue(typeof upload.notesValue === "string" ? upload.notesValue : "")
-        : nextValue,
+      notesValue: nextValue,
       notesSaveNote: "",
     }));
   }
@@ -197,23 +209,28 @@ export default function useUploadQueue() {
   }
 
   function applyMediaTagValues(values) {
-    const tagValueByMediaId = new Map(
+    const tagDataByMediaId = new Map(
       (Array.isArray(values) ? values : [])
         .filter(value => Number.isInteger(value?.mediaId))
-        .map(value => [value.mediaId, typeof value.tagsValue === "string" ? value.tagsValue : ""])
+        .map(value => {
+          const knownTags = normalizeKnownTags(value?.tags);
+          return [value.mediaId, { knownTags, tagsValue: buildTagEditorValue(knownTags) }];
+        })
     );
 
-    if (!tagValueByMediaId.size) return;
+    if (!tagDataByMediaId.size) return;
 
-    setUploads(prev => prev.map(upload =>
-      tagValueByMediaId.has(upload.mediaId)
-        ? {
-          ...upload,
-          tagsValue: tagValueByMediaId.get(upload.mediaId),
-          tagsSaveNote: "",
-        }
-        : upload
-    ));
+    setUploads(prev => prev.map(upload => {
+      const nextTagData = tagDataByMediaId.get(upload.mediaId);
+      if (!nextTagData) return upload;
+
+      return {
+        ...upload,
+        tagsValue: nextTagData.tagsValue,
+        knownTags: nextTagData.knownTags,
+        tagsSaveNote: "",
+      };
+    }));
   }
 
   return {
@@ -223,6 +240,7 @@ export default function useUploadQueue() {
     setUploadTagsValue,
     setUploadTagSaving,
     setUploadTagNote,
+    setUploadKnownTags,
     setUploadNotesValue,
     setUploadNoteSaving,
     setUploadNoteNote,

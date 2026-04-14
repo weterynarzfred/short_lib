@@ -1,3 +1,29 @@
+@use "../scss/variables" as *;
+
 .tagEditor {
   position: relative;
+}
+
+.editorMount {
+  overflow: hidden;
+
+  &:focus-within {
+    background-color: $colorBg2;
+  }
+
+  :global(.prism-code-editor) {
+    height: 100%;
+    --pce-bg: transparent;
+    --pce-cursor: #ccc;
+    --padding-inline: 0;
+  }
+
+  :global(.pce-wrapper) {
+    margin: 0;
+  }
+
+  :global(.pce-textarea::placeholder) {
+    color: $colorBorder2;
+    opacity: 1;
+  }
 }
