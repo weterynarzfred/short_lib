@@ -91,6 +91,42 @@ function applyMerge(sourceId, target) {
   return { mode: "merged", id: target.id };
 }
 
+export function updateTagDescription(tagId, description) {
+  const id = toSafeTagId(tagId);
+  const value = description == null || String(description).trim() === "" ? null : String(description);
+  db.prepare(`UPDATE tags SET description = ? WHERE id = ?`).run(value, id);
+}
+
+export function addTagAlias(tagId, aliasName) {
+  const id = toSafeTagId(tagId);
+  const name = String(aliasName ?? "").trim();
+  if (!name) throw new Error("Alias name is required");
+  const conflict = db.prepare(`SELECT id FROM tags WHERE name = ?`).get(name);
+  if (conflict) throw new Error(`"${name}" is already a tag name`);
+  db.prepare(`INSERT INTO tag_aliases (name, tag_id) VALUES (?, ?)`).run(name, id);
+}
+
+export function removeTagAlias(aliasName) {
+  const name = String(aliasName ?? "").trim();
+  db.prepare(`DELETE FROM tag_aliases WHERE name = ?`).run(name);
+}
+
+export function addTagImplicationByName(tagId, impliedTagName) {
+  const id = toSafeTagId(tagId);
+  const name = String(impliedTagName ?? "").trim();
+  if (!name) throw new Error("Tag name is required");
+  const impliedTag = db.prepare(`SELECT id FROM tags WHERE name = ?`).get(name);
+  if (!impliedTag) throw new Error(`Tag "${name}" not found`);
+  if (id === impliedTag.id) throw new Error("Tag cannot imply itself");
+  db.prepare(`INSERT OR IGNORE INTO tag_implications (tag_id, implied_tag_id) VALUES (?, ?)`).run(id, impliedTag.id);
+}
+
+export function removeTagImplication(tagId, impliedTagId) {
+  const id = toSafeTagId(tagId);
+  const impliedId = toSafeTagId(impliedTagId);
+  db.prepare(`DELETE FROM tag_implications WHERE tag_id = ? AND implied_tag_id = ?`).run(id, impliedId);
+}
+
 export function updateTagById(tagId, { name, type } = {}) {
   const id = toSafeTagId(tagId);
   const desiredName = normalizeTagName(name);

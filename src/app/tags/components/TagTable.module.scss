@@ -59,3 +59,73 @@
   color: $colorWarning;
   margin: 0;
 }
+
+.expandedRow {
+  background: $colorBg;
+  padding: 0.6rem 1rem;
+}
+
+.expandedSection {
+  margin-bottom: 0.5rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  label {
+    display: block;
+    font-size: 0.7rem;
+    color: $colorContent2;
+    margin-bottom: 0.25rem;
+  }
+}
+
+.chipRow {
+  @include actionRow(0.25rem);
+
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: $colorBg2;
+  border: 1px solid $colorBorder2;
+  padding: 0 0.3rem;
+  font-family: $fontMono;
+  font-size: 0.75rem;
+
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: $colorContent2;
+    line-height: 1;
+    font-size: 0.85rem;
+
+    &:hover:not(:disabled) {
+      color: $colorWarning;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.inlineInput {
+  @include inputBase(0 0.3rem);
+
+  font-size: $fontSizeMonoInput;
+  width: 10rem;
+}
+
+.descriptionInput {
+  @include textareaBase(4rem);
+
+  width: 100%;
+  max-width: 40rem;
+}

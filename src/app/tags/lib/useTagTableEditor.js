@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { deleteTagAction, updateTagAction } from "@/lib/actions";
+import {
+  deleteTagAction,
+  updateTagAction,
+  addTagAliasAction,
+  removeTagAliasAction,
+  addTagImplicationAction,
+  removeTagImplicationAction,
+} from "@/lib/actions";
 import { buildDraft } from "./tagTableUtils";
 
 export default function useTagTableEditor({ tags }) {
@@ -47,7 +54,8 @@ export default function useTagTableEditor({ tags }) {
     const draft = getDraft(tag);
     return (
       draft.name.trim() !== tag.name ||
-      (draft.type.trim() || "general") !== tag.type
+      (draft.type.trim() || "general") !== tag.type ||
+      draft.description !== (tag.description ?? "")
     );
   }, [getDraft]);
 
@@ -82,6 +90,7 @@ export default function useTagTableEditor({ tags }) {
     const draft = getDraft(tag);
     const nextName = draft.name.trim();
     const nextType = draft.type.trim() || "general";
+    const nextDescription = draft.description ?? "";
 
     if (!nextName) {
       setError("Tag name cannot be empty.");
@@ -89,7 +98,7 @@ export default function useTagTableEditor({ tags }) {
     }
 
     await runWithPending(tag.id, async () => {
-      await updateTagAction(tag.id, { name: nextName, type: nextType });
+      await updateTagAction(tag.id, { name: nextName, type: nextType, description: nextDescription });
       setEditingTagId(null);
       setConfirmDeleteTagId(null);
     });
@@ -101,6 +110,22 @@ export default function useTagTableEditor({ tags }) {
       setEditingTagId(null);
       setConfirmDeleteTagId(null);
     });
+  }, [runWithPending]);
+
+  const addAlias = useCallback(async (tagId, aliasName) => {
+    await runWithPending(tagId, () => addTagAliasAction(tagId, aliasName));
+  }, [runWithPending]);
+
+  const removeAlias = useCallback(async (tagId, aliasName) => {
+    await runWithPending(tagId, () => removeTagAliasAction(aliasName));
+  }, [runWithPending]);
+
+  const addImplication = useCallback(async (tagId, impliedTagName) => {
+    await runWithPending(tagId, () => addTagImplicationAction(tagId, impliedTagName));
+  }, [runWithPending]);
+
+  const removeImplication = useCallback(async (tagId, impliedTagId) => {
+    await runWithPending(tagId, () => removeTagImplicationAction(tagId, impliedTagId));
   }, [runWithPending]);
 
   const handleEditKeyDown = useCallback((event, tag, isRowPending) => {
@@ -130,5 +155,9 @@ export default function useTagTableEditor({ tags }) {
     saveEdit,
     deleteTag,
     handleEditKeyDown,
+    addAlias,
+    removeAlias,
+    addImplication,
+    removeImplication,
   };
 }

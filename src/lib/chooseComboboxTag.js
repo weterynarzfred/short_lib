@@ -1,5 +1,7 @@
 export default function chooseComboboxTag({ prev, cursor, tag }) {
   const isOperator = tag.type === "operator";
+  const insertName = tag.insertName ?? tag.name;
+  const matchName = tag.matchName ?? insertName;
   const pos = typeof cursor === "number" ? cursor : prev.length;
 
   const start = prev.slice(0, pos).lastIndexOf(" ") + 1;
@@ -16,9 +18,9 @@ export default function chooseComboboxTag({ prev, cursor, tag }) {
 
   let consumedRight = 0;
 
-  if (tag.name.startsWith(left)) {
+  if (matchName.startsWith(left)) {
     for (let i = right.length; i >= 0; i--) {
-      if (tag.name.startsWith(left + right.slice(0, i))) {
+      if (matchName.startsWith(left + right.slice(0, i))) {
         consumedRight = i;
         break;
       }
@@ -35,7 +37,7 @@ export default function chooseComboboxTag({ prev, cursor, tag }) {
   const next =
     prev.slice(0, start) +
     sign +
-    tag.name +
+    insertName +
     separator +
     remainingRight +
     prev.slice(end);
@@ -43,7 +45,7 @@ export default function chooseComboboxTag({ prev, cursor, tag }) {
   const nextCursor =
     start +
     sign.length +
-    tag.name.length +
+    insertName.length +
     separator.length +
     (!remainingRight && hasSpaceAfterToken && !isOperator ? 1 : 0);
 

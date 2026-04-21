@@ -44,7 +44,21 @@ function buildTagsIndex() {
     ORDER BY t.id ASC
   `).all();
 
-  return { rows, fuse: new Fuse(rows, TAG_FUSE_OPTIONS) };
+  const aliasRows = db.prepare(`
+    SELECT a.name AS aliasName, t.id, t.name AS realName, t.type, t.post_count AS postCount
+    FROM tag_aliases a
+    JOIN tags t ON t.id = a.tag_id
+  `).all().map(row => ({
+    id: row.id,
+    name: row.aliasName,
+    type: row.type,
+    postCount: row.postCount,
+    isAlias: true,
+    realName: row.realName,
+  }));
+
+  const allRows = [...rows, ...aliasRows];
+  return { rows: allRows, fuse: new Fuse(allRows, TAG_FUSE_OPTIONS) };
 }
 
 function rebuildMediaNotesIndex() {
@@ -111,9 +125,12 @@ export async function searchTagSuggestions(query, { limit = 16 } = {}) {
     if (!Number.isInteger(id) || !name || seen.has(id)) continue;
 
     seen.add(id);
+    const isAlias = tag?.isAlias === true;
     suggestions.push({
       id,
-      name,
+      name: isAlias ? `${name} → ${tag.realName}` : name,
+      insertName: isAlias ? tag.realName : undefined,
+      matchName: isAlias ? name : undefined,
       type: String(tag?.type ?? "general"),
       postCount: Number(tag?.postCount) || 0,
     });

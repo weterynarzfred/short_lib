@@ -29,18 +29,30 @@ db.exec(`
 `);
 
 db.exec(`
-  DROP TRIGGER IF EXISTS media_notes_fts_ai;
-  DROP TRIGGER IF EXISTS media_notes_fts_ad;
-  DROP TRIGGER IF EXISTS media_notes_fts_au;
-  DROP TABLE IF EXISTS media_notes_fts;
-`);
-
-db.exec(`
   CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     type TEXT NOT NULL DEFAULT 'general',
-    post_count INTEGER NOT NULL DEFAULT 0
+    post_count INTEGER NOT NULL DEFAULT 0,
+    description TEXT
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tag_aliases (
+    name TEXT PRIMARY KEY,
+    tag_id INTEGER NOT NULL,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tag_implications (
+    tag_id INTEGER NOT NULL,
+    implied_tag_id INTEGER NOT NULL,
+    PRIMARY KEY (tag_id, implied_tag_id),
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+    FOREIGN KEY (implied_tag_id) REFERENCES tags(id) ON DELETE CASCADE
   );
 `);
 
@@ -72,6 +84,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_media_tags_tag ON media_tags(tag_id);
   CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
   CREATE INDEX IF NOT EXISTS idx_tags_post_count ON tags(post_count);
+  CREATE INDEX IF NOT EXISTS idx_tag_aliases_tag_id ON tag_aliases(tag_id);
+  CREATE INDEX IF NOT EXISTS idx_tag_implications_tag_id ON tag_implications(tag_id);
+  CREATE INDEX IF NOT EXISTS idx_tag_implications_implied ON tag_implications(implied_tag_id);
   CREATE INDEX IF NOT EXISTS idx_user_settings_updated_at ON user_settings(updated_at);
 `);
 

@@ -15,5 +15,6 @@ export function buildDraft(tag) {
   return {
     name: tag.name,
     type: tag.type,
+    description: tag.description ?? "",
   };
 }

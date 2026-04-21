@@ -67,7 +67,8 @@ export default function getTagStats({ page, limit, order, name, type } = {}) {
       t.id,
       t.name,
       t.type,
-      t.post_count
+      t.post_count,
+      t.description
     FROM tags t
     ${whereSql}
     ORDER BY ${orderBy}
@@ -75,5 +76,36 @@ export default function getTagStats({ page, limit, order, name, type } = {}) {
   `);
 
   const rows = stmt.all(...whereParams, safeLimit, offset);
+
+  if (rows.length > 0) {
+    const ids = rows.map(r => r.id);
+    const placeholders = ids.map(() => "?").join(",");
+
+    const aliases = db.prepare(`
+      SELECT tag_id, name FROM tag_aliases WHERE tag_id IN (${placeholders})
+    `).all(...ids);
+
+    const implications = db.prepare(`
+      SELECT ti.tag_id, t.id AS implied_id, t.name AS implied_name
+      FROM tag_implications ti
+      JOIN tags t ON t.id = ti.implied_tag_id
+      WHERE ti.tag_id IN (${placeholders})
+      ORDER BY t.name COLLATE NOCASE
+    `).all(...ids);
+
+    const aliasesByTagId = new Map(ids.map(id => [id, []]));
+    for (const row of aliases) aliasesByTagId.get(row.tag_id)?.push(row.name);
+
+    const implicationsByTagId = new Map(ids.map(id => [id, []]));
+    for (const row of implications) {
+      implicationsByTagId.get(row.tag_id)?.push({ id: row.implied_id, name: row.implied_name });
+    }
+
+    for (const row of rows) {
+      row.aliases = aliasesByTagId.get(row.id) ?? [];
+      row.implications = implicationsByTagId.get(row.id) ?? [];
+    }
+  }
+
   return { total, rows };
 }

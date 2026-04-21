@@ -6,7 +6,15 @@ import addTags, { parseTagString, removeTags } from "@/lib/addTags";
 import db from "@/lib/db";
 import deletePost from "@/lib/deletePost";
 import clearDeletedStorage from "@/lib/clearDeletedStorage";
-import { deleteTagById, updateTagById } from "@/lib/manageTag";
+import {
+  deleteTagById,
+  updateTagById,
+  updateTagDescription,
+  addTagAlias,
+  removeTagAlias,
+  addTagImplicationByName,
+  removeTagImplication,
+} from "@/lib/manageTag";
 import {
   getTagTypeOrderSql,
   setBlacklistedTags,
@@ -201,6 +209,8 @@ export async function getPostTagValuesAction(postIds) {
 
 export async function updateTagAction(tagId, nextTagData) {
   const result = updateTagById(tagId, nextTagData);
+  if (nextTagData.description !== undefined)
+    updateTagDescription(tagId, nextTagData.description);
   revalidatePath("/tags");
   revalidatePath("/listing");
   return result;
@@ -211,6 +221,26 @@ export async function deleteTagAction(tagId) {
   revalidatePath("/tags");
   revalidatePath("/listing");
   return { deleted };
+}
+
+export async function addTagAliasAction(tagId, aliasName) {
+  addTagAlias(tagId, aliasName);
+  revalidatePath("/tags");
+}
+
+export async function removeTagAliasAction(aliasName) {
+  removeTagAlias(aliasName);
+  revalidatePath("/tags");
+}
+
+export async function addTagImplicationAction(tagId, impliedTagName) {
+  addTagImplicationByName(tagId, impliedTagName);
+  revalidatePath("/tags");
+}
+
+export async function removeTagImplicationAction(tagId, impliedTagId) {
+  removeTagImplication(tagId, impliedTagId);
+  revalidatePath("/tags");
 }
 
 export async function updateMediaSettingsAction(partialSettings) {

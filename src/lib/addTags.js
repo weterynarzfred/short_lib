@@ -52,6 +52,15 @@ const unlinkMediaTag = db.prepare(`
   WHERE media_id = ? AND tag_id = ?
 `);
 
+const getTransitiveImplications = db.prepare(`
+  WITH RECURSIVE implied(id) AS (
+    SELECT implied_tag_id FROM tag_implications WHERE tag_id = ?
+    UNION
+    SELECT ti.implied_tag_id FROM tag_implications ti JOIN implied i ON i.id = ti.tag_id
+  )
+  SELECT id FROM implied
+`);
+
 const incrementTagPostCount = db.prepare(`
   UPDATE tags
   SET post_count = post_count + 1
@@ -121,6 +130,8 @@ export default function addTags(mediaId, tags, { replace = false } = {}) {
     if (shouldReplace) replaceMediaTags(mid);
     if (!Array.isArray(inputTags) || inputTags.length === 0) return;
 
+    const baseTagIds = [];
+
     for (const tag of inputTags) {
       const normalized = normalizeInputTag(tag);
       if (!normalized) continue;
@@ -133,8 +144,19 @@ export default function addTags(mediaId, tags, { replace = false } = {}) {
       if (normalized.providedType && row.type !== normalized.providedType)
         updateTagType.run(normalized.providedType, normalized.name, normalized.providedType);
 
-      const linkResult = linkMediaTag.run(mid, row.id);
-      if (linkResult.changes > 0) incrementTagPostCount.run(row.id);
+      baseTagIds.push(row.id);
+    }
+
+    const allTagIds = new Set(baseTagIds);
+    for (const tagId of baseTagIds) {
+      for (const row of getTransitiveImplications.all(tagId)) {
+        allTagIds.add(row.id);
+      }
+    }
+
+    for (const tagId of allTagIds) {
+      const linkResult = linkMediaTag.run(mid, tagId);
+      if (linkResult.changes > 0) incrementTagPostCount.run(tagId);
     }
   });
 
