@@ -29,6 +29,45 @@ describe("chooseComboboxTag", () => {
     });
   });
 
+  it("opens an empty quoted phrase for free-text operators and lands inside it", () => {
+    const result = chooseComboboxTag({
+      prev: "note",
+      cursor: 4,
+      tag: { name: "notes:", type: "operator", quoted: true },
+    });
+
+    expect(result).toEqual({
+      next: "notes:\"\"",
+      nextCursor: 7,
+    });
+    // The caret must sit between the quotes, ready for the phrase.
+    expect(result.next.slice(result.nextCursor)).toBe("\"");
+  });
+
+  it("keeps surrounding tokens intact when opening a quoted phrase", () => {
+    const result = chooseComboboxTag({
+      prev: "cat note dog",
+      cursor: 8,
+      tag: { name: "notes:", type: "operator", quoted: true },
+    });
+
+    expect(result.next).toBe("cat notes:\"\" dog");
+    expect(result.next.slice(result.nextCursor)).toBe("\" dog");
+  });
+
+  it("does not quote operators that take a value from a list", () => {
+    const result = chooseComboboxTag({
+      prev: "ord",
+      cursor: 3,
+      tag: { name: "order:", type: "operator", quoted: false },
+    });
+
+    expect(result).toEqual({
+      next: "order:",
+      nextCursor: 6,
+    });
+  });
+
   it("keeps exactly one space when there is already a token separator after selection", () => {
     const result = chooseComboboxTag({
       prev: "do other",

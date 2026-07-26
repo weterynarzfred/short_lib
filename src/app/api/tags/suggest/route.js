@@ -43,7 +43,10 @@ const OPERATORS = [
   },
   {
     key: "notes",
+    // Takes free text rather than a value from a list, so accepting it opens a quoted
+    // phrase for the caret to land inside.
     label: "notes:",
+    quoted: true,
   },
   {
     key: "has",
@@ -114,6 +117,7 @@ export async function GET(req) {
           name: op.label,
           type: "operator",
           postCount: null,
+          quoted: op.quoted === true,
         }))
       );
     }

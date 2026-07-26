@@ -1,5 +1,8 @@
 export default function chooseComboboxTag({ prev, cursor, tag }) {
   const isOperator = tag.type === "operator";
+  // Operators taking free text open an empty quoted phrase, so a multi-word value can be
+  // typed without remembering to add the quotes. Harmless for a single word.
+  const opensQuotedValue = isOperator && tag.quoted === true;
   const insertName = tag.insertName ?? tag.name;
   const matchName = tag.matchName ?? insertName;
   const pos = typeof cursor === "number" ? cursor : prev.length;
@@ -34,18 +37,22 @@ export default function chooseComboboxTag({ prev, cursor, tag }) {
     ? (isOperator ? "" : " ")
     : (isOperator || hasSpaceAfterToken ? "" : " ");
 
+  const insertion = opensQuotedValue ? `${insertName}""` : insertName;
+
   const next =
     prev.slice(0, start) +
     sign +
-    insertName +
+    insertion +
     separator +
     remainingRight +
     prev.slice(end);
 
+  // Land between the quotes rather than after them.
   const nextCursor =
     start +
     sign.length +
     insertName.length +
+    (opensQuotedValue ? 1 : 0) +
     separator.length +
     (!remainingRight && hasSpaceAfterToken && !isOperator ? 1 : 0);
 

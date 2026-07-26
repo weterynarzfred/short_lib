@@ -104,6 +104,30 @@ describe("tags suggest route", () => {
     expect(searchTagSuggestions).toHaveBeenCalledWith("no", { limit: 16 });
   });
 
+  it("marks free-text operators so accepting them opens a quoted phrase", async () => {
+    const { db } = createDbMock();
+    vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
+
+    const { GET } = await import("../src/app/api/tags/suggest/route");
+    const res = await GET(new Request("http://localhost/api/tags/suggest?q=n"));
+    const body = await res.json();
+
+    expect(body.tags.find(tag => tag.name === "notes:")?.quoted).toBe(true);
+  });
+
+  it("does not mark operators that take a value from a list", async () => {
+    const { db } = createDbMock();
+    vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
+
+    const { GET } = await import("../src/app/api/tags/suggest/route");
+    const res = await GET(new Request("http://localhost/api/tags/suggest?q=o"));
+    const body = await res.json();
+
+    expect(body.tags.find(tag => tag.name === "order:")?.quoted).toBe(false);
+  });
+
   it("returns has values after colon and loads them from DB", async () => {
     const { db, hasAll } = createDbMock({
       hasRows: [{ value: "character" }, { value: "creator" }, { value: "notes" }],

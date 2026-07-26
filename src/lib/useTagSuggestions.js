@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import getActiveToken from "@/lib/listingQuery/getActiveToken";
+
 export default function useTagSuggestions(value, options = {}) {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,10 +29,7 @@ export default function useTagSuggestions(value, options = {}) {
       return;
     }
 
-    const start = before.lastIndexOf(" ") + 1;
-    const nextSpace = value.indexOf(" ", pos);
-    const end = nextSpace === -1 ? value.length : nextSpace;
-    const query = value.slice(start, pos).replace(/^-/, "");
+    const { start, end, query, inQuotes } = getActiveToken(value, pos);
     const usedTags = new Set();
 
     for (const match of value.matchAll(/\S+/g)) {
@@ -44,7 +43,9 @@ export default function useTagSuggestions(value, options = {}) {
       if (normalizedToken) usedTags.add(normalizedToken);
     }
 
-    if (!query) {
+    // Inside a quoted phrase the caret is in free text, not a tag name, so suggesting
+    // tags there is noise - notes:"that's the fi should not offer "fish".
+    if (!query || inQuotes) {
       if (abortRef.current) abortRef.current.abort();
       setItems([]);
       setIsLoading(false);
