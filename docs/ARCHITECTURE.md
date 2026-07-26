@@ -16,7 +16,26 @@
 
 All DDL lives in `src/lib/schema.js` as `applySchema(db)`. `src/lib/db.js` opens the
 singleton connection and applies it; tests apply the same function to a temp DB, so the
-schema has exactly one definition.
+schema has exactly one definition. Path resolution sits in `src/lib/dbPath.js`, kept
+side-effect free so it is testable without opening a database.
+
+`applySchema` runs in four ordered steps, and is safe to run repeatedly:
+
+1. `createTables` - `CREATE TABLE IF NOT EXISTS`, so a no-op on an existing database.
+2. `addMissingColumns` - the migration path. Because step 1 cannot alter a table that
+   already exists, a column added after release only reaches an older database from the
+   `ADDED_COLUMNS` list here, applied via `ALTER TABLE ADD COLUMN` when `PRAGMA
+   table_info` shows it missing. **Any new column on an existing table must be added to
+   both the CREATE TABLE statement and this list.** SQLite will not add a `NOT NULL`
+   column without a non-null default, nor a `PRIMARY KEY`/`UNIQUE` column at all.
+3. `createIndexes` - after step 2, since an index may reference a migrated column.
+4. `dropRetiredTables` - drops tables listed in `RETIRED_TABLES`, so every copy of the
+   database converges, including backups restored elsewhere.
+
+Column presence is detected by introspection rather than `PRAGMA user_version`, because
+some databases were altered by hand and their version counter cannot be trusted.
+`tests/schema.test.js` asserts a legacy database ends up with exactly the columns a fresh
+one has, which fails if an `ADDED_COLUMNS` entry is forgotten.
 
 - `media`
   - file path, created timestamp (ms), size, MIME, dimensions, duration
@@ -132,6 +151,18 @@ An alias behaves as a synonym of its target everywhere:
 Implications are resolved transitively when tagging (recursive CTE in `addTags.js`), so
 adding `cat` with `cat -> feline -> animal` links all three. They are applied on the way
 in only - removing `cat` later does not remove the implied tags.
+
+## Server Actions
+
+`src/lib/actions.js` is the single entry point for mutations from client components.
+
+Next redacts thrown server-action error messages in production builds, replacing them with
+an opaque digest, so the tag management actions (`updateTagAction`, `deleteTagAction`, and
+the alias/implication pair) return failures as data: `{ ok: false, error }` on rejection,
+`{ ok: true, ...payload }` otherwise. Callers must check `ok` instead of relying on a
+rejection, and a rejected action deliberately skips `revalidatePath` so the UI keeps its
+error state. `src/lib/manageTag.js` still throws - the conversion happens only at the
+action boundary.
 
 ## Delete and Storage Maintenance
 

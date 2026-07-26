@@ -10,14 +10,15 @@ import styles from "./TagTable.module.scss";
 function AliasInput({ tagId, isPending, onAdd }) {
   const [value, setValue] = useState("");
 
-  function handleKeyDown(e) {
+  async function handleKeyDown(e) {
     if (e.key === "Enter") {
       e.preventDefault();
       const name = value.trim();
-      if (name) {
-        onAdd(tagId, name);
-        setValue("");
-      }
+      if (!name) return;
+
+      // Keep the text when rejected, so the error message is actionable.
+      const result = await onAdd(tagId, name);
+      if (result?.ok !== false) setValue("");
     }
   }
 
@@ -35,14 +36,14 @@ function AliasInput({ tagId, isPending, onAdd }) {
 function ImplicationInput({ tagId, isPending, onAdd }) {
   const [value, setValue] = useState("");
 
-  function handleKeyDown(e) {
+  async function handleKeyDown(e) {
     if (e.key === "Enter") {
       e.preventDefault();
       const name = value.trim();
-      if (name) {
-        onAdd(tagId, name);
-        setValue("");
-      }
+      if (!name) return;
+
+      const result = await onAdd(tagId, name);
+      if (result?.ok !== false) setValue("");
     }
   }
 

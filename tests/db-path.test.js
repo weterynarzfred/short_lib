@@ -1,50 +1,23 @@
 import path from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-function setupDbModule() {
-  const pragma = vi.fn();
-  const exec = vi.fn();
-  const mkdirSync = vi.fn();
-  const constructor = vi.fn(function DatabaseMock() {
-    this.pragma = pragma;
-    this.exec = exec;
-  });
-
-  vi.doMock("better-sqlite3", () => ({ default: constructor }));
-  vi.doMock("fs", () => ({ default: { mkdirSync } }));
-
-  return { constructor, mkdirSync };
-}
+import resolveDbPath from "@/lib/dbPath";
 
 describe("db path resolution", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.unstubAllEnvs();
+  it("stores shortlib.db in STORAGE_DIR when configured", () => {
+    expect(resolveDbPath("./storage"))
+      .toBe(path.join(path.resolve("./storage"), "shortlib.db"));
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
+  it("trims surrounding whitespace from STORAGE_DIR", () => {
+    expect(resolveDbPath("  ./storage  "))
+      .toBe(path.join(path.resolve("./storage"), "shortlib.db"));
   });
 
-  it("stores shortlib.db in STORAGE_DIR when configured", async () => {
-    vi.stubEnv("STORAGE_DIR", "./storage");
-    const { constructor, mkdirSync } = setupDbModule();
+  it("falls back to project root when STORAGE_DIR is not configured", () => {
+    const expected = path.join(process.cwd(), "shortlib.db");
 
-    await import("../src/lib/db");
-
-    const storageRoot = path.resolve("./storage");
-    expect(mkdirSync).toHaveBeenCalledWith(storageRoot, { recursive: true });
-    expect(constructor).toHaveBeenCalledWith(path.join(storageRoot, "shortlib.db"));
-  });
-
-  it("falls back to project root when STORAGE_DIR is not configured", async () => {
-    vi.stubEnv("STORAGE_DIR", "");
-    const { constructor, mkdirSync } = setupDbModule();
-
-    await import("../src/lib/db");
-
-    const projectRoot = process.cwd();
-    expect(mkdirSync).toHaveBeenCalledWith(projectRoot, { recursive: true });
-    expect(constructor).toHaveBeenCalledWith(path.join(projectRoot, "shortlib.db"));
+    expect(resolveDbPath("")).toBe(expected);
+    expect(resolveDbPath(undefined)).toBe(expected);
   });
 });

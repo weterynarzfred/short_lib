@@ -38,6 +38,13 @@ function normalizePostId(postId) {
   return safePostId;
 }
 
+// Next redacts thrown server-action errors in production builds, leaving the client with
+// an opaque digest, so tag management failures are returned as data instead. Callers must
+// check `ok` rather than relying on a rejection.
+function failed(error) {
+  return { ok: false, error: error?.message || "Action failed" };
+}
+
 function normalizeTagRow(row) {
   const name = typeof row?.name === "string" ? row.name.trim() : "";
   if (!name) return null;
@@ -208,39 +215,75 @@ export async function getPostTagValuesAction(postIds) {
 }
 
 export async function updateTagAction(tagId, nextTagData) {
-  const result = updateTagById(tagId, nextTagData);
-  if (nextTagData.description !== undefined)
-    updateTagDescription(tagId, nextTagData.description);
+  let result;
+  try {
+    result = updateTagById(tagId, nextTagData);
+    if (nextTagData.description !== undefined)
+      updateTagDescription(tagId, nextTagData.description);
+  } catch (error) {
+    return failed(error);
+  }
+
   revalidatePath("/tags");
   revalidatePath("/listing");
-  return result;
+  return { ok: true, ...result };
 }
 
 export async function deleteTagAction(tagId) {
-  const deleted = deleteTagById(tagId);
+  let deleted;
+  try {
+    deleted = deleteTagById(tagId);
+  } catch (error) {
+    return failed(error);
+  }
+
   revalidatePath("/tags");
   revalidatePath("/listing");
-  return { deleted };
+  return { ok: true, deleted };
 }
 
 export async function addTagAliasAction(tagId, aliasName) {
-  addTagAlias(tagId, aliasName);
+  try {
+    addTagAlias(tagId, aliasName);
+  } catch (error) {
+    return failed(error);
+  }
+
   revalidatePath("/tags");
+  return { ok: true };
 }
 
 export async function removeTagAliasAction(aliasName) {
-  removeTagAlias(aliasName);
+  try {
+    removeTagAlias(aliasName);
+  } catch (error) {
+    return failed(error);
+  }
+
   revalidatePath("/tags");
+  return { ok: true };
 }
 
 export async function addTagImplicationAction(tagId, impliedTagName) {
-  addTagImplicationByName(tagId, impliedTagName);
+  try {
+    addTagImplicationByName(tagId, impliedTagName);
+  } catch (error) {
+    return failed(error);
+  }
+
   revalidatePath("/tags");
+  return { ok: true };
 }
 
 export async function removeTagImplicationAction(tagId, impliedTagId) {
-  removeTagImplication(tagId, impliedTagId);
+  try {
+    removeTagImplication(tagId, impliedTagId);
+  } catch (error) {
+    return failed(error);
+  }
+
   revalidatePath("/tags");
+  return { ok: true };
 }
 
 export async function updateMediaSettingsAction(partialSettings) {

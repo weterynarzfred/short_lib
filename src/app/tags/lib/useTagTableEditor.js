@@ -64,10 +64,18 @@ export default function useTagTableEditor({ tags }) {
     setError("");
 
     try {
-      await callback();
+      const result = await callback();
+      // Actions report rejection as data, since thrown messages are redacted in prod.
+      if (result?.ok === false) {
+        setError(result.error || "Action failed");
+        return result;
+      }
+
       router.refresh();
+      return result;
     } catch (err) {
       setError(err?.message || "Action failed");
+      return { ok: false };
     } finally {
       setPendingTagId(null);
     }
@@ -97,36 +105,43 @@ export default function useTagTableEditor({ tags }) {
       return;
     }
 
-    await runWithPending(tag.id, async () => {
-      await updateTagAction(tag.id, { name: nextName, type: nextType, description: nextDescription });
+    return runWithPending(tag.id, async () => {
+      const result = await updateTagAction(tag.id, { name: nextName, type: nextType, description: nextDescription });
+      // Keep the editor open with the draft intact when the update was rejected.
+      if (result?.ok === false) return result;
+
       setEditingTagId(null);
       setConfirmDeleteTagId(null);
+      return result;
     });
   }, [getDraft, runWithPending]);
 
   const deleteTag = useCallback(async (tagId) => {
-    await runWithPending(tagId, async () => {
-      await deleteTagAction(tagId);
+    return runWithPending(tagId, async () => {
+      const result = await deleteTagAction(tagId);
+      if (result?.ok === false) return result;
+
       setEditingTagId(null);
       setConfirmDeleteTagId(null);
+      return result;
     });
   }, [runWithPending]);
 
-  const addAlias = useCallback(async (tagId, aliasName) => {
-    await runWithPending(tagId, () => addTagAliasAction(tagId, aliasName));
-  }, [runWithPending]);
+  const addAlias = useCallback((tagId, aliasName) =>
+    runWithPending(tagId, () => addTagAliasAction(tagId, aliasName)),
+    [runWithPending]);
 
-  const removeAlias = useCallback(async (tagId, aliasName) => {
-    await runWithPending(tagId, () => removeTagAliasAction(aliasName));
-  }, [runWithPending]);
+  const removeAlias = useCallback((tagId, aliasName) =>
+    runWithPending(tagId, () => removeTagAliasAction(aliasName)),
+    [runWithPending]);
 
-  const addImplication = useCallback(async (tagId, impliedTagName) => {
-    await runWithPending(tagId, () => addTagImplicationAction(tagId, impliedTagName));
-  }, [runWithPending]);
+  const addImplication = useCallback((tagId, impliedTagName) =>
+    runWithPending(tagId, () => addTagImplicationAction(tagId, impliedTagName)),
+    [runWithPending]);
 
-  const removeImplication = useCallback(async (tagId, impliedTagId) => {
-    await runWithPending(tagId, () => removeTagImplicationAction(tagId, impliedTagId));
-  }, [runWithPending]);
+  const removeImplication = useCallback((tagId, impliedTagId) =>
+    runWithPending(tagId, () => removeTagImplicationAction(tagId, impliedTagId)),
+    [runWithPending]);
 
   const handleEditKeyDown = useCallback((event, tag, isRowPending) => {
     if (event.key === "Escape") {

@@ -10,6 +10,11 @@ const hoisted = vi.hoisted(() => ({
   clearDeletedStorage: vi.fn(),
   updateTagById: vi.fn(),
   deleteTagById: vi.fn(),
+  updateTagDescription: vi.fn(),
+  addTagAlias: vi.fn(),
+  removeTagAlias: vi.fn(),
+  addTagImplicationByName: vi.fn(),
+  removeTagImplication: vi.fn(),
   setBlacklistedTags: vi.fn(),
   setMediaSettings: vi.fn(),
   setTagTypeColors: vi.fn(),
@@ -44,6 +49,11 @@ vi.mock("@/lib/clearDeletedStorage", () => ({
 vi.mock("@/lib/manageTag", () => ({
   updateTagById: hoisted.updateTagById,
   deleteTagById: hoisted.deleteTagById,
+  updateTagDescription: hoisted.updateTagDescription,
+  addTagAlias: hoisted.addTagAlias,
+  removeTagAlias: hoisted.removeTagAlias,
+  addTagImplicationByName: hoisted.addTagImplicationByName,
+  removeTagImplication: hoisted.removeTagImplication,
 }));
 
 vi.mock("@/lib/userSettings", () => ({
@@ -68,6 +78,11 @@ describe("server actions", () => {
     hoisted.clearDeletedStorage.mockReset();
     hoisted.updateTagById.mockReset();
     hoisted.deleteTagById.mockReset();
+    hoisted.updateTagDescription.mockReset();
+    hoisted.addTagAlias.mockReset();
+    hoisted.removeTagAlias.mockReset();
+    hoisted.addTagImplicationByName.mockReset();
+    hoisted.removeTagImplication.mockReset();
     hoisted.setBlacklistedTags.mockReset();
     hoisted.setMediaSettings.mockReset();
     hoisted.setTagTypeColors.mockReset();
@@ -266,7 +281,7 @@ describe("server actions", () => {
     const { updateTagAction } = await import("../src/lib/actions");
     const result = await updateTagAction(5, { name: "cat", type: "meta" });
 
-    expect(result).toEqual({ mode: "updated", id: 5 });
+    expect(result).toEqual({ ok: true, mode: "updated", id: 5 });
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/tags");
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
   });
@@ -277,9 +292,61 @@ describe("server actions", () => {
     const { deleteTagAction } = await import("../src/lib/actions");
     const result = await deleteTagAction(7);
 
-    expect(result).toEqual({ deleted: true });
+    expect(result).toEqual({ ok: true, deleted: true });
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/tags");
     expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+  });
+
+  it("returns tag management failures as data instead of throwing", async () => {
+    hoisted.addTagAlias.mockImplementation(() => {
+      throw new Error(`"felines" is already an alias of "cat"`);
+    });
+
+    const { addTagAliasAction } = await import("../src/lib/actions");
+    const result = await addTagAliasAction(3, "felines");
+
+    expect(result).toEqual({
+      ok: false,
+      error: `"felines" is already an alias of "cat"`,
+    });
+    // A rejected action must not revalidate, or the UI would discard its error state.
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("reports a rejected tag update without losing the reason", async () => {
+    hoisted.updateTagById.mockImplementation(() => {
+      throw new Error("Tag not found");
+    });
+
+    const { updateTagAction } = await import("../src/lib/actions");
+    const result = await updateTagAction(9, { name: "cat", type: "meta" });
+
+    expect(result).toEqual({ ok: false, error: "Tag not found" });
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a generic message when an error carries none", async () => {
+    hoisted.addTagImplicationByName.mockImplementation(() => {
+      throw new Error("");
+    });
+
+    const { addTagImplicationAction } = await import("../src/lib/actions");
+
+    expect(await addTagImplicationAction(1, "animal")).toEqual({
+      ok: false,
+      error: "Action failed",
+    });
+  });
+
+  it("reports success for the remaining tag management actions", async () => {
+    const actions = await import("../src/lib/actions");
+
+    expect(await actions.removeTagAliasAction("felines")).toEqual({ ok: true });
+    expect(await actions.addTagImplicationAction(1, "animal")).toEqual({ ok: true });
+    expect(await actions.removeTagImplicationAction(1, 2)).toEqual({ ok: true });
+    expect(hoisted.removeTagAlias).toHaveBeenCalledWith("felines");
+    expect(hoisted.addTagImplicationByName).toHaveBeenCalledWith(1, "animal");
+    expect(hoisted.removeTagImplication).toHaveBeenCalledWith(1, 2);
   });
 
   it("updateTagTypeOrderAction stores order and revalidates listing/settings", async () => {
