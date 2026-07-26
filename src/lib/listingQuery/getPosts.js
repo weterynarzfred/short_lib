@@ -1,6 +1,7 @@
 import db from "@/lib/db";
 import buildQuery from "./buildQuery";
 import parseSearch from "./parseSearch";
+import getSubtitleKinds from "./subtitleKinds";
 import { searchMediaIdsByNotes } from "@/lib/search";
 import { resolveTagName } from "@/lib/tagAliases";
 
@@ -43,6 +44,9 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
     fallback: 0,
   });
 
+  // Constant for a given search, so it is reported per page rather than per post.
+  const subtitleKinds = getSubtitleKinds(parsed.filters);
+
   if (parsed.filters.notes) {
     const noteMediaIds = await searchMediaIdsByNotes(parsed.filters.notes, { limit: 10000 });
     if (!noteMediaIds.length) {
@@ -50,6 +54,7 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
         posts: [],
         hasMore: false,
         nextOffset: safeOffset,
+        subtitleKinds,
       };
     }
 
@@ -81,6 +86,7 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
     posts,
     hasMore,
     nextOffset: safeOffset + posts.length,
+    subtitleKinds,
   };
 }
 

@@ -185,6 +185,9 @@ export default function parseSearch(searchString = "", options = {}) {
     imageRatio: null,
     notes: null,
     has: [],
+    // Base name of an explicit `order:` token, direction stripped. Stays null for the
+    // default ordering, so a default listing is distinguishable from `order:date`.
+    orderKey: null,
   };
 
   function toNotesSearchTerm(rawValue) {
@@ -230,7 +233,10 @@ export default function parseSearch(searchString = "", options = {}) {
 
     if (token.startsWith("order:")) {
       const orderKey = token.slice(6);
-      if (ORDER_BY[orderKey]) filters.orderBy = ORDER_BY[orderKey];
+      if (ORDER_BY[orderKey]) {
+        filters.orderBy = ORDER_BY[orderKey];
+        filters.orderKey = orderKey.replace(/_asc$/, "");
+      }
       continue;
     }
 

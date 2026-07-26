@@ -8,6 +8,7 @@ export default function MediaListingContent({
   sentinelRef,
   search,
   visiblePosts,
+  subtitleKinds,
   isMultiSelectEnabled,
   selectedCount,
   selectedPostIds,
@@ -42,6 +43,7 @@ export default function MediaListingContent({
           <PostItem
             key={post.id}
             post={post}
+            subtitleKinds={subtitleKinds}
             isSelected={selectedPostIds.has(post.id)}
             isMultiSelectEnabled={isMultiSelectEnabled}
             onInteractPost={onPostInteract}

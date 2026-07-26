@@ -15,6 +15,7 @@ export default function MediaListing({
   posts,
   search,
   mediaSettings,
+  subtitleKinds = [],
   initialHasMore = false,
   initialNextOffset = 0,
 }) {
@@ -176,6 +177,7 @@ export default function MediaListing({
         sentinelRef={sentinelRef}
         search={search}
         visiblePosts={visiblePosts}
+        subtitleKinds={subtitleKinds}
         isMultiSelectEnabled={isMultiSelectEnabled}
         selectedCount={selectedCount}
         selectedPostIds={selectedPostIdsSet}

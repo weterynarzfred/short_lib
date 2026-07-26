@@ -253,6 +253,47 @@ describe("getPosts", () => {
     expect(page.posts.map(post => post.id)).toEqual([1, 2]);
     expect(page.hasMore).toBe(true);
     expect(page.nextOffset).toBe(2);
+    expect(page.subtitleKinds).toEqual([]);
+  });
+
+  it("reports which metadata filter drives the subtitle", async () => {
+    const db = {
+      prepare: vi.fn(() => ({
+        all: vi.fn(() => [{ id: 1, variants: null, tags: "[]" }]),
+      })),
+    };
+
+    vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/search", () => ({
+      searchMediaIdsByNotes: vi.fn(async () => []),
+    }));
+    vi.doMock("@/lib/tagAliases", () => ({
+      resolveTagName: vi.fn(name => name),
+    }));
+
+    const { getPostsPage } = await import("../src/lib/listingQuery/getPosts");
+
+    expect((await getPostsPage("file_size:>1mb")).subtitleKinds).toEqual(["file_size"]);
+    expect((await getPostsPage("cat")).subtitleKinds).toEqual([]);
+  });
+
+  // The notes bail-out returns before the query runs, and must still report the kind.
+  it("reports the subtitle kind when a notes search matches nothing", async () => {
+    const db = { prepare: vi.fn(() => ({ all: vi.fn(() => []) })) };
+
+    vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/search", () => ({
+      searchMediaIdsByNotes: vi.fn(async () => []),
+    }));
+    vi.doMock("@/lib/tagAliases", () => ({
+      resolveTagName: vi.fn(name => name),
+    }));
+
+    const { getPostsPage } = await import("../src/lib/listingQuery/getPosts");
+    const page = await getPostsPage("notes:nothing file_size:>1mb");
+
+    expect(page.posts).toEqual([]);
+    expect(page.subtitleKinds).toEqual(["file_size"]);
   });
 
   it("surfaces a failing listing query instead of returning an empty page", async () => {

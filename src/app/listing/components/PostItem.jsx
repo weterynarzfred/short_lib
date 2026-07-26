@@ -2,17 +2,20 @@ import classNames from "classnames";
 import Image from "next/image";
 
 import getPostBadgeLabel from "../lib/postBadge";
+import getPostSubtitles from "../lib/postSubtitle";
 
 import styles from "./PostItem.module.scss";
 
 export default function PostItem({
   post,
+  subtitleKinds = [],
   isSelected = false,
   isMultiSelectEnabled = false,
   onInteractPost,
 }) {
   const thumb = post?.variants?.thumb;
   const badgeLabel = getPostBadgeLabel(post);
+  const subtitles = getPostSubtitles(post, subtitleKinds);
 
   return <div
     className={classNames(styles.card, {
@@ -36,6 +39,8 @@ export default function PostItem({
         <div className={styles.fileExtBadge}>{badgeLabel}</div>
       </> : <div className={styles.fileExtFallback}>{badgeLabel}</div>}
     </div>
-    <div className={styles.postName}>{post.original_filename}</div>
+    {subtitles.map(({ kind, text }) => (
+      <div key={kind} className={styles.postSubtitle}>{text}</div>
+    ))}
   </div>;
 }
