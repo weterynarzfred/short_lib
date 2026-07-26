@@ -1,6 +1,6 @@
-import parseComparable from "@/app/listing/lib/parseComparable";
-import parseImageRatio from "@/app/listing/lib/parseImageRatio";
-import tokenizeSearchString from "@/app/listing/lib/tokenizeSearchString";
+import parseComparable from "@/lib/listingQuery/parseComparable";
+import parseImageRatio from "@/lib/listingQuery/parseImageRatio";
+import tokenizeSearchString from "@/lib/listingQuery/tokenizeSearchString";
 
 function parseTagExpression(tokens = []) {
   let index = 0;
@@ -118,6 +118,11 @@ function parseTagExpression(tokens = []) {
 export default function parseSearch(searchString = "", options = {}) {
   const tokens = tokenizeSearchString(searchString);
 
+  // Injected by callers that have DB access, so parsing stays pure on its own.
+  const resolveTagName = typeof options.resolveTagName === "function"
+    ? options.resolveTagName
+    : name => name;
+
   const includeTags = [];
   const excludeTags = [];
   const expressionTokens = [];
@@ -189,7 +194,7 @@ export default function parseSearch(searchString = "", options = {}) {
   }
 
   function addTagToken(rawValue, { negated = false } = {}) {
-    const value = String(rawValue ?? "").trim();
+    const value = resolveTagName(String(rawValue ?? "").trim());
     if (!value) return;
 
     if (negated) excludeTags.push(value);
@@ -334,7 +339,7 @@ export default function parseSearch(searchString = "", options = {}) {
 
   if (Array.isArray(options.defaultExcludedTags) && options.defaultExcludedTags.length) {
     for (const tag of options.defaultExcludedTags) {
-      const name = String(tag ?? "").trim();
+      const name = resolveTagName(String(tag ?? "").trim());
       if (!name) continue;
       if (mentionedTags.has(name)) continue;
 

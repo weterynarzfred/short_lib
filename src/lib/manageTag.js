@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { findTagByAliasName, resolveTagName } from "@/lib/tagAliases";
 
 function toSafeTagId(tagId) {
   const parsed = Number(tagId);
@@ -101,8 +102,14 @@ export function addTagAlias(tagId, aliasName) {
   const id = toSafeTagId(tagId);
   const name = String(aliasName ?? "").trim();
   if (!name) throw new Error("Alias name is required");
+
   const conflict = db.prepare(`SELECT id FROM tags WHERE name = ?`).get(name);
   if (conflict) throw new Error(`"${name}" is already a tag name`);
+
+  const existingAlias = findTagByAliasName(name);
+  if (existingAlias)
+    throw new Error(`"${name}" is already an alias of "${existingAlias.name}"`);
+
   db.prepare(`INSERT INTO tag_aliases (name, tag_id) VALUES (?, ?)`).run(name, id);
 }
 
@@ -113,7 +120,7 @@ export function removeTagAlias(aliasName) {
 
 export function addTagImplicationByName(tagId, impliedTagName) {
   const id = toSafeTagId(tagId);
-  const name = String(impliedTagName ?? "").trim();
+  const name = resolveTagName(String(impliedTagName ?? "").trim());
   if (!name) throw new Error("Tag name is required");
   const impliedTag = db.prepare(`SELECT id FROM tags WHERE name = ?`).get(name);
   if (!impliedTag) throw new Error(`Tag "${name}" not found`);
@@ -129,7 +136,8 @@ export function removeTagImplication(tagId, impliedTagId) {
 
 export function updateTagById(tagId, { name, type } = {}) {
   const id = toSafeTagId(tagId);
-  const desiredName = normalizeTagName(name);
+  // Renaming onto an alias means renaming onto what it points at, which merges.
+  const desiredName = resolveTagName(normalizeTagName(name));
   const desiredType = normalizeTagType(type);
 
   const tx = db.transaction((id, name, type) => {

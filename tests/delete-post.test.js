@@ -1,41 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Database from "better-sqlite3";
 import fs from "fs";
 import os from "os";
 import path from "path";
 
-function createTempDb() {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "short-lib-delete-post-"));
-  const dbPath = path.join(tempDir, "test.db");
-  const db = new Database(dbPath);
-  db.pragma("foreign_keys = ON");
-
-  db.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      file_path TEXT NOT NULL,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      checksum TEXT
-    );
-
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      type TEXT NOT NULL DEFAULT 'general',
-      post_count INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE media_tags (
-      media_id INTEGER NOT NULL,
-      tag_id INTEGER NOT NULL,
-      PRIMARY KEY (media_id, tag_id),
-      FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
-      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-    );
-  `);
-
-  return { db, tempDir };
-}
+import { createTempDb, destroyTempDb } from "./helpers/tempDb";
 
 function writeFile(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -51,7 +19,7 @@ describe("deletePost", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
-    ({ db, tempDir } = createTempDb());
+    ({ db, tempDir } = createTempDb("short-lib-delete-post-"));
     storageRootDir = fs.mkdtempSync(path.join(os.tmpdir(), "short-lib-storage-root-"));
     storageDir = path.join(storageRootDir, "storage");
     fs.mkdirSync(storageDir, { recursive: true });
@@ -60,8 +28,7 @@ describe("deletePost", () => {
   });
 
   afterEach(() => {
-    if (db) db.close();
-    if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
+    destroyTempDb({ db, tempDir });
     if (storageRootDir) fs.rmSync(storageRootDir, { recursive: true, force: true });
   });
 

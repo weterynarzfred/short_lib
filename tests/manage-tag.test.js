@@ -1,48 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Database from "better-sqlite3";
-import fs from "fs";
-import os from "os";
-import path from "path";
 
-function createTempDb() {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "short-lib-tag-test-"));
-  const dbPath = path.join(tempDir, "test.db");
-  const db = new Database(dbPath);
-  db.pragma("foreign_keys = ON");
-
-  db.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      file_path TEXT NOT NULL,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      file_size INTEGER,
-      mime_type TEXT,
-      width INTEGER,
-      height INTEGER,
-      duration_ms INTEGER,
-      original_filename TEXT,
-      variants TEXT CHECK (variants IS NULL OR json_valid(variants)),
-      checksum TEXT
-    );
-
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      type TEXT NOT NULL DEFAULT 'general',
-      post_count INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE media_tags (
-      media_id INTEGER NOT NULL,
-      tag_id INTEGER NOT NULL,
-      PRIMARY KEY (media_id, tag_id),
-      FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
-      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-    );
-  `);
-
-  return { db, tempDir };
-}
+import { createTempDb, destroyTempDb } from "./helpers/tempDb";
 
 describe("manageTag", () => {
   let db;
@@ -50,13 +8,12 @@ describe("manageTag", () => {
 
   beforeEach(() => {
     vi.resetModules();
-    ({ db, tempDir } = createTempDb());
+    ({ db, tempDir } = createTempDb("short-lib-tag-test-"));
     vi.doMock("@/lib/db", () => ({ default: db }));
   });
 
   afterEach(() => {
-    if (db) db.close();
-    if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
+    destroyTempDb({ db, tempDir });
   });
 
   it("updates tag type without renaming", async () => {
@@ -155,5 +112,57 @@ describe("manageTag", () => {
     expect(deleted).toBe(true);
     expect(tagCount).toBe(0);
     expect(linkCount).toBe(0);
+  });
+
+  it("rejects an alias that is already a tag name", async () => {
+    const catId = db.prepare(`INSERT INTO tags(name) VALUES (?)`).run("cat").lastInsertRowid;
+    db.prepare(`INSERT INTO tags(name) VALUES (?)`).run("dog");
+
+    const { addTagAlias } = await import("../src/lib/manageTag");
+
+    expect(() => addTagAlias(catId, "dog")).toThrow(/already a tag name/);
+  });
+
+  it("rejects an alias that already points at another tag", async () => {
+    const catId = db.prepare(`INSERT INTO tags(name) VALUES (?)`).run("cat").lastInsertRowid;
+    const dogId = db.prepare(`INSERT INTO tags(name) VALUES (?)`).run("dog").lastInsertRowid;
+    db.prepare(`INSERT INTO tag_aliases(name, tag_id) VALUES (?, ?)`).run("felines", catId);
+
+    const { addTagAlias } = await import("../src/lib/manageTag");
+
+    expect(() => addTagAlias(dogId, "felines")).toThrow(/already an alias of "cat"/);
+    expect(db.prepare(`SELECT tag_id FROM tag_aliases WHERE name = ?`).get("felines").tag_id).toBe(catId);
+  });
+
+  it("merges into the alias target when renaming a tag onto an alias", async () => {
+    const mediaId = db
+      .prepare(`INSERT INTO media(file_path, created_at, checksum) VALUES (?, ?, ?)`)
+      .run("2026/03/one.jpg", Date.now(), "one").lastInsertRowid;
+
+    const catId = db.prepare(`INSERT INTO tags(name) VALUES (?)`).run("cat").lastInsertRowid;
+    const dogId = db.prepare(`INSERT INTO tags(name) VALUES (?)`).run("dog").lastInsertRowid;
+    db.prepare(`INSERT INTO tag_aliases(name, tag_id) VALUES (?, ?)`).run("felines", catId);
+    db.prepare(`INSERT INTO media_tags(media_id, tag_id) VALUES (?, ?)`).run(mediaId, dogId);
+
+    const { updateTagById } = await import("../src/lib/manageTag");
+    const result = updateTagById(dogId, { name: "felines", type: "general" });
+
+    expect(result).toEqual({ mode: "merged", id: catId });
+    expect(db.prepare(`SELECT id FROM tags WHERE name = ?`).get("felines")).toBeUndefined();
+    expect(db.prepare(`SELECT id FROM tags WHERE id = ?`).get(dogId)).toBeUndefined();
+    expect(db.prepare(`SELECT tag_id FROM media_tags WHERE media_id = ?`).all(mediaId))
+      .toEqual([{ tag_id: catId }]);
+  });
+
+  it("accepts an alias as the implied tag name", async () => {
+    const dogId = db.prepare(`INSERT INTO tags(name) VALUES (?)`).run("dog").lastInsertRowid;
+    const animalId = db.prepare(`INSERT INTO tags(name) VALUES (?)`).run("animal").lastInsertRowid;
+    db.prepare(`INSERT INTO tag_aliases(name, tag_id) VALUES (?, ?)`).run("critter", animalId);
+
+    const { addTagImplicationByName } = await import("../src/lib/manageTag");
+    addTagImplicationByName(dogId, "critter");
+
+    expect(db.prepare(`SELECT implied_tag_id FROM tag_implications WHERE tag_id = ?`).all(dogId))
+      .toEqual([{ implied_tag_id: animalId }]);
   });
 });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPostsPage } from "@/app/listing/lib/getPosts";
+import { getPostsPage } from "@/lib/listingQuery/getPosts";
 import { getBlacklistedTags, getTagTypeOrderSql } from "@/lib/userSettings";
 
 function parseIntParam(value, { min, max, fallback } = {}) {

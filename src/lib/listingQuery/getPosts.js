@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import buildQuery from "./buildQuery";
 import parseSearch from "./parseSearch";
 import { searchMediaIdsByNotes } from "@/lib/search";
+import { resolveTagName } from "@/lib/tagAliases";
 
 function clampInt(value, { min, max, fallback }) {
   const parsed = Number.parseInt(value, 10);
@@ -29,7 +30,7 @@ function normalizePosts(posts) {
 }
 
 export async function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, tagOrderSql } = {}) {
-  const parsed = parseSearch(search, { defaultExcludedTags });
+  const parsed = parseSearch(search, { defaultExcludedTags, resolveTagName });
   const requestedLimit = clampInt(limit ?? parsed.filters.limit, {
     min: 1,
     max: 500,
@@ -62,10 +63,16 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
     tagOrderSql,
   });
 
-  let rows = [];
+  // Values are bound and orderBy comes from a whitelist, so a failure here is a
+  // bug rather than bad input - surface it instead of showing an empty library.
+  let rows;
   try {
     rows = db.prepare(sql).all(...params);
-  } catch { }
+  } catch (error) {
+    console.error("Listing query failed", { search, sql, params, error });
+    throw error;
+  }
+
   const hasMore = rows.length > requestedLimit;
   const posts = hasMore ? rows.slice(0, requestedLimit) : rows;
   normalizePosts(posts);

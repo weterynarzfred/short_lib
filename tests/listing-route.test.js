@@ -11,7 +11,7 @@ describe("listing route", () => {
     const getBlacklistedTags = vi.fn(() => ["nsfw"]);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
-    vi.doMock("@/app/listing/lib/getPosts", () => ({ getPostsPage }));
+    vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
     vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
@@ -28,7 +28,7 @@ describe("listing route", () => {
     const getBlacklistedTags = vi.fn(() => []);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
-    vi.doMock("@/app/listing/lib/getPosts", () => ({ getPostsPage }));
+    vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
     vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
@@ -50,7 +50,7 @@ describe("listing route", () => {
     const getBlacklistedTags = vi.fn(() => ["nsfw", "spoiler"]);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'meta' THEN 0 ELSE 1 END");
 
-    vi.doMock("@/app/listing/lib/getPosts", () => ({ getPostsPage }));
+    vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
     vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
@@ -74,7 +74,7 @@ describe("listing route", () => {
     const getBlacklistedTags = vi.fn(() => []);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
-    vi.doMock("@/app/listing/lib/getPosts", () => ({ getPostsPage }));
+    vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
     vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");

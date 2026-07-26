@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import buildQuery from "../src/app/listing/lib/buildQuery";
-import parseSearch from "../src/app/listing/lib/parseSearch";
+import buildQuery from "../src/lib/listingQuery/buildQuery";
+import parseSearch from "../src/lib/listingQuery/parseSearch";
 
 function simplifyTagExpression(node) {
   if (!node) return null;
@@ -213,8 +213,11 @@ describe("getPosts", () => {
     vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
     }));
+    vi.doMock("@/lib/tagAliases", () => ({
+      resolveTagName: vi.fn(name => name),
+    }));
 
-    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+    const { default: getPosts } = await import("../src/lib/listingQuery/getPosts");
     const posts = await getPosts("tag1");
 
     expect(posts[0].variants).toBeNull();
@@ -240,12 +243,39 @@ describe("getPosts", () => {
     vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
     }));
+    vi.doMock("@/lib/tagAliases", () => ({
+      resolveTagName: vi.fn(name => name),
+    }));
 
-    const { getPostsPage } = await import("../src/app/listing/lib/getPosts");
+    const { getPostsPage } = await import("../src/lib/listingQuery/getPosts");
     const page = await getPostsPage("", { limit: 2, offset: 0 });
 
     expect(page.posts.map(post => post.id)).toEqual([1, 2]);
     expect(page.hasMore).toBe(true);
     expect(page.nextOffset).toBe(2);
+  });
+
+  it("surfaces a failing listing query instead of returning an empty page", async () => {
+    const db = {
+      prepare: vi.fn(() => {
+        throw new Error("no such column: m.bogus");
+      }),
+    };
+
+    vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/search", () => ({
+      searchMediaIdsByNotes: vi.fn(async () => []),
+    }));
+    vi.doMock("@/lib/tagAliases", () => ({
+      resolveTagName: vi.fn(name => name),
+    }));
+
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => { });
+    const { getPostsPage } = await import("../src/lib/listingQuery/getPosts");
+
+    await expect(getPostsPage("cat")).rejects.toThrow("no such column: m.bogus");
+    expect(consoleError).toHaveBeenCalledOnce();
+
+    consoleError.mockRestore();
   });
 });

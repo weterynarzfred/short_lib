@@ -7,6 +7,8 @@ A personal, local, media library built around a web UI using Next.js, React, and
 - Upload images and videos, it automatically generates thumbnails and adds basic tags.
 - Search with tag logic (`AND`/`OR`/negation) plus operator filters.
 - Edit tags, notes, and filenames. Tags can be edited in bulk.
+- Give tags aliases, descriptions, and implications (tagging `cat` can auto-add `animal`).
+- Download a multi-selection as a zip.
 - Soft-delete media into a deleted bin and clear it from the UI.
 - Preview and play/slideshow the filtered list of media in fullscreen.
 
@@ -40,7 +42,7 @@ A personal, local, media library built around a web UI using Next.js, React, and
 
 - Limited Matroska video support.
 - No support for video features like multiple tracks, subtitles, etc.
-- Downloading files from the library has to either be done one by one or by manually copying files from the `STORAGE_DIR`.
+- Bulk download builds the whole zip in memory, so it is only practical for small selections.
 - No user accounts.
 
 ## Prerequisites

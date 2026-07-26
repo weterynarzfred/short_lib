@@ -1,50 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Database from "better-sqlite3";
-import fs from "fs";
-import os from "os";
-import path from "path";
 
-function createTempDb() {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "short-lib-test-"));
-  const dbPath = path.join(tempDir, "test.db");
-  const db = new Database(dbPath);
-  db.pragma("foreign_keys = ON");
-
-  db.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      file_path TEXT NOT NULL,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      file_size INTEGER,
-      mime_type TEXT,
-      width INTEGER,
-      height INTEGER,
-      duration_ms INTEGER,
-      original_filename TEXT,
-      notes_md TEXT,
-      variants TEXT CHECK (variants IS NULL OR json_valid(variants)),
-      checksum TEXT
-    );
-
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      type TEXT NOT NULL DEFAULT 'general',
-      post_count INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE media_tags (
-      media_id INTEGER NOT NULL,
-      tag_id INTEGER NOT NULL,
-      PRIMARY KEY (media_id, tag_id),
-      FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
-      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-    );
-
-  `);
-
-  return { db, tempDir };
-}
+import { createTempDb, destroyTempDb } from "./helpers/tempDb";
 
 describe("integration: addTags + getPosts", () => {
   let db;
@@ -106,8 +62,7 @@ describe("integration: addTags + getPosts", () => {
   });
 
   afterEach(() => {
-    if (db) db.close();
-    if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
+    destroyTempDb({ db, tempDir });
   });
 
   it("filters posts by include and exclude tags", async () => {
@@ -120,7 +75,7 @@ describe("integration: addTags + getPosts", () => {
     const second = insertMedia.run("2026/03/two.jpg", 2000, '{"thumb":"x"}', "two").lastInsertRowid;
 
     const { default: addTags } = await import("../src/lib/addTags");
-    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+    const { default: getPosts } = await import("../src/lib/listingQuery/getPosts");
 
     addTags(first, [{ name: "red" }, { name: "cat" }]);
     addTags(second, [{ name: "red" }, { name: "dog" }]);
@@ -133,6 +88,56 @@ describe("integration: addTags + getPosts", () => {
     expect(posts[0].tags.map(t => t.name).sort()).toEqual(["cat", "red"]);
   });
 
+  it("finds posts when searching by a tag alias", async () => {
+    const insertMedia = db.prepare(`
+      INSERT INTO media (file_path, created_at, variants, checksum)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const first = insertMedia.run("2026/03/one.jpg", 1000, null, "one").lastInsertRowid;
+    const second = insertMedia.run("2026/03/two.jpg", 2000, null, "two").lastInsertRowid;
+
+    const { default: addTags } = await import("../src/lib/addTags");
+    const { default: getPosts } = await import("../src/lib/listingQuery/getPosts");
+
+    addTags(first, [{ name: "cat" }]);
+    addTags(second, [{ name: "dog" }]);
+
+    const catId = db.prepare(`SELECT id FROM tags WHERE name = ?`).get("cat").id;
+    db.prepare(`INSERT INTO tag_aliases (name, tag_id) VALUES (?, ?)`).run("felines", catId);
+
+    const posts = await getPosts("felines");
+    expect(posts.map(post => post.id)).toEqual([first]);
+
+    const negated = await getPosts("-felines");
+    expect(negated.map(post => post.id)).toEqual([second]);
+  });
+
+  it("resolves blacklisted tag aliases, but lets an explicit search override them", async () => {
+    const insertMedia = db.prepare(`
+      INSERT INTO media (file_path, created_at, variants, checksum)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const mediaId = insertMedia.run("2026/03/one.jpg", 1000, null, "one").lastInsertRowid;
+
+    const { default: addTags } = await import("../src/lib/addTags");
+    const { getPostsPage } = await import("../src/lib/listingQuery/getPosts");
+
+    addTags(mediaId, [{ name: "cat" }]);
+
+    const catId = db.prepare(`SELECT id FROM tags WHERE name = ?`).get("cat").id;
+    db.prepare(`INSERT INTO tag_aliases (name, tag_id) VALUES (?, ?)`).run("felines", catId);
+
+    // Blacklisting the alias must exclude the tag it points at.
+    const blacklisted = await getPostsPage("", { defaultExcludedTags: ["felines"] });
+    expect(blacklisted.posts).toEqual([]);
+
+    // Searching the tag explicitly still wins over the blacklisted alias.
+    const explicit = await getPostsPage("cat", { defaultExcludedTags: ["felines"] });
+    expect(explicit.posts.map(post => post.id)).toEqual([mediaId]);
+  });
+
   it("replaces tag links when replace=true", async () => {
     const insertMedia = db.prepare(`
       INSERT INTO media (file_path, created_at, variants, checksum)
@@ -142,7 +147,7 @@ describe("integration: addTags + getPosts", () => {
     const mediaId = insertMedia.run("2026/03/one.jpg", 3000, null, "one").lastInsertRowid;
 
     const { default: addTags } = await import("../src/lib/addTags");
-    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+    const { default: getPosts } = await import("../src/lib/listingQuery/getPosts");
 
     addTags(mediaId, [{ name: "cat" }, { name: "old" }]);
     addTags(mediaId, [{ name: "new" }], { replace: true });
@@ -218,7 +223,7 @@ describe("integration: addTags + getPosts", () => {
     const recent = insertMedia.run("2026/03/recent.jpg", nowMs, null, "recent").lastInsertRowid;
     insertMedia.run("2026/03/old.jpg", nowMs - (2 * 24 * 60 * 60 * 1000), null, "old");
 
-    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+    const { default: getPosts } = await import("../src/lib/listingQuery/getPosts");
 
     const recentPosts = await getPosts("age:<1h");
     expect(recentPosts).toHaveLength(1);
@@ -270,7 +275,7 @@ describe("integration: addTags + getPosts", () => {
     ).lastInsertRowid; // 1MP, ratio 1.0, 5s
 
     const { default: addTags } = await import("../src/lib/addTags");
-    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+    const { default: getPosts } = await import("../src/lib/listingQuery/getPosts");
 
     addTags(p1, [{ name: "a" }, { name: "b" }, { name: "c" }]);
     addTags(p2, [{ name: "a" }, { name: "b" }]);
@@ -309,7 +314,7 @@ describe("integration: addTags + getPosts", () => {
       "n2"
     );
 
-    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+    const { default: getPosts } = await import("../src/lib/listingQuery/getPosts");
 
     const fox = await getPosts("notes:fox");
     expect(fox).toHaveLength(1);
@@ -350,7 +355,7 @@ describe("integration: addTags + getPosts", () => {
     ).lastInsertRowid;
 
     const { default: addTags } = await import("../src/lib/addTags");
-    const { default: getPosts } = await import("../src/app/listing/lib/getPosts");
+    const { default: getPosts } = await import("../src/lib/listingQuery/getPosts");
 
     addTags(m1, [{ name: "hero", type: "character" }]);
     addTags(m2, [{ name: "cat", type: "general" }]);
