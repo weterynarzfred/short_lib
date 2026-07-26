@@ -1,14 +1,9 @@
 import classNames from "classnames";
 import Image from "next/image";
 
-import styles from "./PostItem.module.scss";
+import getPostBadgeLabel from "../lib/postBadge";
 
-function getFileExtension(post) {
-  const source = String(post?.file_path || "").trim();
-  const lastDot = source.lastIndexOf(".");
-  if (lastDot < 0 || lastDot === source.length - 1) return "file";
-  return source.slice(lastDot + 1).toLowerCase();
-}
+import styles from "./PostItem.module.scss";
 
 export default function PostItem({
   post,
@@ -17,7 +12,7 @@ export default function PostItem({
   onInteractPost,
 }) {
   const thumb = post?.variants?.thumb;
-  const fileExtension = getFileExtension(post).toUpperCase();
+  const badgeLabel = getPostBadgeLabel(post);
 
   return <div
     className={classNames(styles.card, {
@@ -38,8 +33,8 @@ export default function PostItem({
           height={thumb.height}
           alt=""
         />
-        <div className={styles.fileExtBadge}>{fileExtension}</div>
-      </> : <div className={styles.fileExtFallback}>{fileExtension}</div>}
+        <div className={styles.fileExtBadge}>{badgeLabel}</div>
+      </> : <div className={styles.fileExtFallback}>{badgeLabel}</div>}
     </div>
     <div className={styles.postName}>{post.original_filename}</div>
   </div>;

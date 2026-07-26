@@ -1,5 +1,5 @@
 import ffprobe from "./ffprobe";
-import mimetypeToType from "./mimetypeToType";
+import mimetypeToType from "@/lib/mimetypeToType";
 import sharp from "sharp";
 import { fileTypeFromFile } from "file-type";
 import { open, stat } from "fs/promises";

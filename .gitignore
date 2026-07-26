@@ -5,3 +5,4 @@ storage/
 .grayspace/
 shortlib.db
 .env
+PLAN.md

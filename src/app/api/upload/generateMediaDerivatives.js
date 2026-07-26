@@ -1,6 +1,6 @@
 import processImage from "./processImage";
 import processVideo from "./processVideo";
-import mimetypeToType from "./mimetypeToType";
+import mimetypeToType from "@/lib/mimetypeToType";
 
 export default async function generateMediaDerivatives(fileData) {
   for (const metadata of fileData.values()) {

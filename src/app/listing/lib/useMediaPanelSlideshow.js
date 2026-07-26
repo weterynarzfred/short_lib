@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import mimetypeToType from "@/app/api/upload/mimetypeToType";
+import mimetypeToType from "@/lib/mimetypeToType";
 
 const IMAGE_SLIDESHOW_DELAY_MS = 4000;
 const RETRY_ADVANCE_DELAY_MS = 300;

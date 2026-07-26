@@ -44,6 +44,7 @@
     font-size: 0.6rem;
     font-weight: 700;
     line-height: 1.2;
+    white-space: nowrap;
     pointer-events: none;
   }
 
@@ -54,6 +55,7 @@
     background: $colorBg;
     font-weight: 700;
     line-height: 1.2;
+    white-space: nowrap;
   }
 
   .postName {

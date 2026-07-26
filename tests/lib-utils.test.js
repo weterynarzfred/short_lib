@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import scaleToTotalPixels from "../src/lib/scaleToTotalPixels";
-import mimetypeToType from "../src/app/api/upload/mimetypeToType";
+import mimetypeToType from "../src/lib/mimetypeToType";
 
 describe("scaleToTotalPixels", () => {
   it("keeps original dimensions if already under target", () => {

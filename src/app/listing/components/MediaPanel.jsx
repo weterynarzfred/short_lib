@@ -4,7 +4,7 @@ import MediaPanelMeta from "./MediaPanelMeta";
 import MediaPanelControls from "./MediaPanelControls";
 import useMediaPanelSlideshow from "../lib/useMediaPanelSlideshow";
 import MediaPreview from "../../../components/MediaPreview";
-import mimetypeToType from "@/app/api/upload/mimetypeToType";
+import mimetypeToType from "@/lib/mimetypeToType";
 import { updateMediaSettingsAction } from "@/lib/actions";
 
 import styles from "./MediaPanel.module.scss";

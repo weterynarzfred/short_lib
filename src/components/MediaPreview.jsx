@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import classNames from "classnames";
-import mimetypeToType from "@/app/api/upload/mimetypeToType";
+import mimetypeToType from "@/lib/mimetypeToType";
 
 import styles from "./MediaPreview.module.scss";
 
