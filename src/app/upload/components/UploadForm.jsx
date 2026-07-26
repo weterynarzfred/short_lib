@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 
 import {
@@ -9,6 +9,7 @@ import {
   updatePostTagsAction,
   updatePostNotesAction,
 } from "@/lib/actions";
+import { usePageReset } from "@/components/PageResetProvider";
 import UploadBulkTagPanel from "./UploadBulkTagPanel";
 import UploadList from "./UploadList";
 import useUploadQueue from "../lib/useUploadQueue";
@@ -20,10 +21,12 @@ export default function UploadForm() {
   const [bulkTagsValue, setBulkTagsValue] = useState("");
   const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [bulkSaveNote, setBulkSaveNote] = useState("");
+  const { resetToken } = usePageReset();
   const {
     uploads,
     successUploads,
     uploadFiles,
+    clearSettledUploads,
     setUploadTagsValue,
     setUploadTagSaving,
     setUploadTagNote,
@@ -35,6 +38,16 @@ export default function UploadForm() {
   } = useUploadQueue();
 
   const inputRef = useRef(null);
+
+  // Clicking "upload" in the nav while already here means starting a fresh batch. The
+  // token only ever increments, so 0 is the initial render and never a reset.
+  useEffect(() => {
+    if (!resetToken) return;
+
+    clearSettledUploads();
+    setBulkTagsValue("");
+    setBulkSaveNote("");
+  }, [resetToken, clearSettledUploads]);
 
   function onDrop(event) {
     event.preventDefault();

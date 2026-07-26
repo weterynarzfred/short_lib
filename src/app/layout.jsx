@@ -1,4 +1,5 @@
 import InactiveDetection from "@/app/components/InactiveDetection";
+import { PageResetProvider } from "@/components/PageResetProvider";
 import { getTagTypeColorsCss } from "@/lib/userSettings";
 
 import '@/scss/main.scss';
@@ -15,7 +16,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         {tagTypeColorCss ? <style id="tag-type-colors">{tagTypeColorCss}</style> : null}
-        {children}
+        <PageResetProvider>{children}</PageResetProvider>
         <InactiveDetection />
       </body>
     </html>

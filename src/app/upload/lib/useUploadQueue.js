@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 function createUploadEntry(file) {
   return {
@@ -20,6 +20,11 @@ function createUploadEntry(file) {
     isSavingNotes: false,
     notesSaveNote: "",
   };
+}
+
+// An entry is settled once it has stopped transferring, either way.
+export function isUploadSettled(upload) {
+  return Boolean(upload?.done || upload?.failed);
 }
 
 function buildTagEditorValue(tags) {
@@ -159,6 +164,15 @@ export default function useUploadQueue() {
     [...files].forEach(uploadFile);
   }
 
+  // Drops everything that has finished, keeping anything still transferring so a reset
+  // can never lose a file mid-upload. Its XHR callbacks target entries by id, so a
+  // removed entry simply stops being updated.
+  //
+  // Memoised because callers use it as an effect dependency.
+  const clearSettledUploads = useCallback(() => {
+    setUploads(prev => prev.filter(upload => !isUploadSettled(upload)));
+  }, []);
+
   function setUploadTagsValue(uploadId, nextValue) {
     updateUpload(uploadId, upload => ({
       ...upload,
@@ -237,6 +251,7 @@ export default function useUploadQueue() {
     uploads,
     successUploads,
     uploadFiles,
+    clearSettledUploads,
     setUploadTagsValue,
     setUploadTagSaving,
     setUploadTagNote,

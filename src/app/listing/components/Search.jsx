@@ -17,8 +17,22 @@ export default function Search({ initialValue = "" }) {
 
   const inputRef = useRef(null);
   const nextCursorRef = useRef(null);
+  // The last value this component wrote to the URL, so its own echo can be told apart
+  // from a change that came from somewhere else.
+  const lastPushedRef = useRef(initialValue);
 
   const { items, isLoading } = useTagSuggestions(value, { position: cursor });
+
+  // The URL is the source of truth. A nav link back to /listing, or browser
+  // back/forward, changes it without remounting this component, so the input has to
+  // follow along or it keeps showing a search that is no longer applied.
+  useEffect(() => {
+    if (initialValue === lastPushedRef.current) return;
+
+    lastPushedRef.current = initialValue;
+    setValue(initialValue);
+    setCursor(initialValue.length);
+  }, [initialValue]);
 
   useLayoutEffect(() => {
     if (nextCursorRef.current !== null && inputRef.current) {
@@ -33,7 +47,15 @@ export default function Search({ initialValue = "" }) {
       const params = new URLSearchParams(window.location.search);
       if (value) params.set("search", value);
       else params.delete("search");
-      router.replace(`?${params.toString()}`);
+
+      const nextQuery = params.toString();
+      lastPushedRef.current = value;
+
+      // Skip a navigation that would change nothing, which otherwise fires once on every
+      // mount and on every reconciled value.
+      if (nextQuery === window.location.search.replace(/^\?/, "")) return;
+
+      router.replace(`?${nextQuery}`);
     }, 300);
 
     return () => clearTimeout(id);
