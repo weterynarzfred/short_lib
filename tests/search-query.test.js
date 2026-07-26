@@ -120,6 +120,67 @@ describe("search parser and query builder", () => {
     expect(params).toEqual(["video/mp4", 10485760, 604800, 2000000, 90000, 16 / 9]);
   });
 
+  it("parses the filename operator into its own filter", () => {
+    const parsed = parseSearch("filename:\"koreans gaming\" filename:mp4");
+
+    expect(parsed.filters.filename).toBe("koreans gaming mp4");
+    expect(parsed.filters.notes).toBeNull();
+    expect(parsed.filters.text).toBeNull();
+  });
+
+  it("keeps notes, text and filename as independent filters", () => {
+    const parsed = parseSearch("notes:a text:b filename:c");
+
+    expect(parsed.filters.notes).toBe("a");
+    expect(parsed.filters.text).toBe("b");
+    expect(parsed.filters.filename).toBe("c");
+  });
+
+  it("adds an id clause for a resolved filename search", () => {
+    const parsed = parseSearch("filename:cat");
+    parsed.filters.filenameMediaIds = [4, 6];
+    const { sql, params } = buildQuery(parsed);
+
+    expect(sql).toContain("m.id IN (?, ?)");
+    expect(params).toEqual([4, 6]);
+  });
+
+  it("orders by relevance when ranked ids are supplied", () => {
+    const parsed = parseSearch("filename:cat");
+    parsed.filters.filenameMediaIds = [9, 3];
+    const { sql } = buildQuery(parsed, { relevanceIds: [9, 3] });
+
+    expect(sql).toContain("CASE m.id WHEN 9 THEN 0 WHEN 3 THEN 1 ELSE 2 END");
+    // The requested order still breaks ties and covers rows past the ranked cap.
+    expect(sql).toContain("ELSE 2 END, m.created_at DESC");
+  });
+
+  it("keeps the plain order when no ranked ids are supplied", () => {
+    const { sql } = buildQuery(parseSearch("cat"));
+
+    expect(sql).not.toContain("CASE m.id");
+    expect(sql).toContain("ORDER BY m.created_at DESC");
+  });
+
+  it("ignores unusable ranked ids", () => {
+    const parsed = parseSearch("filename:cat");
+
+    expect(buildQuery(parsed, { relevanceIds: [] }).sql).not.toContain("CASE m.id");
+    expect(buildQuery(parsed, { relevanceIds: null }).sql).not.toContain("CASE m.id");
+    expect(buildQuery(parsed, { relevanceIds: [0, -2, 1.5, "7"] }).sql)
+      .not.toContain("CASE m.id");
+  });
+
+  it("caps how many ranked ids reach the statement", () => {
+    const parsed = parseSearch("filename:cat");
+    const manyIds = Array.from({ length: 900 }, (_, index) => index + 1);
+    const { sql } = buildQuery(parsed, { relevanceIds: manyIds });
+
+    expect(sql).toContain("WHEN 500 THEN 499");
+    expect(sql).not.toContain("WHEN 501 THEN 500");
+    expect(sql).toContain("ELSE 500 END");
+  });
+
   it("parses notes operator into a notes query filter", () => {
     const parsed = parseSearch("notes:\"hello world\" notes:cat");
     expect(parsed.filters.notes).toBe("hello world cat");
@@ -212,6 +273,8 @@ describe("getPosts", () => {
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
+      searchMediaIdsByText: vi.fn(async () => []),
+      searchMediaIdsByFilename: vi.fn(async () => []),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -242,6 +305,8 @@ describe("getPosts", () => {
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
+      searchMediaIdsByText: vi.fn(async () => []),
+      searchMediaIdsByFilename: vi.fn(async () => []),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -266,6 +331,8 @@ describe("getPosts", () => {
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
+      searchMediaIdsByText: vi.fn(async () => []),
+      searchMediaIdsByFilename: vi.fn(async () => []),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -284,6 +351,8 @@ describe("getPosts", () => {
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
+      searchMediaIdsByText: vi.fn(async () => []),
+      searchMediaIdsByFilename: vi.fn(async () => []),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -306,6 +375,8 @@ describe("getPosts", () => {
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
       searchMediaIdsByNotes: vi.fn(async () => []),
+      searchMediaIdsByText: vi.fn(async () => []),
+      searchMediaIdsByFilename: vi.fn(async () => []),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -318,5 +389,59 @@ describe("getPosts", () => {
     expect(consoleError).toHaveBeenCalledOnce();
 
     consoleError.mockRestore();
+  });
+
+  it("orders a fuzzy search by relevance, but yields to an explicit order", async () => {
+    const prepared = [];
+    const db = {
+      prepare: vi.fn(sql => {
+        prepared.push(sql);
+        return { all: vi.fn(() => []) };
+      }),
+    };
+
+    vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/search", () => ({
+      searchMediaIdsByNotes: vi.fn(async () => []),
+      searchMediaIdsByText: vi.fn(async () => []),
+      searchMediaIdsByFilename: vi.fn(async () => [9, 3]),
+    }));
+    vi.doMock("@/lib/tagAliases", () => ({
+      resolveTagName: vi.fn(name => name),
+    }));
+
+    const { getPostsPage } = await import("../src/lib/listingQuery/getPosts");
+
+    await getPostsPage("filename:cat");
+    expect(prepared.at(-1)).toContain("CASE m.id WHEN 9 THEN 0 WHEN 3 THEN 1");
+
+    await getPostsPage("filename:cat order:file_size");
+    expect(prepared.at(-1)).not.toContain("CASE m.id");
+    expect(prepared.at(-1)).toContain("ORDER BY m.file_size DESC");
+  });
+
+  it("leaves a non-fuzzy search on its normal order", async () => {
+    const prepared = [];
+    const db = {
+      prepare: vi.fn(sql => {
+        prepared.push(sql);
+        return { all: vi.fn(() => []) };
+      }),
+    };
+
+    vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/search", () => ({
+      searchMediaIdsByNotes: vi.fn(async () => []),
+      searchMediaIdsByText: vi.fn(async () => []),
+      searchMediaIdsByFilename: vi.fn(async () => [9, 3]),
+    }));
+    vi.doMock("@/lib/tagAliases", () => ({
+      resolveTagName: vi.fn(name => name),
+    }));
+
+    const { getPostsPage } = await import("../src/lib/listingQuery/getPosts");
+    await getPostsPage("cat");
+
+    expect(prepared.at(-1)).not.toContain("CASE m.id");
   });
 });

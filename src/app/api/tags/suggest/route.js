@@ -49,6 +49,16 @@ const OPERATORS = [
     quoted: true,
   },
   {
+    key: "text",
+    label: "text:",
+    quoted: true,
+  },
+  {
+    key: "filename",
+    label: "filename:",
+    quoted: true,
+  },
+  {
     key: "has",
     label: "has:",
   },

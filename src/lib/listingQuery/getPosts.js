@@ -2,8 +2,18 @@ import db from "@/lib/db";
 import buildQuery from "./buildQuery";
 import parseSearch from "./parseSearch";
 import getSubtitleKinds from "./subtitleKinds";
-import { searchMediaIdsByNotes } from "@/lib/search";
+import {
+  searchMediaIdsByFilename,
+  searchMediaIdsByNotes,
+  searchMediaIdsByText,
+} from "@/lib/search";
 import { resolveTagName } from "@/lib/tagAliases";
+
+const FUZZY_FILTERS = [
+  ["notes", "notesMediaIds", searchMediaIdsByNotes],
+  ["text", "textMediaIds", searchMediaIdsByText],
+  ["filename", "filenameMediaIds", searchMediaIdsByFilename],
+];
 
 function clampInt(value, { min, max, fallback }) {
   const parsed = Number.parseInt(value, 10);
@@ -47,9 +57,13 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
   // Constant for a given search, so it is reported per page rather than per post.
   const subtitleKinds = getSubtitleKinds(parsed.filters);
 
-  if (parsed.filters.notes) {
-    const noteMediaIds = await searchMediaIdsByNotes(parsed.filters.notes, { limit: 10000 });
-    if (!noteMediaIds.length) {
+  let rankedIds = null;
+
+  for (const [filterKey, idsKey, resolve] of FUZZY_FILTERS) {
+    if (!parsed.filters[filterKey]) continue;
+
+    const mediaIds = await resolve(parsed.filters[filterKey], { limit: 10000 });
+    if (!mediaIds.length) {
       return {
         posts: [],
         hasMore: false,
@@ -58,14 +72,22 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
       };
     }
 
-    parsed.filters.notesMediaIds = noteMediaIds;
+    parsed.filters[idsKey] = mediaIds;
+    // With several fuzzy filters active the result is their intersection, so ordering by
+    // any one of them is defensible; the first in FUZZY_FILTERS order wins.
+    if (!rankedIds) rankedIds = mediaIds;
   }
+
+  // A fuzzy search is a request for the best match, so relevance beats newest-first -
+  // unless an explicit order: token said otherwise.
+  const relevanceIds = rankedIds && !parsed.filters.orderKey ? rankedIds : null;
 
   // Fetch one extra row to determine whether a next page exists.
   const { sql, params } = buildQuery(parsed, {
     limit: requestedLimit + 1,
     offset: safeOffset,
     tagOrderSql,
+    relevanceIds,
   });
 
   // Values are bound and orderBy comes from a whitelist, so a failure here is a

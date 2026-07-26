@@ -81,7 +81,30 @@ function buildIdsPredicate(column, ids, params, chunkSize = 900) {
   return `(${chunks.join(" OR ")})`;
 }
 
-export default function buildQuery(parsed, { limit, offset, tagOrderSql = TAG_ORDER_SQL } = {}) {
+// Ranked ids are inlined rather than bound: they are validated integers, and a jump table
+// keeps ordering O(1) per row. Capped because relevance past a few hundred fuzzy hits is
+// noise, and an unbounded CASE would make the statement enormous.
+const MAX_RELEVANCE_IDS = 500;
+
+function buildRelevanceOrderSql(relevanceIds) {
+  if (!Array.isArray(relevanceIds) || !relevanceIds.length) return null;
+
+  const ranked = relevanceIds
+    .filter(id => Number.isInteger(id) && id > 0)
+    .slice(0, MAX_RELEVANCE_IDS);
+  if (!ranked.length) return null;
+
+  const whenClauses = ranked.map((id, rank) => `WHEN ${id} THEN ${rank}`).join(" ");
+
+  return `CASE m.id ${whenClauses} ELSE ${ranked.length} END`;
+}
+
+export default function buildQuery(parsed, {
+  limit,
+  offset,
+  tagOrderSql = TAG_ORDER_SQL,
+  relevanceIds = null,
+} = {}) {
   const { filters, tagExpression } = parsed;
   const safeLimit = clampInt(limit ?? filters.limit, {
     min: 1,
@@ -175,12 +198,20 @@ export default function buildQuery(parsed, { limit, offset, tagOrderSql = TAG_OR
     }
   }
 
-  if (filters.notes) {
-    const noteIds = Array.isArray(filters.notesMediaIds)
-      ? filters.notesMediaIds.filter(id => Number.isInteger(id) && id > 0)
+  // Both resolve to media ids upstream, in getPosts, since the matching is fuzzy and
+  // happens in memory. An unresolved filter means no matches, not no filter.
+  for (const [filterKey, idsKey] of [
+    ["notes", "notesMediaIds"],
+    ["text", "textMediaIds"],
+    ["filename", "filenameMediaIds"],
+  ]) {
+    if (!filters[filterKey]) continue;
+
+    const ids = Array.isArray(filters[idsKey])
+      ? filters[idsKey].filter(id => Number.isInteger(id) && id > 0)
       : [];
 
-    const idsPredicate = buildIdsPredicate("m.id", noteIds, params);
+    const idsPredicate = buildIdsPredicate("m.id", ids, params);
     if (idsPredicate) where.push(idsPredicate);
     else where.push("1 = 0");
   }
@@ -189,8 +220,15 @@ export default function buildQuery(parsed, { limit, offset, tagOrderSql = TAG_OR
     sql += " WHERE " + where.join(" AND ");
   }
 
+  // Relevance leads when present; the requested order still breaks ties, and rows past the
+  // ranked cap fall back to it entirely.
+  const relevanceOrderSql = buildRelevanceOrderSql(relevanceIds);
+  const orderBy = relevanceOrderSql
+    ? `${relevanceOrderSql}, ${filters.orderBy}`
+    : filters.orderBy;
+
   sql += `
-    ORDER BY ${filters.orderBy}
+    ORDER BY ${orderBy}
     LIMIT ${safeLimit}
     OFFSET ${safeOffset}
   `;

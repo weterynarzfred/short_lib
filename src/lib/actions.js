@@ -22,7 +22,7 @@ import {
   setTagTypeColors,
   setTagTypeOrder,
 } from "@/lib/userSettings";
-import { markMediaNotesIndexDirty } from "@/lib/search";
+import { markMediaFilenamesIndexDirty, markMediaNotesIndexDirty } from "@/lib/search";
 
 function normalizePostIds(postIds) {
   return Array.isArray(postIds)
@@ -194,6 +194,7 @@ export async function updatePostOriginalFilenameAction(postId, originalFilename)
     SET original_filename = ?
     WHERE id = ?
   `).run(nextOriginalFilename, safePostId);
+  markMediaFilenamesIndexDirty();
 
   return { original_filename: nextOriginalFilename };
 }

@@ -184,6 +184,8 @@ export default function parseSearch(searchString = "", options = {}) {
     duration: null,
     imageRatio: null,
     notes: null,
+    text: null,
+    filename: null,
     has: [],
     // Base name of an explicit `order:` token, direction stripped. Stays null for the
     // default ordering, so a default listing is distinguishable from `order:date`.
@@ -300,6 +302,18 @@ export default function parseSearch(searchString = "", options = {}) {
     if (token.startsWith("notes:")) {
       const term = toNotesSearchTerm(token.slice("notes:".length));
       if (term) filters.notes = filters.notes ? `${filters.notes} ${term}` : term;
+      continue;
+    }
+
+    if (token.startsWith("text:")) {
+      const term = toNotesSearchTerm(token.slice("text:".length));
+      if (term) filters.text = filters.text ? `${filters.text} ${term}` : term;
+      continue;
+    }
+
+    if (token.startsWith("filename:")) {
+      const term = toNotesSearchTerm(token.slice("filename:".length));
+      if (term) filters.filename = filters.filename ? `${filters.filename} ${term}` : term;
       continue;
     }
 

@@ -31,33 +31,42 @@ describe("integration: addTags + getPosts", () => {
           postCount: row.post_count,
         }));
       }),
-      searchMediaIdsByNotes: vi.fn(async query => {
-        const terms = String(query ?? "")
-          .trim()
-          .split(/\s+/)
-          .map(token => token.trim().toLowerCase())
-          .filter(Boolean);
-        if (!terms.length) return [];
-
-        const where = [];
-        const params = [];
-
-        for (const term of terms) {
-          where.push("LOWER(COALESCE(notes_md, '')) LIKE ?");
-          params.push(`%${term}%`);
-        }
-
-        const rows = db.prepare(`
-          SELECT id
-          FROM media
-          WHERE ${where.join(" AND ")}
-          ORDER BY id ASC
-          LIMIT 10000
-        `).all(...params);
-
-        return rows.map(row => row.id);
-      }),
+      searchMediaIdsByNotes: vi.fn(async query => matchColumns(query, ["notes_md"])),
+      searchMediaIdsByFilename: vi.fn(async query => matchColumns(query, ["original_filename"])),
+      // Mirrors the real per-field rule: all terms in notes, or all in the filename.
+      searchMediaIdsByText: vi.fn(async query =>
+        [...new Set([
+          ...matchColumns(query, ["notes_md"]),
+          ...matchColumns(query, ["original_filename"]),
+        ])]),
     }));
+
+    function matchColumns(query, columns) {
+      const terms = String(query ?? "")
+        .trim()
+        .split(/\s+/)
+        .map(token => token.trim().toLowerCase())
+        .filter(Boolean);
+      if (!terms.length) return [];
+
+      const where = [];
+      const params = [];
+
+      for (const term of terms) {
+        where.push(`(${columns
+          .map(column => `LOWER(COALESCE(${column}, '')) LIKE ?`)
+          .join(" OR ")})`);
+        for (const _ of columns) params.push(`%${term}%`);
+      }
+
+      return db.prepare(`
+        SELECT id
+        FROM media
+        WHERE ${where.join(" AND ")}
+        ORDER BY id ASC
+        LIMIT 10000
+      `).all(...params).map(row => row.id);
+    }
   });
 
   afterEach(() => {
