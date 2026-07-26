@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { findTagByAliasName } from "@/lib/tagAliases";
 
 export function parseTagString(raw = "") {
   return raw
@@ -29,7 +30,7 @@ const selectTagByName = db.prepare(`
 const updateTagType = db.prepare(`
   UPDATE tags
   SET type = ?
-  WHERE name = ? AND type != ?
+  WHERE id = ? AND type != ?
 `);
 
 const clearMediaTags = db.prepare(`
@@ -95,6 +96,19 @@ function normalizeInputTag(rawTag) {
   return { name, providedType };
 }
 
+// Alias lookup comes first so typing an alias never forks it into its own tag.
+function resolveTag(name) {
+  return findTagByAliasName(name) ?? selectTagByName.get(name) ?? null;
+}
+
+function resolveOrCreateTag({ name, providedType }) {
+  const aliasTarget = findTagByAliasName(name);
+  if (aliasTarget) return aliasTarget;
+
+  insertTag.run(name, providedType);
+  return selectTagByName.get(name) ?? null;
+}
+
 function replaceMediaTags(mediaId) {
   const existing = getMediaTagIds.all(mediaId);
   for (const row of existing) decrementTagPostCount.run(row.tag_id);
@@ -111,7 +125,7 @@ export function removeTags(mediaId, tags) {
       const normalized = normalizeInputTag(tag);
       if (!normalized) continue;
 
-      const row = selectTagByName.get(normalized.name);
+      const row = resolveTag(normalized.name);
       if (!row) continue;
 
       const unlinkResult = unlinkMediaTag.run(mid, row.id);
@@ -136,13 +150,11 @@ export default function addTags(mediaId, tags, { replace = false } = {}) {
       const normalized = normalizeInputTag(tag);
       if (!normalized) continue;
 
-      insertTag.run(normalized.name, normalized.providedType);
-
-      const row = selectTagByName.get(normalized.name);
-      if (!row) return;
+      const row = resolveOrCreateTag(normalized);
+      if (!row) continue;
 
       if (normalized.providedType && row.type !== normalized.providedType)
-        updateTagType.run(normalized.providedType, normalized.name, normalized.providedType);
+        updateTagType.run(normalized.providedType, row.id, normalized.providedType);
 
       baseTagIds.push(row.id);
     }

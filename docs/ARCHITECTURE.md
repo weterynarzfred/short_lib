@@ -7,18 +7,28 @@
 - Media files: filesystem under `STORAGE_DIR`
 - Main sourcecode split:
   - `src/app/*` for pages and API routes
+  - `src/app/*/lib/*` for logic private to a single page (client hooks, page-only queries)
   - `src/lib/*` for shared server logic
+  - `src/lib/listingQuery/*` for the search pipeline, shared by the listing page and `/api/listing`
   - `src/components/*` for reusable UI parts
 
 ## Data Model (SQLite)
 
-Initialized in `src/lib/db.js`:
+All DDL lives in `src/lib/schema.js` as `applySchema(db)`. `src/lib/db.js` opens the
+singleton connection and applies it; tests apply the same function to a temp DB, so the
+schema has exactly one definition.
 
 - `media`
   - file path, created timestamp (ms), size, MIME, dimensions, duration
   - `original_filename`, `notes_md`, `variants` (JSON), `checksum`
 - `tags`
   - unique `name`, `type`, `post_count` (cache to prevent counting on every request)
+  - `description` (free text, shown on the tag list)
+- `tag_aliases`
+  - alternate `name` (primary key) -> `tag_id`, cascade deleted with the tag
+  - one hop only: aliases point at a tag id, and `tags.name` is always canonical
+- `tag_implications`
+  - (`tag_id`, `implied_tag_id`) pairs, applied transitively when tagging
 - `media_tags`
   - join table (`media_id`, `tag_id`) with cascade deletes
 - `user_settings`
@@ -43,6 +53,11 @@ Initialized in `src/lib/db.js`:
   - Streams full media or derived variants.
   - Supports HTTP range requests for non-MKV files.
   - Remuxes MKV to MP4 stream on the fly.
+
+- `POST /api/download/bulk`
+  - Takes `{ postIds: number[] }` and returns a zip of the original files.
+  - Names entries from `original_filename`, de-duplicating collisions as `name (n).ext`.
+  - Blocks traversal outside `STORAGE_DIR/full` and skips missing files.
 
 ## Upload Pipeline
 
@@ -75,23 +90,48 @@ Route: `src/app/api/media/[year]/[month]/[file]/route.js`
 
 ## Listing Query Flow
 
-Primary modules:
+Primary modules, all under `src/lib/listingQuery/`:
 
 - `parseSearch.js` -> parses query string into filters + tag expression tree
 - `buildQuery.js` -> builds parameterized SQL
 - `getPosts.js` -> resolves `notes:` media ids through in-memory Fuse search, then executes SQL with pagination + JSON normalization
 
+`parseSearch` and `buildQuery` are pure. `getPosts` is the only DB-aware step, and it is
+the single entry point for both the listing page and `/api/listing`; it injects the alias
+resolver into `parseSearch` so tag names reach SQL already canonical. A SQL failure there
+is logged and rethrown rather than swallowed - values are bound and `orderBy` comes from a
+whitelist, so an error means a bug, not bad user input.
+
 [SEARCH_SYNTAX.md](SEARCH_SYNTAX.md) for full grammar.
 
 ## Tag System
 
-Core logic: `src/lib/addTags.js`, `src/lib/manageTag.js`
+Core logic: `src/lib/addTags.js`, `src/lib/manageTag.js`, `src/lib/tagAliases.js`
 
 - Each tag has `name` and `type`. Names are unique.
 - Tag input is space-separated (`type:name`), so tags with spaces are not recommended.
 - To add new tags while specifying their type use `type:name`.
 - Linking/unlinking updates `tags.post_count` incrementally.
 - Tag rename can merge into existing target tag, moving links and deduplicating.
+
+### Aliases
+
+`src/lib/tagAliases.js` is the single resolver (`findTagByAliasName`, `resolveTagName`).
+An alias behaves as a synonym of its target everywhere:
+
+- Tagging with an alias links the target tag and never creates a tag of its own, so an
+  alias cannot fork into a duplicate. A type given alongside an alias (`meta:felines`)
+  retypes the target, exactly as `meta:cat` would.
+- Untagging with an alias unlinks the target.
+- Searching or blacklisting an alias resolves to the target name before SQL is built.
+- Renaming a tag onto an alias merges it into what the alias points at.
+- Adding an alias is rejected when the name is already a tag or another alias.
+
+### Implications
+
+Implications are resolved transitively when tagging (recursive CTE in `addTags.js`), so
+adding `cat` with `cat -> feline -> animal` links all three. They are applied on the way
+in only - removing `cat` later does not remove the implied tags.
 
 ## Delete and Storage Maintenance
 
@@ -124,8 +164,12 @@ Vitest tests in `tests/` cover:
 
 - route behavior (`/api/upload`, `/api/listing`, `/api/tags/suggest`, `/api/media`)
 - search parsing and SQL building
-- tag management and settings logic
+- tag management, aliases, implications, and settings logic
 - upload helpers and metadata extraction
 - integration flows over temporary SQLite databases
+
+DB-backed tests build their database with `tests/helpers/tempDb.js`, which applies the real
+`applySchema`. Prefer that over hand-written `CREATE TABLE` or a fake `db.prepare` that
+matches SQL strings - both drift silently as the schema and queries change.
 
 

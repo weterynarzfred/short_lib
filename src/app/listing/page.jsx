@@ -1,5 +1,5 @@
 import Nav from "@/components/Nav";
-import { getPostsPage } from "./lib/getPosts";
+import { getPostsPage } from "@/lib/listingQuery/getPosts";
 import MediaListing from "./components/MediaListing";
 import { getBlacklistedTags, getMediaSettings, getTagTypeOrderSql } from "@/lib/userSettings";
 
