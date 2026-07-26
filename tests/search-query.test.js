@@ -272,9 +272,9 @@ describe("getPosts", () => {
 
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
-      searchMediaIdsByNotes: vi.fn(async () => []),
-      searchMediaIdsByText: vi.fn(async () => []),
-      searchMediaIdsByFilename: vi.fn(async () => []),
+      searchMediaMatchesByNotes: vi.fn(async () => []),
+      searchMediaMatchesByText: vi.fn(async () => []),
+      searchMediaMatchesByFilename: vi.fn(async () => [].map(id => ({ mediaId: id, score: 0, field: "filename", range: null }))),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -304,9 +304,9 @@ describe("getPosts", () => {
 
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
-      searchMediaIdsByNotes: vi.fn(async () => []),
-      searchMediaIdsByText: vi.fn(async () => []),
-      searchMediaIdsByFilename: vi.fn(async () => []),
+      searchMediaMatchesByNotes: vi.fn(async () => []),
+      searchMediaMatchesByText: vi.fn(async () => []),
+      searchMediaMatchesByFilename: vi.fn(async () => [].map(id => ({ mediaId: id, score: 0, field: "filename", range: null }))),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -330,9 +330,9 @@ describe("getPosts", () => {
 
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
-      searchMediaIdsByNotes: vi.fn(async () => []),
-      searchMediaIdsByText: vi.fn(async () => []),
-      searchMediaIdsByFilename: vi.fn(async () => []),
+      searchMediaMatchesByNotes: vi.fn(async () => []),
+      searchMediaMatchesByText: vi.fn(async () => []),
+      searchMediaMatchesByFilename: vi.fn(async () => [].map(id => ({ mediaId: id, score: 0, field: "filename", range: null }))),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -350,9 +350,9 @@ describe("getPosts", () => {
 
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
-      searchMediaIdsByNotes: vi.fn(async () => []),
-      searchMediaIdsByText: vi.fn(async () => []),
-      searchMediaIdsByFilename: vi.fn(async () => []),
+      searchMediaMatchesByNotes: vi.fn(async () => []),
+      searchMediaMatchesByText: vi.fn(async () => []),
+      searchMediaMatchesByFilename: vi.fn(async () => [].map(id => ({ mediaId: id, score: 0, field: "filename", range: null }))),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -374,9 +374,9 @@ describe("getPosts", () => {
 
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
-      searchMediaIdsByNotes: vi.fn(async () => []),
-      searchMediaIdsByText: vi.fn(async () => []),
-      searchMediaIdsByFilename: vi.fn(async () => []),
+      searchMediaMatchesByNotes: vi.fn(async () => []),
+      searchMediaMatchesByText: vi.fn(async () => []),
+      searchMediaMatchesByFilename: vi.fn(async () => [].map(id => ({ mediaId: id, score: 0, field: "filename", range: null }))),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -402,9 +402,9 @@ describe("getPosts", () => {
 
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
-      searchMediaIdsByNotes: vi.fn(async () => []),
-      searchMediaIdsByText: vi.fn(async () => []),
-      searchMediaIdsByFilename: vi.fn(async () => [9, 3]),
+      searchMediaMatchesByNotes: vi.fn(async () => []),
+      searchMediaMatchesByText: vi.fn(async () => []),
+      searchMediaMatchesByFilename: vi.fn(async () => [9, 3].map(id => ({ mediaId: id, score: 0, field: "filename", range: null }))),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),
@@ -431,9 +431,9 @@ describe("getPosts", () => {
 
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
-      searchMediaIdsByNotes: vi.fn(async () => []),
-      searchMediaIdsByText: vi.fn(async () => []),
-      searchMediaIdsByFilename: vi.fn(async () => [9, 3]),
+      searchMediaMatchesByNotes: vi.fn(async () => []),
+      searchMediaMatchesByText: vi.fn(async () => []),
+      searchMediaMatchesByFilename: vi.fn(async () => [9, 3].map(id => ({ mediaId: id, score: 0, field: "filename", range: null }))),
     }));
     vi.doMock("@/lib/tagAliases", () => ({
       resolveTagName: vi.fn(name => name),

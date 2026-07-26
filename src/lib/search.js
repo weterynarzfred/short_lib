@@ -9,8 +9,11 @@ const TAG_FUSE_OPTIONS = {
   keys: ["name"],
 };
 
+// includeMatches gives character ranges, which is what lets the listing show the matched
+// fragment of a long note rather than just its opening.
 const NOTES_FUSE_OPTIONS = {
   includeScore: true,
+  includeMatches: true,
   ignoreLocation: true,
   threshold: 0.35,
   keys: ["notesMd"],
@@ -59,6 +62,37 @@ function splitTerms(raw = "") {
 
 function normalizeScore(score) {
   return Number.isFinite(score) ? score : 1;
+}
+
+// Fuse reports one inclusive [start, end] pair per contiguous run of matched characters,
+// and a fuzzy match scatters plenty of incidental ones. Taking the first pair highlighted
+// "[o]ffice chair jousting" for a search of "jousting"; taking the longest highlighted
+// "f[ramerates]" for "race", because a loose run can be longer than the real word. The run
+// closest in length to the term wins, which lands on the word itself.
+function bestMatchRange(hit, term) {
+  const indices = hit?.matches?.[0]?.indices;
+  if (!Array.isArray(indices) || !indices.length) return null;
+
+  const wanted = String(term ?? "").length;
+  let best = null;
+  let bestDistance = Infinity;
+
+  for (const pair of indices) {
+    if (!Array.isArray(pair) || pair.length < 2) continue;
+
+    const [start, end] = pair;
+    if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) continue;
+
+    const length = end - start + 1;
+    const distance = Math.abs(length - wanted);
+    // Ties go to the longer run, which carries more context.
+    if (distance < bestDistance || (distance === bestDistance && length > best.end - best.start + 1)) {
+      best = { start, end };
+      bestDistance = distance;
+    }
+  }
+
+  return best;
 }
 
 function buildTagsIndex() {
@@ -158,22 +192,26 @@ function substringScore(searchText, term) {
 }
 
 // Every term must match, and a row's score is the sum across terms. `searchTerm` returns
-// `{ mediaId, score }` per hit, which lets a caller mix matchers per term.
+// `{ mediaId, score, range }` per hit, which lets a caller mix matchers per term. Every
+// term's range is kept so a multi-term search can mark each word it found, ordered
+// best-scoring first so the snippet centres on the strongest match.
 function rankByAllTerms(terms, searchTerm, limit) {
   const rankedById = new Map();
 
   for (const term of terms) {
-    for (const { mediaId, score } of searchTerm(term)) {
+    for (const { mediaId, score, range } of searchTerm(term)) {
       if (!Number.isInteger(mediaId) || mediaId <= 0) continue;
 
+      const hit = range ? [{ range, score }] : [];
       const existing = rankedById.get(mediaId);
       if (!existing) {
-        rankedById.set(mediaId, { mediaId, matches: 1, score });
+        rankedById.set(mediaId, { mediaId, matches: 1, score, rangeHits: hit });
         continue;
       }
 
       existing.matches += 1;
       existing.score += score;
+      existing.rangeHits.push(...hit);
     }
   }
 
@@ -183,7 +221,13 @@ function rankByAllTerms(terms, searchTerm, limit) {
       if (left.score !== right.score) return left.score - right.score;
       return left.mediaId - right.mediaId;
     })
-    .slice(0, limit);
+    .slice(0, limit)
+    .map(({ rangeHits, ...row }) => ({
+      ...row,
+      ranges: rangeHits
+        .sort((left, right) => left.score - right.score)
+        .map(entry => entry.range),
+    }));
 }
 
 export async function searchTagSuggestions(query, { limit = 16 } = {}) {
@@ -260,7 +304,8 @@ async function rankMediaByNotes(query, { limit = 5000 } = {}) {
     mediaNotesFuse.search(term, { limit: overscan }).map(hit => ({
       mediaId: Number(hit?.item?.mediaId),
       score: normalizeScore(hit?.score),
-    })), safeLimit);
+      range: bestMatchRange(hit, term),
+    })), safeLimit).map(row => ({ ...row, field: "notes" }));
 }
 
 async function rankMediaByFilename(query, { limit = 5000 } = {}) {
@@ -290,15 +335,19 @@ async function rankMediaByFilename(query, { limit = 5000 } = {}) {
       mediaId: Number(hit?.item?.mediaId),
       score: normalizeScore(hit?.score),
     }));
-  }, safeLimit);
+    // No range: filenames are short enough to show whole, so there is nothing to window.
+  }, safeLimit).map(row => ({ ...row, field: "filename", ranges: [] }));
 }
 
-export async function searchMediaIdsByNotes(query, options) {
-  return (await rankMediaByNotes(query, options)).map(row => row.mediaId);
+// All three return `{ mediaId, score, field, range }` in rank order. `field` says which
+// text matched so the listing can show the right thing, and `range` locates the match
+// within it, for notes only.
+export async function searchMediaMatchesByNotes(query, options) {
+  return rankMediaByNotes(query, options);
 }
 
-export async function searchMediaIdsByFilename(query, options) {
-  return (await rankMediaByFilename(query, options)).map(row => row.mediaId);
+export async function searchMediaMatchesByFilename(query, options) {
+  return rankMediaByFilename(query, options);
 }
 
 // A post matches when all terms are found in its notes, or all in its filename. Letting
@@ -308,7 +357,7 @@ export async function searchMediaIdsByFilename(query, options) {
 // The two rankings are merged on score rather than concatenated: appending one after the
 // other buried an exact filename match under loose note matches. Both matchers score
 // 0 (best) to 1, so the scales are comparable enough to interleave.
-export async function searchMediaIdsByText(query, { limit = 5000 } = {}) {
+export async function searchMediaMatchesByText(query, { limit = 5000 } = {}) {
   const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 10000) : 5000;
 
   const [noteRows, filenameRows] = await Promise.all([
@@ -316,6 +365,8 @@ export async function searchMediaIdsByText(query, { limit = 5000 } = {}) {
     rankMediaByFilename(query, { limit: safeLimit }),
   ]);
 
+  // Keeping the better-scoring row also keeps its field, so a post matching both shows
+  // whichever text actually explains the hit.
   const bestByMediaId = new Map();
   for (const row of [...noteRows, ...filenameRows]) {
     const existing = bestByMediaId.get(row.mediaId);
@@ -327,6 +378,5 @@ export async function searchMediaIdsByText(query, { limit = 5000 } = {}) {
       if (left.score !== right.score) return left.score - right.score;
       return left.mediaId - right.mediaId;
     })
-    .slice(0, safeLimit)
-    .map(row => row.mediaId);
+    .slice(0, safeLimit);
 }

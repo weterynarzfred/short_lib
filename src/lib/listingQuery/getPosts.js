@@ -3,17 +3,47 @@ import buildQuery from "./buildQuery";
 import parseSearch from "./parseSearch";
 import getSubtitleKinds from "./subtitleKinds";
 import {
-  searchMediaIdsByFilename,
-  searchMediaIdsByNotes,
-  searchMediaIdsByText,
+  searchMediaMatchesByFilename,
+  searchMediaMatchesByNotes,
+  searchMediaMatchesByText,
 } from "@/lib/search";
+import extractSnippet from "./extractSnippet";
 import { resolveTagName } from "@/lib/tagAliases";
 
 const FUZZY_FILTERS = [
-  ["notes", "notesMediaIds", searchMediaIdsByNotes],
-  ["text", "textMediaIds", searchMediaIdsByText],
-  ["filename", "filenameMediaIds", searchMediaIdsByFilename],
+  ["notes", "notesMediaIds", searchMediaMatchesByNotes],
+  ["text", "textMediaIds", searchMediaMatchesByText],
+  ["filename", "filenameMediaIds", searchMediaMatchesByFilename],
 ];
+
+// Built here rather than in the client so a page-long OCR note never crosses the wire.
+function attachMatchSnippets(posts, matchByMediaId) {
+  if (!matchByMediaId) return;
+
+  for (const post of posts) {
+    const match = matchByMediaId.get(post.id);
+    if (!match) continue;
+
+    if (match.field === "filename") {
+      const filename = String(post.original_filename ?? "").trim();
+      if (!filename) continue;
+
+      // Short enough to show whole, so there is no window and nothing to mark.
+      post.match = {
+        field: "filename",
+        segments: [{ text: filename, isMatch: false }],
+        truncatedStart: false,
+        truncatedEnd: false,
+      };
+      continue;
+    }
+
+    const snippet = extractSnippet(post.notes_md, match.ranges);
+    if (!snippet) continue;
+
+    post.match = { field: "notes", ...snippet };
+  }
+}
 
 function clampInt(value, { min, max, fallback }) {
   const parsed = Number.parseInt(value, 10);
@@ -58,11 +88,13 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
   const subtitleKinds = getSubtitleKinds(parsed.filters);
 
   let rankedIds = null;
+  let matchByMediaId = null;
 
   for (const [filterKey, idsKey, resolve] of FUZZY_FILTERS) {
     if (!parsed.filters[filterKey]) continue;
 
-    const mediaIds = await resolve(parsed.filters[filterKey], { limit: 10000 });
+    const matches = await resolve(parsed.filters[filterKey], { limit: 10000 });
+    const mediaIds = matches.map(row => row.mediaId);
     if (!mediaIds.length) {
       return {
         posts: [],
@@ -74,8 +106,12 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
 
     parsed.filters[idsKey] = mediaIds;
     // With several fuzzy filters active the result is their intersection, so ordering by
-    // any one of them is defensible; the first in FUZZY_FILTERS order wins.
-    if (!rankedIds) rankedIds = mediaIds;
+    // any one of them is defensible; the first in FUZZY_FILTERS order wins, and it also
+    // supplies the snippets.
+    if (!rankedIds) {
+      rankedIds = mediaIds;
+      matchByMediaId = new Map(matches.map(row => [row.mediaId, row]));
+    }
   }
 
   // A fuzzy search is a request for the best match, so relevance beats newest-first -
@@ -103,6 +139,7 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
   const hasMore = rows.length > requestedLimit;
   const posts = hasMore ? rows.slice(0, requestedLimit) : rows;
   normalizePosts(posts);
+  attachMatchSnippets(posts, matchByMediaId);
 
   return {
     posts,

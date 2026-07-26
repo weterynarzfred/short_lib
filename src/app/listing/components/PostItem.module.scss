@@ -65,6 +65,26 @@
     overflow: hidden;
     white-space: nowrap;
   }
+
+  // Unlike the single-value subtitles this one has to wrap: it carries up to 64 characters
+  // of context either side of the match. `anywhere` because OCR text and filenames can
+  // contain very long unbroken runs.
+  .postSnippet {
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    opacity: 0.85;
+
+    mark {
+      padding: 0 0.1em;
+      border-radius: $radiusSm;
+      background: $colorContent2;
+      color: $colorBg;
+    }
+  }
 }
 
 .selectionMode {

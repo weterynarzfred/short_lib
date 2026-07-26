@@ -42,14 +42,22 @@ describe("filename and text search", () => {
     destroyTempDb({ db, tempDir });
   });
 
-  async function filenameHits(query) {
-    const { searchMediaIdsByFilename } = await import("@/lib/search");
-    const ids = await searchMediaIdsByFilename(query);
-    const byId = new Map(
+  const marked = match => match.segments
+    .filter(segment => segment.isMatch)
+    .map(segment => segment.text);
+
+  function namesById() {
+    return new Map(
       db.prepare(`SELECT id, original_filename AS name FROM media`).all()
         .map(row => [row.id, row.name])
     );
-    return ids.map(id => byId.get(id));
+  }
+
+  async function filenameHits(query) {
+    const { searchMediaMatchesByFilename } = await import("@/lib/search");
+    const matches = await searchMediaMatchesByFilename(query);
+    const byId = namesById();
+    return matches.map(row => byId.get(row.mediaId));
   }
 
   it("finds a file by an exact word", async () => {
@@ -114,16 +122,16 @@ describe("filename and text search", () => {
   });
 
   it("picks up a filename edited after the index was first built", async () => {
-    const { searchMediaIdsByFilename, markMediaFilenamesIndexDirty } =
+    const { searchMediaMatchesByFilename, markMediaFilenamesIndexDirty } =
       await import("@/lib/search");
 
-    expect(await searchMediaIdsByFilename("bicycle")).toEqual([]);
+    expect(await searchMediaMatchesByFilename("bicycle")).toEqual([]);
 
     db.prepare(`UPDATE media SET original_filename = ? WHERE checksum = ?`)
       .run("red_bicycle.jpg", "sum0");
     markMediaFilenamesIndexDirty();
 
-    expect(await searchMediaIdsByFilename("bicycle")).toHaveLength(1);
+    expect(await searchMediaMatchesByFilename("bicycle")).toHaveLength(1);
   });
 
   describe("text:", () => {
@@ -131,11 +139,11 @@ describe("filename and text search", () => {
       db.prepare(`UPDATE media SET notes_md = ? WHERE checksum = ?`)
         .run("office chair jousting", "sum5");
 
-      const { searchMediaIdsByText, markMediaNotesIndexDirty } = await import("@/lib/search");
+      const { searchMediaMatchesByText, markMediaNotesIndexDirty } = await import("@/lib/search");
       markMediaNotesIndexDirty();
 
-      const noteHit = await searchMediaIdsByText("jousting");
-      const nameHit = await searchMediaIdsByText("woodcock");
+      const noteHit = await searchMediaMatchesByText("jousting");
+      const nameHit = await searchMediaMatchesByText("woodcock");
 
       expect(noteHit).toHaveLength(1);
       expect(nameHit).toHaveLength(1);
@@ -147,11 +155,11 @@ describe("filename and text search", () => {
       db.prepare(`UPDATE media SET notes_md = ? WHERE checksum = ?`)
         .run("jousting", "sum1");
 
-      const { searchMediaIdsByText, markMediaNotesIndexDirty } = await import("@/lib/search");
+      const { searchMediaMatchesByText, markMediaNotesIndexDirty } = await import("@/lib/search");
       markMediaNotesIndexDirty();
 
       // "woodcock" is in that row's filename and "jousting" in its notes.
-      expect(await searchMediaIdsByText("woodcock jousting")).toEqual([]);
+      expect(await searchMediaMatchesByText("woodcock jousting")).toEqual([]);
     });
 
     // Concatenating the two rankings buried an exact filename match under loose note hits.
@@ -159,27 +167,105 @@ describe("filename and text search", () => {
       db.prepare(`UPDATE media SET notes_md = ? WHERE checksum = ?`)
         .run("a note that loosely mentions 512 somewhere in its text", "sum0");
 
-      const { searchMediaIdsByText, markMediaNotesIndexDirty } = await import("@/lib/search");
+      const { searchMediaMatchesByText, markMediaNotesIndexDirty } = await import("@/lib/search");
       markMediaNotesIndexDirty();
 
-      const ids = await searchMediaIdsByText("512");
-      const names = new Map(
-        db.prepare(`SELECT id, original_filename AS name FROM media`).all()
-          .map(row => [row.id, row.name])
-      );
+      const matches = await searchMediaMatchesByText("512");
 
-      expect(ids.length).toBeGreaterThan(1);
-      expect(names.get(ids[0])).toBe("512.jpg");
+      expect(matches.length).toBeGreaterThan(1);
+      expect(namesById().get(matches[0].mediaId)).toBe("512.jpg");
+      expect(matches[0].field).toBe("filename");
+    });
+
+    it("attaches a windowed note snippet to the matching post", async () => {
+      const note = `${"a".repeat(150)} jousting ${"b".repeat(150)}`;
+      db.prepare(`UPDATE media SET notes_md = ? WHERE checksum = ?`).run(note, "sum2");
+
+      const { markMediaNotesIndexDirty } = await import("@/lib/search");
+      markMediaNotesIndexDirty();
+      const { getPostsPage } = await import("@/lib/listingQuery/getPosts");
+
+      const { posts } = await getPostsPage("notes:jousting");
+
+      expect(posts).toHaveLength(1);
+      expect(posts[0].match.field).toBe("notes");
+      expect(marked(posts[0].match)).toEqual(["jousting"]);
+      expect(posts[0].match.segments[0].text).toHaveLength(64);
+      expect(posts[0].match.segments.at(-1).text).toHaveLength(64);
+      expect(posts[0].match.truncatedStart).toBe(true);
+      expect(posts[0].match.truncatedEnd).toBe(true);
+    });
+
+    // Only the best-scoring term used to be marked, so "office chair" highlighted just one.
+    it("marks every term of a multi-term search", async () => {
+      db.prepare(`UPDATE media SET notes_md = ? WHERE checksum = ?`)
+        .run("the office chair jousting final", "sum2");
+
+      const { markMediaNotesIndexDirty } = await import("@/lib/search");
+      markMediaNotesIndexDirty();
+      const { getPostsPage } = await import("@/lib/listingQuery/getPosts");
+
+      const { posts } = await getPostsPage("notes:\"office chair\"");
+
+      expect(posts).toHaveLength(1);
+      expect(marked(posts[0].match).map(text => text.toLowerCase()).sort())
+        .toEqual(["chair", "office"]);
+    });
+
+    // Fuse scatters incidental single-character runs; the first one is rarely the word.
+    it("marks the matched word, not a stray character run", async () => {
+      db.prepare(`UPDATE media SET notes_md = ? WHERE checksum = ?`)
+        .run("office chair jousting", "sum2");
+
+      const { markMediaNotesIndexDirty } = await import("@/lib/search");
+      markMediaNotesIndexDirty();
+      const { getPostsPage } = await import("@/lib/listingQuery/getPosts");
+
+      const { posts } = await getPostsPage("notes:jousting");
+      expect(marked(posts[0].match)).toEqual(["jousting"]);
+    });
+
+    // A loose run can be longer than the real word, so longest-run alone picked
+    // "f[ramerates]" over "Race".
+    it("prefers the run closest in length to the term", async () => {
+      db.prepare(`UPDATE media SET notes_md = ? WHERE checksum = ?`)
+        .run("Glorious\nPC Master Race\nMay our framerates be high", "sum2");
+
+      const { markMediaNotesIndexDirty } = await import("@/lib/search");
+      markMediaNotesIndexDirty();
+      const { getPostsPage } = await import("@/lib/listingQuery/getPosts");
+
+      const { posts } = await getPostsPage("notes:race");
+      expect(marked(posts[0].match).map(text => text.toLowerCase())).toEqual(["race"]);
+    });
+
+    it("shows a filename match whole, with no window", async () => {
+      const { getPostsPage } = await import("@/lib/listingQuery/getPosts");
+      const { posts } = await getPostsPage("filename:woodcock");
+
+      expect(posts).toHaveLength(1);
+      expect(posts[0].match.field).toBe("filename");
+      expect(posts[0].match.segments).toEqual([
+        { text: "Ancient+woodcock_dcba35_9674726.jpg", isMatch: false },
+      ]);
+    });
+
+    it("leaves posts unmarked when the search is not fuzzy", async () => {
+      const { getPostsPage } = await import("@/lib/listingQuery/getPosts");
+      const { posts } = await getPostsPage("");
+
+      expect(posts.length).toBeGreaterThan(0);
+      expect(posts.every(post => post.match === undefined)).toBe(true);
     });
 
     it("de-duplicates a post matching in both fields", async () => {
       db.prepare(`UPDATE media SET notes_md = ? WHERE checksum = ?`)
         .run("woodcock", "sum1");
 
-      const { searchMediaIdsByText, markMediaNotesIndexDirty } = await import("@/lib/search");
+      const { searchMediaMatchesByText, markMediaNotesIndexDirty } = await import("@/lib/search");
       markMediaNotesIndexDirty();
 
-      expect(await searchMediaIdsByText("woodcock")).toHaveLength(1);
+      expect(await searchMediaMatchesByText("woodcock")).toHaveLength(1);
     });
   });
 });

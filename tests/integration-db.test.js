@@ -31,15 +31,21 @@ describe("integration: addTags + getPosts", () => {
           postCount: row.post_count,
         }));
       }),
-      searchMediaIdsByNotes: vi.fn(async query => matchColumns(query, ["notes_md"])),
-      searchMediaIdsByFilename: vi.fn(async query => matchColumns(query, ["original_filename"])),
+      searchMediaMatchesByNotes: vi.fn(async query => asMatches(query, "notes")),
+      searchMediaMatchesByFilename: vi.fn(async query => asMatches(query, "filename")),
       // Mirrors the real per-field rule: all terms in notes, or all in the filename.
-      searchMediaIdsByText: vi.fn(async query =>
-        [...new Set([
-          ...matchColumns(query, ["notes_md"]),
-          ...matchColumns(query, ["original_filename"]),
-        ])]),
+      searchMediaMatchesByText: vi.fn(async query => {
+        const seen = new Set();
+        return [...asMatches(query, "notes"), ...asMatches(query, "filename")]
+          .filter(row => !seen.has(row.mediaId) && seen.add(row.mediaId));
+      }),
     }));
+
+    function asMatches(query, field) {
+      const column = field === "notes" ? "notes_md" : "original_filename";
+      return matchColumns(query, [column])
+        .map(mediaId => ({ mediaId, score: 0, field, range: null }));
+    }
 
     function matchColumns(query, columns) {
       const terms = String(query ?? "")

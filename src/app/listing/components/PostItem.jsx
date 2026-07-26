@@ -42,5 +42,15 @@ export default function PostItem({
     {subtitles.map(({ kind, text }) => (
       <div key={kind} className={styles.postSubtitle}>{text}</div>
     ))}
+
+    {/* Last, because it is the only variable-height line - keeping it below leaves the
+        single-line values aligned across cards. */}
+    {post.match ? <div className={styles.postSnippet}>
+      {post.match.truncatedStart ? "…" : null}
+      {post.match.segments.map((segment, index) => segment.isMatch
+        ? <mark key={index}>{segment.text}</mark>
+        : <span key={index}>{segment.text}</span>)}
+      {post.match.truncatedEnd ? "…" : null}
+    </div> : null}
   </div>;
 }
