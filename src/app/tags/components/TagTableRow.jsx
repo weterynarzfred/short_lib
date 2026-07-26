@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import TagSuggestions from "@/components/TagSuggestions";
+import useCombobox from "@/lib/useCombobox";
+import useTagSuggestions from "@/lib/useTagSuggestions";
 import { getTagTypeClassName } from "@/lib/tagTypeOrder";
 
 import styles from "./TagTable.module.scss";
@@ -33,29 +36,80 @@ function AliasInput({ tagId, isPending, onAdd }) {
   />;
 }
 
+// Unlike the alias input this one suggests tags, because an implication points at a tag
+// that usually already exists. Aliases are the opposite case: addTagAlias rejects any name
+// that is already a tag or alias, so every suggestion would be a guaranteed rejection.
 function ImplicationInput({ tagId, isPending, onAdd }) {
   const [value, setValue] = useState("");
+  const [cursor, setCursor] = useState(0);
 
-  async function handleKeyDown(e) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const name = value.trim();
-      if (!name) return;
+  const inputRef = useRef(null);
+  const nextCursorRef = useRef(null);
 
-      const result = await onAdd(tagId, name);
-      if (result?.ok !== false) setValue("");
-    }
+  const { items, isLoading } = useTagSuggestions(value, {
+    mode: "edit",
+    key: tagId,
+    position: cursor,
+  });
+
+  const combobox = useCombobox({
+    items,
+    setValue,
+    cursor,
+    moveCursorTo: pos => { nextCursorRef.current = pos; },
+  });
+
+  const comboboxInputProps = combobox.getInputProps();
+
+  useLayoutEffect(() => {
+    if (nextCursorRef.current === null || !inputRef.current) return;
+
+    inputRef.current.setSelectionRange(nextCursorRef.current, nextCursorRef.current);
+    setCursor(nextCursorRef.current);
+    nextCursorRef.current = null;
+  }, [value]);
+
+  const updateCursorPos = () => setCursor(inputRef.current?.selectionStart ?? 0);
+
+  async function submit() {
+    const name = value.trim();
+    if (!name) return;
+
+    const result = await onAdd(tagId, name);
+    if (result?.ok !== false) setValue("");
   }
 
-  return <input
-    type="text"
-    value={value}
-    onChange={e => setValue(e.target.value)}
-    onKeyDown={handleKeyDown}
-    placeholder="add tag name..."
-    className={styles.inlineInput}
-    disabled={isPending}
-  />;
+  function handleKeyDown(event) {
+    comboboxInputProps.onKeyDown(event);
+    // The combobox claims Enter when a suggestion is highlighted, so submitting here too
+    // would both accept the suggestion and immediately send the half-typed value.
+    if (event.defaultPrevented || event.key !== "Enter") return;
+
+    event.preventDefault();
+    submit();
+  }
+
+  return <div ref={combobox.rootRef} className={styles.inlineCombobox}>
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={event => {
+        setValue(event.target.value);
+        setCursor(event.target.selectionStart ?? 0);
+      }}
+      onClick={updateCursorPos}
+      onKeyUp={updateCursorPos}
+      onSelect={updateCursorPos}
+      placeholder="add tag name..."
+      className={styles.inlineInput}
+      disabled={isPending}
+      {...comboboxInputProps}
+      onKeyDown={handleKeyDown}
+    />
+
+    <TagSuggestions items={items} isLoading={isLoading} combobox={combobox} />
+  </div>;
 }
 
 export default function TagTableRow({ tag, editor }) {

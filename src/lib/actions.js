@@ -266,14 +266,17 @@ export async function removeTagAliasAction(aliasName) {
 }
 
 export async function addTagImplicationAction(tagId, impliedTagName) {
+  let result;
   try {
-    addTagImplicationByName(tagId, impliedTagName);
+    result = addTagImplicationByName(tagId, impliedTagName);
   } catch (error) {
     return failed(error);
   }
 
   revalidatePath("/tags");
-  return { ok: true };
+  // The backfill can touch posts far from this tag, so the listing is stale too.
+  revalidatePath("/listing");
+  return { ok: true, ...result };
 }
 
 export async function removeTagImplicationAction(tagId, impliedTagId) {

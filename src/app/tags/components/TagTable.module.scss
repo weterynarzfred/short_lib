@@ -123,6 +123,13 @@
   width: 10rem;
 }
 
+// Anchors the suggestion dropdown, which positions itself against the nearest positioned
+// ancestor.
+.inlineCombobox {
+  position: relative;
+  display: inline-block;
+}
+
 .descriptionInput {
   @include textareaBase(4rem);
 
