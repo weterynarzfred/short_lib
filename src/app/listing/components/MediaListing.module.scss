@@ -24,7 +24,10 @@
       }
 
       .toggleButton {
-        @include buttonBase($padding: 0 $spacingQuarter, $borderColor: $colorBorder);
+        @include buttonBase(
+          $padding: 0 $spacingQuarter,
+          $borderColor: $colorBorder
+        );
       }
 
       input[type="checkbox"]:checked + .toggleButton {
@@ -38,14 +41,17 @@
     }
 
     .clearSelection {
-      @include buttonBase($padding: 0 $spacingQuarter, $borderColor: $colorBorder);
+      @include buttonBase(
+        $padding: 0 $spacingQuarter,
+        $borderColor: $colorBorder
+      );
     }
 
     .list {
       width: 100%;
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-      gap: 1rem;
+      gap: 0.5rem;
       margin-top: $spacingQuarter;
     }
 
@@ -57,7 +63,10 @@
     }
 
     .loadMoreButton {
-      @include buttonBase($padding: 0.2rem $spacingQuarter, $borderColor: $colorBorder);
+      @include buttonBase(
+        $padding: 0.2rem $spacingQuarter,
+        $borderColor: $colorBorder
+      );
     }
 
     .loadMoreDone {

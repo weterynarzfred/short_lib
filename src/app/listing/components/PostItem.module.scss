@@ -2,7 +2,7 @@
 
 .card {
   position: relative;
-  padding: 0.5rem;
+  padding: 0.2rem;
   box-shadow: 0 0 0 1px $colorBorder;
   border-radius: $radiusMd;
   cursor: pointer;
@@ -19,7 +19,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 0.3rem;
     width: 100%;
     height: 18rem;
 
@@ -60,6 +59,7 @@
 
   .postSubtitle {
     font-size: 0.8rem;
+    margin-top: 0.3rem;
     text-align: center;
     text-overflow: ellipsis;
     overflow: hidden;
