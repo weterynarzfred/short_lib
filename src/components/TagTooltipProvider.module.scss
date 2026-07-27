@@ -1,0 +1,51 @@
+@use "/src/scss/variables" as *;
+
+.tooltip {
+  position: fixed;
+  z-index: 100;
+  max-width: 22rem;
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  border: 1px solid $colorBorder2;
+  border-radius: $radiusMd;
+  background: $colorBg;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  // The pointer has to be able to reach the edit link.
+  pointer-events: auto;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+// Links are undecorated globally, so the name needs a hover cue to read as clickable.
+// Its colour comes from the tag-type class, which outranks the `a { color: inherit }` rule.
+.nameLink {
+  overflow-wrap: anywhere;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.meta {
+  color: $colorContent2;
+  font-size: 0.75rem;
+}
+
+.description {
+  margin-top: 0.1rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.editLink {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+}

@@ -1,5 +1,7 @@
 import { languages, tokenize, Token } from "prism-code-editor/prism";
 
+import parseTagToken from "@/lib/parseTagToken";
+
 const TAG_TYPE_CLASS_CHAR_PATTERN = /[^a-zA-Z0-9_]/g;
 const KNOWN_TAG_TYPES = new Map();
 
@@ -24,16 +26,10 @@ function registerKnownTagType(name, type) {
   KNOWN_TAG_TYPES.set(normalizedName, normalizedType);
 }
 
+// Only typed tokens register a type; a bare `cat` says nothing about which type it is.
 function parseTypedTagToken(token) {
-  const stripped = String(token ?? "").trim().replace(/^-/, "");
-  const colonIdx = stripped.indexOf(":");
-  if (colonIdx <= 0 || colonIdx >= stripped.length - 1) return null;
-
-  const type = stripped.slice(0, colonIdx).trim();
-  const name = stripped.slice(colonIdx + 1).trim();
-  if (!type || !name) return null;
-
-  return { type, name };
+  const parsed = parseTagToken(token);
+  return parsed.type ? parsed : null;
 }
 
 export function registerKnownTags(tags = []) {

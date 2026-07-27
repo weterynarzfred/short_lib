@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import TagSuggestions from "@/components/TagSuggestions";
+import { useTagTooltip } from "@/components/TagTooltipProvider";
 import useCombobox from "@/lib/useCombobox";
 import useTagSuggestions from "@/lib/useTagSuggestions";
 import { getTagTypeClassName } from "@/lib/tagTypeOrder";
@@ -112,7 +113,22 @@ function ImplicationInput({ tagId, isPending, onAdd }) {
   </div>;
 }
 
+// Hover handlers for anything that renders a tag name, so the same card appears wherever
+// a tag is shown.
+export function useTagHoverProps() {
+  const { showTagTooltip, cancelTagTooltip } = useTagTooltip();
+
+  return name => ({
+    onMouseEnter: event =>
+      showTagTooltip(name, event.currentTarget.getBoundingClientRect()),
+    // Cancels a pending hover only; an open card closes itself once the pointer leaves
+    // both it and the tag, so its edit link stays reachable.
+    onMouseLeave: () => cancelTagTooltip(),
+  });
+}
+
 export default function TagTableRow({ tag, editor }) {
+  const tagHoverProps = useTagHoverProps();
   const {
     editingTagId,
     confirmDeleteTagId,
@@ -149,7 +165,10 @@ export default function TagTableRow({ tag, editor }) {
           onKeyDown={event => handleEditKeyDown(event, tag, isRowPending)}
           className={styles.textInput}
           autoFocus
-        /> : <Link href={`/listing?search=${encodeURIComponent(tag.name)}`}>
+        /> : <Link
+          href={`/listing?search=${encodeURIComponent(tag.name)}`}
+          {...tagHoverProps(tag.name)}
+        >
           {tag.name}
         </Link>}
       </td>
@@ -248,7 +267,7 @@ export default function TagTableRow({ tag, editor }) {
           <label>implies</label>
           <div className={styles.chipRow}>
             {(tag.implications ?? []).map(imp => (
-              <span key={imp.id} className={styles.chip}>
+              <span key={imp.id} className={styles.chip} {...tagHoverProps(imp.name)}>
                 {imp.name}
                 <button
                   type="button"

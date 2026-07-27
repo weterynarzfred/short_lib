@@ -11,6 +11,7 @@ import {
 import TagSuggestions from "./TagSuggestions";
 import useTagSuggestions from "../lib/useTagSuggestions";
 import useCombobox from "@/lib/useCombobox";
+import useTagTokenHover from "@/lib/useTagTokenHover";
 import styles from "./TagEditor.module.scss";
 
 export default function TagEditor({
@@ -30,6 +31,7 @@ export default function TagEditor({
   const nextCursorRef = useRef(null);
   const prevValueRef = useRef(value);
   const [cursor, setCursor] = useState(value.length);
+  const [isEditorReady, setIsEditorReady] = useState(false);
 
   const { items, isLoading } = useTagSuggestions(value, {
     mode: "edit",
@@ -77,6 +79,9 @@ export default function TagEditor({
 
     editorRef.current = editor;
     inputRef.current = editor.textarea;
+    // Flips a state flag rather than relying on effect ordering, so the hover hook can
+    // depend on the refs actually being populated.
+    setIsEditorReady(true);
     if (focusRef) focusRef.current = editor.textarea;
     if (placeholder) editor.textarea.placeholder = placeholder;
 
@@ -132,6 +137,8 @@ export default function TagEditor({
       if (focusRef) focusRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useTagTokenHover(containerRef, inputRef, { enabled: isEditorReady });
 
   // Sync external value changes and restore cursor position.
   // Both must happen in the same useLayoutEffect to avoid setOptions resetting the
