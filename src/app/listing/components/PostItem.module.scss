@@ -47,14 +47,16 @@
     pointer-events: none;
   }
 
-  .fileExtFallback {
-    padding: 0.2rem 0.3rem 0.1rem 0.3rem;
-    border: 1px solid $colorBorder;
-    border-radius: $radiusSm;
-    background: $colorBg;
-    font-weight: 700;
-    line-height: 1.2;
-    white-space: nowrap;
+  // Centred on both axes by the flex container, standing in for the missing image.
+  .thumbFallbackName {
+    padding: 0.6rem;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    text-align: center;
+    // Long names must not stretch the card past a thumbnail's height.
+    max-height: 100%;
+    overflow: hidden;
+    overflow-wrap: anywhere;
   }
 
   .postSubtitle {

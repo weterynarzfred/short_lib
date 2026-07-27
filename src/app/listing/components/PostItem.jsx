@@ -29,15 +29,20 @@ export default function PostItem({
       null}
 
     <div className={styles.imageContainer}>
-      {Boolean(thumb) ? <>
+      {thumb ? (
         <Image
           src={`/api/media/${post.file_path}?size=thumb`}
           width={thumb.width}
           height={thumb.height}
           alt=""
         />
-        <div className={styles.fileExtBadge}>{badgeLabel}</div>
-      </> : <div className={styles.fileExtFallback}>{badgeLabel}</div>}
+      ) : (
+        // Without a thumbnail there is nothing else to recognise the post by, so the
+        // filename takes the space the image would have occupied.
+        <div className={styles.thumbFallbackName}>{post.original_filename}</div>
+      )}
+
+      <div className={styles.fileExtBadge}>{badgeLabel}</div>
     </div>
     {subtitles.map(({ kind, text }) => (
       <div key={kind} className={styles.postSubtitle}>{text}</div>

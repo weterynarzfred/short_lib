@@ -10,8 +10,8 @@ const SUBTITLE_KINDS = [
   // Only when positive: `-has:score` selects unrated posts, which have nothing to show.
   { kind: "score", filterKey: "score", orderKey: "score", hasKey: "score" },
   { kind: "file_size", filterKey: "fileSize", orderKey: "file_size" },
-  { kind: "duration", filterKey: "duration", orderKey: "duration" },
-  { kind: "mpixels", filterKey: "mpixels", orderKey: "pixelcount" },
+  // No duration or mpixels: the badge on every card already shows both, so repeating them
+  // below the thumbnail is noise.
   { kind: "age", filterKey: "age", orderKey: "date" },
   { kind: "tag_count", filterKey: null, orderKey: "tag_count" },
 ];

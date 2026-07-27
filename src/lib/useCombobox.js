@@ -71,8 +71,8 @@ export default function useCombobox({
       if (activeIndex >= 0 && activeIndex < items.length) {
         event.preventDefault();
         event.stopPropagation();
+        // chooseTag decides whether to close: operators with values stay open.
         chooseTag(items[activeIndex]);
-        close();
       }
     } else if (event.key === "Escape") {
       event.preventDefault();
@@ -87,6 +87,21 @@ export default function useCombobox({
       moveCursorTo(nextCursor);
       return next;
     });
+
+    // Accepting an operator that has its own value list should show that list right away,
+    // rather than making the user reopen the dropdown to find out what is allowed. Staying
+    // open is only safe for operators that actually have values - the rest fall through to
+    // a tag search on a query like "file_size:", which is noise.
+    if (tag?.hasValues) {
+      // The effect watching `items` opens the list once the values arrive; this is the
+      // flag it checks. The stale operator list stays until then, so nothing is
+      // highlighted in the meantime.
+      hasUserTypedRef.current = true;
+      setActiveIndex(-1);
+      return;
+    }
+
+    close();
   }
 
   function getInputProps() {
@@ -110,7 +125,7 @@ export default function useCombobox({
       "aria-selected": index === activeIndex,
       onMouseDown: e => e.preventDefault(),
       onMouseEnter: () => setActiveIndex(index),
-      onClick: () => { chooseTag(items[index]); close(); },
+      onClick: () => chooseTag(items[index]),
     };
   }
 

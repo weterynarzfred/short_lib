@@ -5,7 +5,11 @@ import { searchTagSuggestions } from "@/lib/search";
 const OPERATORS = [
   {
     key: "mime_type",
+    // `hasValues` is declared rather than derived: the dynamic lists come from the
+    // database, and asking for them on every keystroke just to learn whether they are
+    // non-empty would cost a query per suggestion.
     label: "mime_type:",
+    hasValues: true,
   },
   {
     key: "file_size",
@@ -14,6 +18,7 @@ const OPERATORS = [
   {
     key: "order",
     label: "order:",
+    hasValues: true,
     values: [
       "date",
       "date_asc",
@@ -67,6 +72,7 @@ const OPERATORS = [
   {
     key: "has",
     label: "has:",
+    hasValues: true,
   },
   {
     key: "image_ratio",
@@ -134,6 +140,9 @@ export async function GET(req) {
           type: "operator",
           postCount: null,
           quoted: op.quoted === true,
+          // Lets the editor open the value list straight after the operator is accepted.
+          // Operators without one fall through to a tag search, which returns noise.
+          hasValues: op.hasValues === true,
         }))
       );
     }

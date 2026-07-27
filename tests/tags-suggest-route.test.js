@@ -116,6 +116,36 @@ describe("tags suggest route", () => {
     expect(body.tags.find(tag => tag.name === "notes:")?.quoted).toBe(true);
   });
 
+  // Drives auto-opening the value list after an operator is accepted. Operators without
+  // values must stay unmarked, or accepting them would open a tag search on "file_size:".
+  it("marks which operators have a value list", async () => {
+    const { db } = createDbMock();
+    vi.doMock("@/lib/db", () => ({ default: db }));
+    vi.doMock("@/lib/search", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
+
+    const { GET } = await import("../src/app/api/tags/suggest/route");
+    const byName = new Map(
+      (await (await GET(new Request("http://localhost/api/tags/suggest?q="
+        + encodeURIComponent("")))).json()).tags.map(tag => [tag.name, tag])
+    );
+
+    // An empty query returns nothing, so ask per prefix instead.
+    const lookup = async prefix => {
+      const res = await GET(new Request(
+        `http://localhost/api/tags/suggest?q=${encodeURIComponent(prefix)}`
+      ));
+      return (await res.json()).tags.find(tag => tag.name === `${prefix}:`);
+    };
+
+    expect(byName.size).toBe(0);
+    expect((await lookup("order")).hasValues).toBe(true);
+    expect((await lookup("has")).hasValues).toBe(true);
+    expect((await lookup("mime_type")).hasValues).toBe(true);
+    expect((await lookup("file_size")).hasValues).toBe(false);
+    expect((await lookup("score")).hasValues).toBe(false);
+    expect((await lookup("notes")).hasValues).toBe(false);
+  });
+
   it("does not mark operators that take a value from a list", async () => {
     const { db } = createDbMock();
     vi.doMock("@/lib/db", () => ({ default: db }));

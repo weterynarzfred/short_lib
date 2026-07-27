@@ -16,17 +16,22 @@ describe("getSubtitleKinds", () => {
 
   it("includes the kind a filter narrowed on", () => {
     expect(kindsFor("file_size:>1mb")).toEqual(["file_size"]);
-    expect(kindsFor("duration:<90s")).toEqual(["duration"]);
-    expect(kindsFor("mpixels:>=2")).toEqual(["mpixels"]);
     expect(kindsFor("age:<7d")).toEqual(["age"]);
   });
 
   it("includes the kind an explicit order sorted by", () => {
     expect(kindsFor("order:file_size")).toEqual(["file_size"]);
-    expect(kindsFor("order:duration")).toEqual(["duration"]);
-    expect(kindsFor("order:pixelcount")).toEqual(["mpixels"]);
     expect(kindsFor("order:date")).toEqual(["age"]);
     expect(kindsFor("order:tag_count")).toEqual(["tag_count"]);
+  });
+
+  // Both already appear in every card's badge, so a subtitle line would just repeat them.
+  it("has no subtitle for duration or pixel count", () => {
+    expect(kindsFor("duration:<90s")).toEqual([]);
+    expect(kindsFor("mpixels:>=2")).toEqual([]);
+    expect(kindsFor("order:duration")).toEqual([]);
+    expect(kindsFor("order:pixelcount")).toEqual([]);
+    expect(kindsFor("duration:<90s mpixels:>=2 file_size:>1mb")).toEqual(["file_size"]);
   });
 
   it("treats ascending order the same as descending", () => {
@@ -48,8 +53,7 @@ describe("getSubtitleKinds", () => {
 
   it("lists every active kind in canonical order", () => {
     expect(kindsFor("age:<7d file_size:>1mb")).toEqual(["file_size", "age"]);
-    expect(kindsFor("duration:<90s mpixels:>=2 order:tag_count"))
-      .toEqual(["duration", "mpixels", "tag_count"]);
+    expect(kindsFor("age:<7d order:tag_count")).toEqual(["age", "tag_count"]);
   });
 
   it("de-duplicates a filter and order on the same kind", () => {
@@ -82,16 +86,14 @@ describe("getPostSubtitles", () => {
   });
 
   it("renders one entry per kind, in the order given", () => {
-    expect(getPostSubtitles(post, ["file_size", "duration"])).toEqual([
+    expect(getPostSubtitles(post, ["file_size", "age"])).toEqual([
       { kind: "file_size", text: "2.38 MB" },
-      { kind: "duration", text: "1:34" },
+      { kind: "age", text: "2026-03-14" },
     ]);
   });
 
   it("formats each kind", () => {
     expect(getPostSubtitles(post, ["file_size"])[0].text).toBe("2.38 MB");
-    expect(getPostSubtitles(post, ["duration"])[0].text).toBe("1:34");
-    expect(getPostSubtitles(post, ["mpixels"])[0].text).toBe("2.1MP");
     expect(getPostSubtitles(post, ["age"])[0].text).toBe("2026-03-14");
     expect(getPostSubtitles(post, ["tag_count"])[0].text).toBe("7 tags");
   });
@@ -109,16 +111,14 @@ describe("getPostSubtitles", () => {
   it("drops kinds whose value is missing on this post", () => {
     expect(getPostSubtitles({ file_size: null }, ["file_size"])).toEqual([]);
     expect(getPostSubtitles({ file_size: 0 }, ["file_size"])).toEqual([]);
-    expect(getPostSubtitles({ duration_ms: null }, ["duration"])).toEqual([]);
-    expect(getPostSubtitles({ width: null, height: null }, ["mpixels"])).toEqual([]);
     expect(getPostSubtitles({ created_at: null }, ["age"])).toEqual([]);
     expect(getPostSubtitles({ tag_count: null }, ["tag_count"])).toEqual([]);
   });
 
   it("keeps the surviving lines when only some values are missing", () => {
     expect(getPostSubtitles(
-      { file_size: 2_500_000, duration_ms: null },
-      ["file_size", "duration"]
+      { file_size: 2_500_000, created_at: null },
+      ["file_size", "age"]
     )).toEqual([{ kind: "file_size", text: "2.38 MB" }]);
   });
 });

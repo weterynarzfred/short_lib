@@ -1,7 +1,5 @@
 import formatBytes from "@/lib/formatBytes";
 import formatDate from "@/lib/formatDate";
-import formatDuration from "@/lib/formatDuration";
-import formatMegapixels from "@/lib/formatMegapixels";
 import { MAX_SCORE } from "@/lib/score";
 
 // `formatBytes` reports 0 for a missing size, which would read as a real measurement.
@@ -40,10 +38,6 @@ function formatKind(post, kind) {
       return formatScore(post.score);
     case "file_size":
       return formatFileSize(post.file_size);
-    case "duration":
-      return formatDuration(post.duration_ms);
-    case "mpixels":
-      return formatMegapixels(post.width, post.height);
     case "age":
       return formatDate(post.created_at);
     case "tag_count":
