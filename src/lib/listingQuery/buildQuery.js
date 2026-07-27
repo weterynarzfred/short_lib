@@ -50,6 +50,12 @@ function buildHasPredicate(hasFilter, params) {
     return `COALESCE(TRIM(m.notes_md), '') <> ''`;
   }
 
+  // 0 and unrated are the same thing, so -has:score means "score is zero".
+  if (value === "score") {
+    if (hasFilter.negated) return `COALESCE(m.score, 0) = 0`;
+    return `COALESCE(m.score, 0) > 0`;
+  }
+
   params.push(value);
 
   const existsClause = `
@@ -169,6 +175,11 @@ export default function buildQuery(parsed, {
   if (filters.age) {
     where.push(`(unixepoch() * 1000 - (? * 1000)) ${filters.age.op} m.created_at`);
     params.push(filters.age.value);
+  }
+
+  if (filters.score) {
+    where.push(`COALESCE(m.score, 0) ${filters.score.op} ?`);
+    params.push(filters.score.value);
   }
 
   if (filters.mpixels) {

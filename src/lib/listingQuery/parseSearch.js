@@ -141,6 +141,7 @@ export default function parseSearch(searchString = "", options = {}) {
       END
     `,
     tag_count: "tag_count",
+    score: "m.score",
   };
   const ORDER_BY = Object.fromEntries(
     Object.entries(ORDER_BY_BASE).flatMap(([key, expression]) => ([
@@ -153,6 +154,8 @@ export default function parseSearch(searchString = "", options = {}) {
   const AGE_RE = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)(s|m|h|d|w|y)?$/i;
   const DURATION_RE = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)(ms|s|m|h)?$/i;
   const MPIXELS_RE = /^(<=|>=|<|>|=)?(\d+(?:\.\d+)?)$/i;
+  // Whole numbers only: a score is one of six values, so "score:>3.5" is a typo.
+  const SCORE_RE = /^(<=|>=|<|>|=)?(\d+)$/;
   const FILE_SIZE_UNITS = {
     b: 1,
     kb: 1024,
@@ -181,6 +184,7 @@ export default function parseSearch(searchString = "", options = {}) {
     fileSize: null,
     age: null,
     mpixels: null,
+    score: null,
     duration: null,
     imageRatio: null,
     notes: null,
@@ -279,6 +283,17 @@ export default function parseSearch(searchString = "", options = {}) {
         { integer: false }
       );
       if (parsed) filters.mpixels = parsed;
+      continue;
+    }
+
+    if (token.startsWith("score:")) {
+      const parsed = parseComparable(
+        token.slice("score:".length),
+        SCORE_RE,
+        { value: 1 },
+        "value"
+      );
+      if (parsed) filters.score = parsed;
       continue;
     }
 

@@ -1,0 +1,49 @@
+@use "/src/scss/variables" as *;
+
+$colorScoreFilled: #e0b23c;
+
+.scoreInput {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.item {
+  padding: 0 0.15rem;
+  border: none;
+  background: none;
+  color: $colorBorder2;
+  line-height: 1;
+  cursor: pointer;
+  transition: color $controlTransition;
+
+  &:hover:not(:disabled) {
+    color: $colorContent;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+// Smaller than the stars so it reads as "none" rather than as a sixth rating step.
+.clear {
+  font-size: 0.6rem;
+}
+
+.clearActive {
+  color: $colorContent;
+}
+
+.star {
+  font-size: 1rem;
+}
+
+.starFilled {
+  color: $colorScoreFilled;
+
+  &:hover:not(:disabled) {
+    color: $colorScoreFilled;
+  }
+}

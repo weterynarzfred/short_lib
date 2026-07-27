@@ -23,6 +23,7 @@ import {
   setTagTypeOrder,
 } from "@/lib/userSettings";
 import { markMediaFilenamesIndexDirty, markMediaNotesIndexDirty } from "@/lib/search";
+import { clampScore } from "@/lib/score";
 
 function normalizePostIds(postIds) {
   return Array.isArray(postIds)
@@ -197,6 +198,35 @@ export async function updatePostOriginalFilenameAction(postId, originalFilename)
   markMediaFilenamesIndexDirty();
 
   return { original_filename: nextOriginalFilename };
+}
+
+export async function updatePostScoreAction(postId, score) {
+  const safePostId = normalizePostId(postId);
+  const nextScore = clampScore(score);
+
+  db.prepare(`
+    UPDATE media
+    SET score = ?
+    WHERE id = ?
+  `).run(nextScore, safePostId);
+
+  return { score: nextScore };
+}
+
+export async function updatePostScoreBulkAction(postIds, score) {
+  const ids = normalizePostIds(postIds);
+  if (!ids.length) return { score: clampScore(score), postIds: [] };
+
+  const nextScore = clampScore(score);
+  const placeholders = ids.map(() => "?").join(",");
+
+  db.prepare(`
+    UPDATE media
+    SET score = ?
+    WHERE id IN (${placeholders})
+  `).run(nextScore, ...ids);
+
+  return { score: nextScore, postIds: ids };
 }
 
 export async function getPostTagValuesAction(postIds) {

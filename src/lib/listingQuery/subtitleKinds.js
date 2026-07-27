@@ -6,6 +6,9 @@
 //
 // `image_ratio` is deliberately absent: a bare decimal reads as noise.
 const SUBTITLE_KINDS = [
+  // `hasKey` covers `has:score`, which narrows on the score without being a score filter.
+  // Only when positive: `-has:score` selects unrated posts, which have nothing to show.
+  { kind: "score", filterKey: "score", orderKey: "score", hasKey: "score" },
   { kind: "file_size", filterKey: "fileSize", orderKey: "file_size" },
   { kind: "duration", filterKey: "duration", orderKey: "duration" },
   { kind: "mpixels", filterKey: "mpixels", orderKey: "pixelcount" },
@@ -13,11 +16,19 @@ const SUBTITLE_KINDS = [
   { kind: "tag_count", filterKey: null, orderKey: "tag_count" },
 ];
 
+function hasPositiveHasFilter(filters, hasKey) {
+  if (!hasKey || !Array.isArray(filters.has)) return false;
+
+  return filters.has.some(entry => entry?.value === hasKey && !entry.negated);
+}
+
 export default function getSubtitleKinds(filters) {
   if (!filters) return [];
 
   return SUBTITLE_KINDS
-    .filter(({ filterKey, orderKey }) =>
-      (filterKey && filters[filterKey]) || (orderKey && filters.orderKey === orderKey))
+    .filter(({ filterKey, orderKey, hasKey }) =>
+      (filterKey && filters[filterKey])
+      || (orderKey && filters.orderKey === orderKey)
+      || hasPositiveHasFilter(filters, hasKey))
     .map(({ kind }) => kind);
 }

@@ -9,6 +9,7 @@
 const ADDED_COLUMNS = [
   { table: "media", column: "notes_md", definition: "TEXT" },
   { table: "tags", column: "description", definition: "TEXT" },
+  { table: "media", column: "score", definition: "INTEGER NOT NULL DEFAULT 0" },
 ];
 
 // Tables no longer part of the schema. Dropped on startup so every copy of the
@@ -29,7 +30,9 @@ function createTables(db) {
       original_filename TEXT,
       notes_md TEXT,
       variants TEXT CHECK (variants IS NULL OR json_valid(variants)),
-      checksum TEXT
+      checksum TEXT,
+      -- 0 means unrated; there is deliberately no distinct "unset".
+      score INTEGER NOT NULL DEFAULT 0
     );
   `);
 
@@ -99,6 +102,7 @@ function createIndexes(db) {
     CREATE INDEX IF NOT EXISTS idx_media_dimensions ON media(width,height);
     CREATE INDEX IF NOT EXISTS idx_media_duration ON media(duration_ms);
     CREATE INDEX IF NOT EXISTS idx_media_checksum ON media(checksum);
+    CREATE INDEX IF NOT EXISTS idx_media_score ON media(score);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_media_checksum_unique ON media(checksum) WHERE checksum IS NOT NULL AND checksum <> '';
     CREATE INDEX IF NOT EXISTS idx_media_tags_media ON media_tags(media_id);
     CREATE INDEX IF NOT EXISTS idx_media_tags_tag ON media_tags(tag_id);

@@ -4,8 +4,10 @@ import classNames from "classnames";
 import {
   deletePostAction,
   updatePostOriginalFilenameAction,
+  updatePostScoreAction,
   updatePostTagsAction,
 } from "@/lib/actions";
+import ScoreInput from "@/components/ScoreInput";
 import TagEditor from "@/components/TagEditor";
 import MediaPanelNotesEditor from "./MediaPanelNotesEditor";
 
@@ -27,6 +29,7 @@ export default function MediaPanelMeta({
   const [filenameValue, setFilenameValue] = useState("");
   const [isSavingTags, startTagsTransition] = useTransition();
   const [isSavingFilename, startFilenameTransition] = useTransition();
+  const [isSavingScore, startScoreTransition] = useTransition();
 
   const originalTags = useMemo(
     () => post.tags.map(tag => tag.name).join(" ").trim(),
@@ -78,6 +81,20 @@ export default function MediaPanelMeta({
     });
   };
 
+  // Patched locally rather than revalidated, matching the other panel edits, so the panel
+  // does not flicker while you click through ratings.
+  const saveScore = nextScore => {
+    if (nextScore === (post.score ?? 0)) return;
+
+    startScoreTransition(() => {
+      updatePostScoreAction(post.id, nextScore)
+        .then(result => {
+          if (Number.isInteger(result?.score)) onPatchPost?.(post.id, { score: result.score });
+        })
+        .catch(error => console.error(error));
+    });
+  };
+
   const saveFilename = () => {
     if (!isFilenameDirty) return;
 
@@ -106,6 +123,14 @@ export default function MediaPanelMeta({
         >
           {"\u2192"}
         </button>
+      </div>
+
+      <div className={styles.score}>
+        <ScoreInput
+          value={post.score}
+          disabled={isSavingScore}
+          onChange={saveScore}
+        />
       </div>
 
       <div className={styles.edit}>

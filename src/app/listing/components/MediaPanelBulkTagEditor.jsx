@@ -3,8 +3,13 @@
 import { useMemo, useState } from "react";
 import classNames from "classnames";
 
+import ScoreInput from "@/components/ScoreInput";
 import TagEditor from "@/components/TagEditor";
-import { deletePostsBulkAction, editPostTagsBulkAction } from "@/lib/actions";
+import {
+  deletePostsBulkAction,
+  editPostTagsBulkAction,
+  updatePostScoreBulkAction,
+} from "@/lib/actions";
 
 import styles from "./MediaPanelBulkTagEditor.module.scss";
 
@@ -18,6 +23,7 @@ export default function MediaPanelBulkTagEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSavingScore, setIsSavingScore] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [note, setNote] = useState("");
 
@@ -30,6 +36,28 @@ export default function MediaPanelBulkTagEditor({
   const canSave = value.trim().length > 0 && count > 0 && !isSaving && !isDeleting;
   const canDeleteAll = count > 0 && !isSaving && !isDeleting;
   const canDownload = count > 0 && !isDownloading;
+
+  // Sets every selected post to the clicked value rather than adjusting relatively, since
+  // there is no single current score to adjust from.
+  async function saveScore(nextScore) {
+    if (!count || isSavingScore) return;
+
+    setIsSavingScore(true);
+    setNote("");
+
+    try {
+      const result = await updatePostScoreBulkAction(uniquePostIds, nextScore);
+      if (Number.isInteger(result?.score)) {
+        for (const postId of result.postIds ?? [])
+          onPatchPost?.(postId, { score: result.score });
+      }
+      setNote(`scored ${count} item(s)`);
+    } catch {
+      setNote("bulk score failed");
+    } finally {
+      setIsSavingScore(false);
+    }
+  }
 
   async function saveTags() {
     if (!canSave) return;
@@ -109,6 +137,15 @@ export default function MediaPanelBulkTagEditor({
     <div className={classNames(className, styles.bulkTagEditor)}>
       <h2>bulk selection</h2>
       <div className={styles.subtitle}>{count} selected</div>
+
+      <div className={styles.score}>
+        <ScoreInput
+          value={0}
+          label="set score for selection"
+          disabled={!count || isSaving || isDeleting || isSavingScore}
+          onChange={saveScore}
+        />
+      </div>
 
       <div className={styles.edit}>
         <TagEditor

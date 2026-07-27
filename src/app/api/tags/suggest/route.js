@@ -27,6 +27,8 @@ const OPERATORS = [
       "image_ratio_asc",
       "tag_count",
       "tag_count_asc",
+      "score",
+      "score_asc",
     ],
   },
   {
@@ -36,6 +38,10 @@ const OPERATORS = [
   {
     key: "mpixels",
     label: "mpixels:",
+  },
+  {
+    key: "score",
+    label: "score:",
   },
   {
     key: "duration",
@@ -102,7 +108,7 @@ function getOperatorValues(operator) {
 
   if (operator.key === "has") {
     const types = hasTypeValuesStmt.all().map(row => row.value).filter(Boolean);
-    return [...new Set(["notes", ...types])];
+    return [...new Set(["notes", "score", ...types])];
   }
 
   return [];

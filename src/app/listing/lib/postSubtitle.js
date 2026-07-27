@@ -2,6 +2,7 @@ import formatBytes from "@/lib/formatBytes";
 import formatDate from "@/lib/formatDate";
 import formatDuration from "@/lib/formatDuration";
 import formatMegapixels from "@/lib/formatMegapixels";
+import { MAX_SCORE } from "@/lib/score";
 
 // `formatBytes` reports 0 for a missing size, which would read as a real measurement.
 function formatFileSize(fileSize) {
@@ -24,8 +25,19 @@ function formatTagCount(tagCount) {
   return count === 1 ? "1 tag" : `${count} tags`;
 }
 
+// A row of stars reads at a glance where a bare number would not. Zero renders nothing,
+// so an unrated post simply has no score line.
+function formatScore(score) {
+  const value = Number(score);
+  if (!Number.isFinite(value) || value <= 0) return "";
+
+  return "★".repeat(Math.min(Math.round(value), MAX_SCORE));
+}
+
 function formatKind(post, kind) {
   switch (kind) {
+    case "score":
+      return formatScore(post.score);
     case "file_size":
       return formatFileSize(post.file_size);
     case "duration":
