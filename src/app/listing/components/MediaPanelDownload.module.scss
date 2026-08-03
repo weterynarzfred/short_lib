@@ -1,0 +1,49 @@
+@use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
+
+.download {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.select {
+  @include inputBase(0 0.3rem);
+
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: $fontSizeMonoInput;
+}
+
+.timeInput {
+  @include inputBase(0 0.3rem);
+
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: $fontSizeMonoInput;
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+.button {
+  @include buttonBase();
+
+  text-align: center;
+
+  &[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.hint {
+  @include subtleText();
+}

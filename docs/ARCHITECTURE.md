@@ -111,9 +111,23 @@ Route: `src/app/api/media/[year]/[month]/[file]/route.js`
 
 Primary modules, all under `src/lib/listingQuery/`:
 
-- `parseSearch.js` -> parses query string into filters + tag expression tree
+- `parseSearch.js` -> parses the query string into settings + one expression tree
 - `buildQuery.js` -> builds parameterized SQL
 - `getPosts.js` -> resolves `notes:` media ids through in-memory Fuse search, then executes SQL with pagination + JSON normalization
+
+**Every predicate is a term in that one tree** - tags and operators alike - so all of them
+can sit inside `AND`/`OR`/negation. `parsed.filters` holds only the settings that are not
+predicates: `orderBy`, `orderKey` and `limit`. Operators used to bypass the tree and get
+AND-ed in afterwards, which silently turned `fish OR notes:"fish"` into an AND.
+
+A term is `{ type: "TERM", kind, negated, ...payload }`. `notes`, `text` and `filename`
+match in memory, so `getPosts` resolves each one and writes `mediaIds` onto that term
+before the SQL is built - per term, because a term may sit inside an `OR` where an empty
+result should fail only its own branch.
+
+Negated comparisons are wrapped as `NOT COALESCE(<comparison>, 0)`: a comparison against a
+NULL column is NULL, and `NOT NULL` is still NULL, so a plain negation would quietly drop
+rows that have no value instead of including them.
 
 `parseSearch` and `buildQuery` are pure. `getPosts` is the only DB-aware step, and it is
 the single entry point for both the listing page and `/api/listing`; it injects the alias

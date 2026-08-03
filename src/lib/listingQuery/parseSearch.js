@@ -7,19 +7,18 @@ function parseTagExpression(tokens = []) {
 
   const peek = () => tokens[index] ?? null;
   const consume = () => tokens[index++] ?? null;
-  const isTermStart = token => token?.kind === "tag" || token?.kind === "lparen";
+  const isTermStart = token => token?.kind === "term" || token?.kind === "lparen";
 
   function parsePrimary() {
     const token = peek();
     if (!token) return null;
 
-    if (token.kind === "tag") {
+    // Every predicate - a tag or an operator alike - is a term, so all of them can sit on
+    // either side of an OR. Operators used to bypass this tree entirely and get AND-ed in
+    // afterwards, which silently turned `fish OR notes:"fish"` into an AND.
+    if (token.kind === "term") {
       consume();
-      return {
-        type: "TAG",
-        name: token.value,
-        negated: token.negated,
-      };
+      return token.node;
     }
 
     if (token.kind === "lparen") {
@@ -180,17 +179,8 @@ export default function parseSearch(searchString = "", options = {}) {
   const filters = {
     orderBy: ORDER_BY.date,
     limit: 100,
-    mimeTypes: [],
-    fileSize: null,
-    age: null,
-    mpixels: null,
-    score: null,
-    duration: null,
-    imageRatio: null,
-    notes: null,
-    text: null,
-    filename: null,
-    has: [],
+    // Only settings live here now. Every predicate is a term in `expression`, so that all
+    // of them can participate in AND/OR/negation rather than being AND-ed in afterwards.
     // Base name of an explicit `order:` token, direction stripped. Stays null for the
     // default ordering, so a default listing is distinguishable from `order:date`.
     orderKey: null,
@@ -202,6 +192,10 @@ export default function parseSearch(searchString = "", options = {}) {
     return trimmed.replace(/(^"|"$)/, "");
   }
 
+  function addTerm(node) {
+    expressionTokens.push({ kind: "term", node });
+  }
+
   function addTagToken(rawValue, { negated = false } = {}) {
     const value = resolveTagName(String(rawValue ?? "").trim());
     if (!value) return;
@@ -210,24 +204,52 @@ export default function parseSearch(searchString = "", options = {}) {
     else includeTags.push(value);
 
     mentionedTags.add(value);
-    expressionTokens.push({
-      kind: "tag",
-      value,
-      negated,
-    });
+    addTerm({ type: "TERM", kind: "tag", name: value, negated });
   }
 
-  function addHasToken(rawValue, { negated = false } = {}) {
-    const value = String(rawValue ?? "").trim().toLowerCase();
-    if (!value) return;
+  // Comparable operators all share this shape, differing only in how the value parses.
+  function addComparableToken(kind, rawValue, parse, negated) {
+    const comparison = parse(rawValue);
+    if (!comparison) return;
 
-    filters.has.push({
-      value,
-      negated,
-    });
+    addTerm({ type: "TERM", kind, comparison, negated });
   }
 
-  for (const token of tokens) {
+  function addFuzzyToken(kind, rawValue, negated) {
+    const query = toNotesSearchTerm(rawValue);
+    if (!query) return;
+
+    // `mediaIds` is filled in by getPosts, which resolves the query against the in-memory
+    // indexes before the SQL is built.
+    addTerm({ type: "TERM", kind, query, mediaIds: null, negated });
+  }
+
+  for (const rawToken of tokens) {
+    if (rawToken === "OR") {
+      expressionTokens.push({ kind: "or" });
+      continue;
+    }
+
+    if (rawToken === "AND") {
+      expressionTokens.push({ kind: "and" });
+      continue;
+    }
+
+    if (rawToken === "(") {
+      expressionTokens.push({ kind: "lparen" });
+      continue;
+    }
+
+    if (rawToken === ")") {
+      expressionTokens.push({ kind: "rparen" });
+      continue;
+    }
+
+    // Stripped once here rather than per operator, so every predicate can be negated -
+    // previously only `-has:` was, and `-score:5` fell through to a nonsense tag search.
+    const negated = rawToken.startsWith("-");
+    const token = negated ? rawToken.slice(1) : rawToken;
+
     if (token.startsWith("limit:")) {
       const parsedLimit = Number(token.slice(6));
       if (Number.isFinite(parsedLimit) && parsedLimit > 0)
@@ -248,129 +270,97 @@ export default function parseSearch(searchString = "", options = {}) {
 
     if (token.startsWith("mime_type:")) {
       const mimeType = token.slice("mime_type:".length).trim().toLowerCase();
-      if (mimeType) filters.mimeTypes.push(mimeType);
+      // Each occurrence is its own term, so repeating it now means AND and matches
+      // nothing. Previously they collected into an IN list, an implicit OR.
+      if (mimeType) addTerm({ type: "TERM", kind: "mime_type", value: mimeType, negated });
       continue;
     }
 
     if (token.startsWith("file_size:")) {
-      const parsed = parseComparable(
+      addComparableToken(
+        "file_size",
         token.slice("file_size:".length),
-        FILE_SIZE_RE,
-        FILE_SIZE_UNITS,
-        "b"
+        value => parseComparable(value, FILE_SIZE_RE, FILE_SIZE_UNITS, "b"),
+        negated
       );
-      if (parsed) filters.fileSize = parsed;
       continue;
     }
 
     if (token.startsWith("age:")) {
-      const parsed = parseComparable(
+      addComparableToken(
+        "age",
         token.slice("age:".length),
-        AGE_RE,
-        AGE_UNITS,
-        "d"
+        value => parseComparable(value, AGE_RE, AGE_UNITS, "d"),
+        negated
       );
-      if (parsed) filters.age = parsed;
       continue;
     }
 
     if (token.startsWith("mpixels:")) {
-      const parsed = parseComparable(
+      addComparableToken(
+        "mpixels",
         token.slice("mpixels:".length),
-        MPIXELS_RE,
-        { value: 1_000_000 },
-        "value",
-        { integer: false }
+        value => parseComparable(value, MPIXELS_RE, { value: 1_000_000 }, "value", { integer: false }),
+        negated
       );
-      if (parsed) filters.mpixels = parsed;
       continue;
     }
 
     if (token.startsWith("score:")) {
-      const parsed = parseComparable(
+      addComparableToken(
+        "score",
         token.slice("score:".length),
-        SCORE_RE,
-        { value: 1 },
-        "value"
+        value => parseComparable(value, SCORE_RE, { value: 1 }, "value"),
+        negated
       );
-      if (parsed) filters.score = parsed;
       continue;
     }
 
     if (token.startsWith("duration:")) {
-      const parsed = parseComparable(
+      addComparableToken(
+        "duration",
         token.slice("duration:".length),
-        DURATION_RE,
-        DURATION_UNITS,
-        "ms"
+        value => parseComparable(value, DURATION_RE, DURATION_UNITS, "ms"),
+        negated
       );
-      if (parsed) filters.duration = parsed;
       continue;
     }
 
     if (token.startsWith("image_ratio:")) {
-      const parsed = parseImageRatio(token.slice("image_ratio:".length));
-      if (parsed) filters.imageRatio = parsed;
+      addComparableToken(
+        "image_ratio",
+        token.slice("image_ratio:".length),
+        value => parseImageRatio(value),
+        negated
+      );
       continue;
     }
 
     if (token.startsWith("notes:")) {
-      const term = toNotesSearchTerm(token.slice("notes:".length));
-      if (term) filters.notes = filters.notes ? `${filters.notes} ${term}` : term;
+      addFuzzyToken("notes", token.slice("notes:".length), negated);
       continue;
     }
 
     if (token.startsWith("text:")) {
-      const term = toNotesSearchTerm(token.slice("text:".length));
-      if (term) filters.text = filters.text ? `${filters.text} ${term}` : term;
+      addFuzzyToken("text", token.slice("text:".length), negated);
       continue;
     }
 
     if (token.startsWith("filename:")) {
-      const term = toNotesSearchTerm(token.slice("filename:".length));
-      if (term) filters.filename = filters.filename ? `${filters.filename} ${term}` : term;
-      continue;
-    }
-
-    if (token.startsWith("-has:")) {
-      addHasToken(token.slice("-has:".length), { negated: true });
+      addFuzzyToken("filename", token.slice("filename:".length), negated);
       continue;
     }
 
     if (token.startsWith("has:")) {
-      addHasToken(token.slice("has:".length));
+      const value = token.slice("has:".length).trim().toLowerCase();
+      if (value) addTerm({ type: "TERM", kind: "has", value, negated });
       continue;
     }
 
-    if (token === "OR") {
-      expressionTokens.push({ kind: "or" });
-      continue;
-    }
-
-    if (token === "AND") {
-      expressionTokens.push({ kind: "and" });
-      continue;
-    }
-
-    if (token === "(") {
-      expressionTokens.push({ kind: "lparen" });
-      continue;
-    }
-
-    if (token === ")") {
-      expressionTokens.push({ kind: "rparen" });
-      continue;
-    }
-
-    if (token.startsWith("-")) {
-      addTagToken(token.slice(1), { negated: true });
-      continue;
-    }
-
-    addTagToken(token);
+    addTagToken(token, { negated });
   }
 
-  let tagExpression = parseTagExpression(expressionTokens);
+  let expression = parseTagExpression(expressionTokens);
 
   if (Array.isArray(options.defaultExcludedTags) && options.defaultExcludedTags.length) {
     for (const tag of options.defaultExcludedTags) {
@@ -382,15 +372,18 @@ export default function parseSearch(searchString = "", options = {}) {
       mentionedTags.add(name);
 
       const defaultNode = {
-        type: "TAG",
+        type: "TERM",
+        kind: "tag",
         name,
         negated: true,
       };
 
-      tagExpression = tagExpression
+      // AND-ed at the top level, so a blacklist entry narrows the whole query rather than
+      // binding to whichever branch happens to be last.
+      expression = expression
         ? {
           type: "AND",
-          left: tagExpression,
+          left: expression,
           right: defaultNode,
         }
         : defaultNode;
@@ -401,6 +394,6 @@ export default function parseSearch(searchString = "", options = {}) {
     includeTags,
     excludeTags,
     filters,
-    tagExpression,
+    expression,
   };
 }

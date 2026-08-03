@@ -17,6 +17,26 @@ notes:"sunset scene" has:creator
 - Parentheses allow grouping.
 - `AND` and `OR` are supported logical operators (uppercase keywords).
 
+## Combining Terms
+
+Tags and operators are the same kind of thing to the parser, so **any operator can take
+part in `AND`, `OR`, negation and grouping** exactly like a tag:
+
+```text
+fish OR notes:"fish"
+(score:5 OR score:4) -mime_type:video/mp4
+cat OR (has:notes duration:<30s)
+```
+
+Two consequences worth knowing:
+
+- **Prefix `-` negates any operator**, not only `has:`. `-duration:>60s` also keeps media
+  with no duration at all, rather than dropping it for having nothing to compare.
+- **Repeating an operator means `AND`.** `mime_type:video/mp4 mime_type:image/jpeg` asks
+  for media that is both at once and so matches nothing; write
+  `(mime_type:video/mp4 OR mime_type:image/jpeg)` for either. The same applies to repeated
+  `notes:`, `text:` and `filename:`, where each token is matched separately.
+
 ## Operator Tokens
 
 ### `limit:<number>`

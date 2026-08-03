@@ -5,7 +5,7 @@ import parseSearch from "@/lib/listingQuery/parseSearch";
 import getPostSubtitles from "@/app/listing/lib/postSubtitle";
 import formatDate from "@/lib/formatDate";
 
-const kindsFor = search => getSubtitleKinds(parseSearch(search).filters);
+const kindsFor = search => getSubtitleKinds(parseSearch(search));
 
 describe("getSubtitleKinds", () => {
   it("returns nothing when no filter or explicit order is active", () => {

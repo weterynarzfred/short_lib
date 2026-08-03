@@ -6,6 +6,7 @@ import buildQuery from "@/lib/listingQuery/buildQuery";
 import getSubtitleKinds from "@/lib/listingQuery/subtitleKinds";
 import getPostSubtitles from "@/app/listing/lib/postSubtitle";
 import { createTempDb, destroyTempDb } from "./helpers/tempDb";
+import { findTerm } from "./helpers/searchTerms";
 
 describe("clampScore", () => {
   it("keeps whole scores in range", () => {
@@ -29,16 +30,18 @@ describe("clampScore", () => {
 });
 
 describe("score search", () => {
+  const scoreTerm = search => findTerm(parseSearch(search), "score");
+
   it("parses comparisons", () => {
-    expect(parseSearch("score:>=4").filters.score).toEqual({ op: ">=", value: 4 });
-    expect(parseSearch("score:5").filters.score).toEqual({ op: "=", value: 5 });
-    expect(parseSearch("score:<2").filters.score).toEqual({ op: "<", value: 2 });
+    expect(scoreTerm("score:>=4").comparison).toEqual({ op: ">=", value: 4 });
+    expect(scoreTerm("score:5").comparison).toEqual({ op: "=", value: 5 });
+    expect(scoreTerm("score:<2").comparison).toEqual({ op: "<", value: 2 });
   });
 
   it("ignores a fractional or malformed score", () => {
-    expect(parseSearch("score:3.5").filters.score).toBeNull();
-    expect(parseSearch("score:abc").filters.score).toBeNull();
-    expect(parseSearch("score:").filters.score).toBeNull();
+    expect(scoreTerm("score:3.5")).toBeNull();
+    expect(scoreTerm("score:abc")).toBeNull();
+    expect(scoreTerm("score:")).toBeNull();
   });
 
   it("builds a score predicate", () => {
@@ -63,19 +66,19 @@ describe("score search", () => {
 
 describe("score subtitle", () => {
   it("is driven by a score filter or an explicit score order", () => {
-    expect(getSubtitleKinds(parseSearch("score:>=4").filters)).toEqual(["score"]);
-    expect(getSubtitleKinds(parseSearch("order:score").filters)).toEqual(["score"]);
-    expect(getSubtitleKinds(parseSearch("cat").filters)).toEqual([]);
+    expect(getSubtitleKinds(parseSearch("score:>=4"))).toEqual(["score"]);
+    expect(getSubtitleKinds(parseSearch("order:score"))).toEqual(["score"]);
+    expect(getSubtitleKinds(parseSearch("cat"))).toEqual([]);
   });
 
   it("is driven by has:score, which asks for rated posts", () => {
-    expect(getSubtitleKinds(parseSearch("has:score").filters)).toEqual(["score"]);
+    expect(getSubtitleKinds(parseSearch("has:score"))).toEqual(["score"]);
   });
 
   // -has:score selects unrated posts, which have no stars to show.
   it("is not driven by a negated has:score", () => {
-    expect(getSubtitleKinds(parseSearch("-has:score").filters)).toEqual([]);
-    expect(getSubtitleKinds(parseSearch("has:notes").filters)).toEqual([]);
+    expect(getSubtitleKinds(parseSearch("-has:score"))).toEqual([]);
+    expect(getSubtitleKinds(parseSearch("has:notes"))).toEqual([]);
   });
 
   it("renders one star per point", () => {
@@ -95,7 +98,7 @@ describe("score subtitle", () => {
   });
 
   it("leads the line order when combined with other kinds", () => {
-    expect(getSubtitleKinds(parseSearch("score:>=4 file_size:>1mb").filters))
+    expect(getSubtitleKinds(parseSearch("score:>=4 file_size:>1mb")))
       .toEqual(["score", "file_size"]);
   });
 });

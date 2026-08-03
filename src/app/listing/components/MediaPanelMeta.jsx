@@ -9,6 +9,7 @@ import {
 } from "@/lib/actions";
 import ScoreInput from "@/components/ScoreInput";
 import TagEditor from "@/components/TagEditor";
+import MediaPanelDownload from "./MediaPanelDownload";
 import MediaPanelNotesEditor from "./MediaPanelNotesEditor";
 
 import styles from "./MediaPanelMeta.module.scss";
@@ -230,6 +231,8 @@ export default function MediaPanelMeta({
           </div>
         </div>
       </div>
+
+      <MediaPanelDownload post={post} />
 
       <div className={styles.actions}>
         {!isConfirmingDelete && (

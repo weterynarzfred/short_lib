@@ -8,29 +8,94 @@ function clampInt(value, { min, max, fallback }) {
   return Math.min(Math.max(parsed, min), max);
 }
 
-function buildTagPredicate(node, params) {
+// A comparison against a column that can be NULL is NULL, and NOT NULL is still NULL - so
+// a naive negation quietly drops rows with no value. Coalescing the comparison itself to
+// false makes negation total: `-duration:>60s` includes media with no duration at all.
+function comparison(expression, { op, value }, negated, params) {
+  params.push(value);
+  const predicate = `${expression} ${op} ?`;
+
+  return negated ? `NOT COALESCE(${predicate}, 0)` : predicate;
+}
+
+function negatable(predicate, negated) {
+  return negated ? `NOT COALESCE(${predicate}, 0)` : predicate;
+}
+
+const MPIXELS_SQL = "(CAST(m.width AS REAL) * CAST(m.height AS REAL))";
+const IMAGE_RATIO_SQL = `
+  CASE
+    WHEN m.width IS NOT NULL AND m.height IS NOT NULL AND m.height > 0
+      THEN CAST(m.width AS REAL) / m.height
+    ELSE NULL
+  END
+`;
+
+function buildTermPredicate(node, params) {
+  switch (node.kind) {
+    case "tag": {
+      params.push(node.name);
+      const exists = `
+        EXISTS (
+          SELECT 1
+          FROM media_tags mt
+          JOIN tags t ON t.id = mt.tag_id
+          WHERE mt.media_id = m.id
+            AND t.name = ?
+        )
+      `;
+
+      return node.negated ? `NOT ${exists}` : exists;
+    }
+
+    case "mime_type":
+      params.push(node.value);
+      return negatable("LOWER(m.mime_type) = ?", node.negated);
+
+    case "file_size":
+      return comparison("m.file_size", node.comparison, node.negated, params);
+
+    case "age":
+      // Older than N means created before the cutoff, so the column sits on the right.
+      params.push(node.comparison.value);
+      return negatable(
+        `(unixepoch() * 1000 - (? * 1000)) ${node.comparison.op} m.created_at`,
+        node.negated
+      );
+
+    case "mpixels":
+      return comparison(MPIXELS_SQL, node.comparison, node.negated, params);
+
+    case "duration":
+      return comparison("m.duration_ms", node.comparison, node.negated, params);
+
+    case "score":
+      return comparison("COALESCE(m.score, 0)", node.comparison, node.negated, params);
+
+    case "image_ratio":
+      return comparison(IMAGE_RATIO_SQL, node.comparison, node.negated, params);
+
+    case "has":
+      return buildHasPredicate(node, params);
+
+    case "notes":
+    case "text":
+    case "filename":
+      return buildResolvedIdsPredicate(node, params);
+
+    default:
+      return null;
+  }
+}
+
+function buildPredicate(node, params) {
   if (!node) return null;
 
-  if (node.type === "TAG") {
-    params.push(node.name);
-
-    const existsClause = `
-      EXISTS (
-        SELECT 1
-        FROM media_tags mt
-        JOIN tags t ON t.id = mt.tag_id
-        WHERE mt.media_id = m.id
-          AND t.name = ?
-      )
-    `;
-
-    if (node.negated) return `NOT ${existsClause}`;
-    return existsClause;
-  }
+  if (node.type === "TERM") return buildTermPredicate(node, params);
 
   if (node.type === "AND" || node.type === "OR") {
-    const left = buildTagPredicate(node.left, params);
-    const right = buildTagPredicate(node.right, params);
+    const left = buildPredicate(node.left, params);
+    const right = buildPredicate(node.right, params);
 
     if (!left) return right;
     if (!right) return left;
@@ -87,6 +152,20 @@ function buildIdsPredicate(column, ids, params, chunkSize = 900) {
   return `(${chunks.join(" OR ")})`;
 }
 
+// notes:, text: and filename: match in memory, so getPosts resolves them to ids before the
+// SQL is built. An unresolved or empty result means "matches nothing", which negates to
+// "matches everything" rather than collapsing the whole query.
+function buildResolvedIdsPredicate(node, params) {
+  const ids = Array.isArray(node.mediaIds)
+    ? node.mediaIds.filter(id => Number.isInteger(id) && id > 0)
+    : [];
+
+  const predicate = buildIdsPredicate("m.id", ids, params);
+  if (!predicate) return node.negated ? "1 = 1" : "1 = 0";
+
+  return node.negated ? `NOT ${predicate}` : predicate;
+}
+
 // Ranked ids are inlined rather than bound: they are validated integers, and a jump table
 // keeps ordering O(1) per row. Capped because relevance past a few hundred fuzzy hits is
 // noise, and an unbounded CASE would make the statement enormous.
@@ -111,7 +190,7 @@ export default function buildQuery(parsed, {
   tagOrderSql = TAG_ORDER_SQL,
   relevanceIds = null,
 } = {}) {
-  const { filters, tagExpression } = parsed;
+  const { filters, expression } = parsed;
   const safeLimit = clampInt(limit ?? filters.limit, {
     min: 1,
     max: 500,
@@ -158,74 +237,10 @@ export default function buildQuery(parsed, {
     FROM media m
   `;
 
-  const tagPredicate = buildTagPredicate(tagExpression, params);
-  if (tagPredicate) where.push(tagPredicate);
-
-  if (filters.mimeTypes.length) {
-    const placeholders = filters.mimeTypes.map(() => "?").join(", ");
-    where.push(`LOWER(m.mime_type) IN (${placeholders})`);
-    params.push(...filters.mimeTypes);
-  }
-
-  if (filters.fileSize) {
-    where.push(`m.file_size ${filters.fileSize.op} ?`);
-    params.push(filters.fileSize.value);
-  }
-
-  if (filters.age) {
-    where.push(`(unixepoch() * 1000 - (? * 1000)) ${filters.age.op} m.created_at`);
-    params.push(filters.age.value);
-  }
-
-  if (filters.score) {
-    where.push(`COALESCE(m.score, 0) ${filters.score.op} ?`);
-    params.push(filters.score.value);
-  }
-
-  if (filters.mpixels) {
-    where.push(`(CAST(m.width AS REAL) * CAST(m.height AS REAL)) ${filters.mpixels.op} ?`);
-    params.push(filters.mpixels.value);
-  }
-
-  if (filters.duration) {
-    where.push(`m.duration_ms ${filters.duration.op} ?`);
-    params.push(filters.duration.value);
-  }
-
-  if (filters.imageRatio) {
-    where.push(`
-      m.width IS NOT NULL
-      AND m.height IS NOT NULL
-      AND m.height > 0
-      AND (CAST(m.width AS REAL) / m.height) ${filters.imageRatio.op} ?
-    `);
-    params.push(filters.imageRatio.value);
-  }
-
-  if (Array.isArray(filters.has) && filters.has.length) {
-    for (const hasFilter of filters.has) {
-      const hasPredicate = buildHasPredicate(hasFilter, params);
-      if (hasPredicate) where.push(hasPredicate);
-    }
-  }
-
-  // Both resolve to media ids upstream, in getPosts, since the matching is fuzzy and
-  // happens in memory. An unresolved filter means no matches, not no filter.
-  for (const [filterKey, idsKey] of [
-    ["notes", "notesMediaIds"],
-    ["text", "textMediaIds"],
-    ["filename", "filenameMediaIds"],
-  ]) {
-    if (!filters[filterKey]) continue;
-
-    const ids = Array.isArray(filters[idsKey])
-      ? filters[idsKey].filter(id => Number.isInteger(id) && id > 0)
-      : [];
-
-    const idsPredicate = buildIdsPredicate("m.id", ids, params);
-    if (idsPredicate) where.push(idsPredicate);
-    else where.push("1 = 0");
-  }
+  // One walk over the whole expression, so every predicate - tag or operator - lands in
+  // the right branch of any AND/OR the user wrote.
+  const predicate = buildPredicate(expression, params);
+  if (predicate) where.push(predicate);
 
   if (where.length) {
     sql += " WHERE " + where.join(" AND ");

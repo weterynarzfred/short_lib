@@ -2,15 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import buildQuery from "../src/lib/listingQuery/buildQuery";
 import parseSearch from "../src/lib/listingQuery/parseSearch";
-
-function simplifyTagExpression(node) {
-  if (!node) return null;
-
-  if (node.type === "TAG")
-    return node.negated ? { type: "TAG", name: node.name, negated: true } : node.name;
-
-  return [node.type, simplifyTagExpression(node.left), simplifyTagExpression(node.right)];
-}
+import { findTerm, findTerms, simplify } from "./helpers/searchTerms";
 
 describe("search parser and query builder", () => {
   it("ignores extra whitespace and keeps include/exclude tags", () => {
@@ -71,7 +63,7 @@ describe("search parser and query builder", () => {
     const parsed = parseSearch("(raven OR owl) plague_doctor");
     const { sql, params } = buildQuery(parsed);
 
-    expect(simplifyTagExpression(parsed.tagExpression)).toEqual([
+    expect(simplify(parsed.expression)).toEqual([
       "AND",
       ["OR", "raven", "owl"],
       "plague_doctor",
@@ -84,11 +76,72 @@ describe("search parser and query builder", () => {
   it("keeps AND precedence higher than OR without parentheses", () => {
     const parsed = parseSearch("raven OR owl plague_doctor");
 
-    expect(simplifyTagExpression(parsed.tagExpression)).toEqual([
+    expect(simplify(parsed.expression)).toEqual([
       "OR",
       "raven",
       ["AND", "owl", "plague_doctor"],
     ]);
+  });
+
+  // The reported bug: operators bypassed the expression tree and were AND-ed in
+  // afterwards, so the OR silently became an AND and the dangling operand was dropped.
+  it("lets an operator sit on either side of an OR", () => {
+    expect(simplify(parseSearch("fish OR notes:\"fish\"").expression))
+      .toEqual(["OR", "fish", "notes:"]);
+    expect(simplify(parseSearch("notes:\"fish\" OR fish").expression))
+      .toEqual(["OR", "notes:", "fish"]);
+    expect(simplify(parseSearch("score:5 OR file_size:>1mb").expression))
+      .toEqual(["OR", "score:", "file_size:"]);
+  });
+
+  it("emits OR in the SQL for an operator alternative", () => {
+    const { sql } = buildQuery(parseSearch("cat OR score:5"));
+    const flat = sql.replace(/\s+/g, " ");
+
+    expect(flat).toContain(") OR COALESCE(m.score, 0) = ?)");
+  });
+
+  it("groups operators with parentheses", () => {
+    expect(simplify(parseSearch("(score:5 OR score:4) cat").expression))
+      .toEqual(["AND", ["OR", "score:", "score:"], "cat"]);
+  });
+
+  it("keeps AND precedence over OR across operators", () => {
+    expect(simplify(parseSearch("cat OR score:5 dog").expression))
+      .toEqual(["OR", "cat", ["AND", "score:", "dog"]]);
+  });
+
+  // Negation used to work only for -has:, so -score:5 became a tag search for "score:5".
+  it("negates any operator, not just has:", () => {
+    const parsed = parseSearch("-score:5 -mime_type:video/mp4 -duration:>60s");
+    const terms = findTerms(parsed.expression);
+
+    expect(terms.map(term => term.kind))
+      .toEqual(["score", "mime_type", "duration"]);
+    expect(terms.every(term => term.negated)).toBe(true);
+    expect(parsed.includeTags).toEqual([]);
+  });
+
+  // NULL comparisons are NULL, and NOT NULL is still NULL, which would drop rows that have
+  // no value at all instead of including them.
+  it("makes a negated comparison total over missing values", () => {
+    const { sql } = buildQuery(parseSearch("-duration:>60s"));
+
+    expect(sql).toContain("NOT COALESCE(m.duration_ms > ?, 0)");
+  });
+
+  it("negates a resolved id search into its complement", () => {
+    const parsed = parseSearch("-notes:cat");
+    findTerm(parsed, "notes").mediaIds = [4, 6];
+
+    expect(buildQuery(parsed).sql).toMatch(/NOT m\.id IN \(\?, \?\)/);
+  });
+
+  // An unmatched positive term matches nothing; negated, it must match everything rather
+  // than collapsing the query.
+  it("treats an unresolved negated search as matching everything", () => {
+    expect(buildQuery(parseSearch("-notes:cat")).sql).toContain("1 = 1");
+    expect(buildQuery(parseSearch("notes:cat")).sql).toContain("1 = 0");
   });
 
   it("supports explicit limit/offset pagination overrides", () => {
@@ -105,14 +158,14 @@ describe("search parser and query builder", () => {
     const { sql, params } = buildQuery(parsed);
 
     expect(parsed.filters.orderBy).toContain("COALESCE(m.width, 0) * COALESCE(m.height, 0)");
-    expect(parsed.filters.mimeTypes).toEqual(["video/mp4"]);
-    expect(parsed.filters.fileSize).toEqual({ op: ">", value: 10485760 });
-    expect(parsed.filters.age).toEqual({ op: "<", value: 604800 });
-    expect(parsed.filters.mpixels).toEqual({ op: ">=", value: 2000000 });
-    expect(parsed.filters.duration).toEqual({ op: "<", value: 90000 });
-    expect(parsed.filters.imageRatio).toEqual({ op: "=", value: 16 / 9 });
+    expect(findTerm(parsed, "mime_type").value).toBe("video/mp4");
+    expect(findTerm(parsed, "file_size").comparison).toEqual({ op: ">", value: 10485760 });
+    expect(findTerm(parsed, "age").comparison).toEqual({ op: "<", value: 604800 });
+    expect(findTerm(parsed, "mpixels").comparison).toEqual({ op: ">=", value: 2000000 });
+    expect(findTerm(parsed, "duration").comparison).toEqual({ op: "<", value: 90000 });
+    expect(findTerm(parsed, "image_ratio").comparison).toEqual({ op: "=", value: 16 / 9 });
 
-    expect(sql).toContain("LOWER(m.mime_type) IN (?)");
+    expect(sql).toContain("LOWER(m.mime_type) = ?");
     expect(sql).toContain("m.file_size > ?");
     expect(sql).toContain("m.duration_ms < ?");
     expect(sql).toContain("CAST(m.width AS REAL) / m.height");
@@ -120,25 +173,28 @@ describe("search parser and query builder", () => {
     expect(params).toEqual(["video/mp4", 10485760, 604800, 2000000, 90000, 16 / 9]);
   });
 
-  it("parses the filename operator into its own filter", () => {
+  // Repeating an operator now yields separate terms, AND-ed like any other pair, rather
+  // than being merged into one query string.
+  it("makes each filename token its own term", () => {
     const parsed = parseSearch("filename:\"koreans gaming\" filename:mp4");
 
-    expect(parsed.filters.filename).toBe("koreans gaming mp4");
-    expect(parsed.filters.notes).toBeNull();
-    expect(parsed.filters.text).toBeNull();
+    expect(simplify(parsed.expression))
+      .toEqual(["AND", "filename:", "filename:"]);
+    expect(findTerms(parsed.expression, "filename").map(term => term.query))
+      .toEqual(["koreans gaming", "mp4"]);
   });
 
-  it("keeps notes, text and filename as independent filters", () => {
+  it("keeps notes, text and filename as independent terms", () => {
     const parsed = parseSearch("notes:a text:b filename:c");
 
-    expect(parsed.filters.notes).toBe("a");
-    expect(parsed.filters.text).toBe("b");
-    expect(parsed.filters.filename).toBe("c");
+    expect(findTerm(parsed, "notes").query).toBe("a");
+    expect(findTerm(parsed, "text").query).toBe("b");
+    expect(findTerm(parsed, "filename").query).toBe("c");
   });
 
   it("adds an id clause for a resolved filename search", () => {
     const parsed = parseSearch("filename:cat");
-    parsed.filters.filenameMediaIds = [4, 6];
+    findTerm(parsed, "filename").mediaIds = [4, 6];
     const { sql, params } = buildQuery(parsed);
 
     expect(sql).toContain("m.id IN (?, ?)");
@@ -147,7 +203,7 @@ describe("search parser and query builder", () => {
 
   it("orders by relevance when ranked ids are supplied", () => {
     const parsed = parseSearch("filename:cat");
-    parsed.filters.filenameMediaIds = [9, 3];
+    findTerm(parsed, "filename").mediaIds = [9, 3];
     const { sql } = buildQuery(parsed, { relevanceIds: [9, 3] });
 
     expect(sql).toContain("CASE m.id WHEN 9 THEN 0 WHEN 3 THEN 1 ELSE 2 END");
@@ -181,14 +237,15 @@ describe("search parser and query builder", () => {
     expect(sql).toContain("ELSE 500 END");
   });
 
-  it("parses notes operator into a notes query filter", () => {
+  it("parses a quoted notes phrase into one term", () => {
     const parsed = parseSearch("notes:\"hello world\" notes:cat");
-    expect(parsed.filters.notes).toBe("hello world cat");
+    expect(findTerms(parsed.expression, "notes").map(t => t.query))
+      .toEqual(["hello world", "cat"]);
   });
 
   it("adds notes id clause when notes matches are pre-resolved", () => {
     const parsed = parseSearch("notes:\"hello world\"");
-    parsed.filters.notesMediaIds = [7, 9];
+    findTerm(parsed, "notes").mediaIds = [7, 9];
     const { sql, params } = buildQuery(parsed);
 
     expect(sql).toContain("m.id IN (?, ?)");
@@ -204,14 +261,15 @@ describe("search parser and query builder", () => {
     expect(params).toEqual([]);
   });
 
-  it("parses has operators into normalized filters", () => {
+  it("parses has operators into normalized terms", () => {
     const parsed = parseSearch("has:notes -has:character has:creator");
 
-    expect(parsed.filters.has).toEqual([
-      { value: "notes", negated: false },
-      { value: "character", negated: true },
-      { value: "creator", negated: false },
-    ]);
+    expect(findTerms(parsed.expression, "has").map(({ value, negated }) => ({ value, negated })))
+      .toEqual([
+        { value: "notes", negated: false },
+        { value: "character", negated: true },
+        { value: "creator", negated: false },
+      ]);
   });
 
   it("adds has predicates and tag-type params to SQL", () => {
@@ -228,12 +286,8 @@ describe("search parser and query builder", () => {
     const parsed = parseSearch("file_size:abc age:-- order:nope mpixels:x duration:- image_ratio:1/0 has: -has: tag1");
 
     expect(parsed.includeTags).toEqual(["tag1"]);
-    expect(parsed.filters.fileSize).toBeNull();
-    expect(parsed.filters.age).toBeNull();
-    expect(parsed.filters.mpixels).toBeNull();
-    expect(parsed.filters.duration).toBeNull();
-    expect(parsed.filters.imageRatio).toBeNull();
-    expect(parsed.filters.has).toEqual([]);
+    // A malformed operator contributes no term at all, leaving only the tag.
+    expect(simplify(parsed.expression)).toBe("tag1");
     expect(parsed.filters.orderBy).toBe("m.created_at DESC");
   });
 

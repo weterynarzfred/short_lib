@@ -10,11 +10,27 @@ import {
 import extractSnippet from "./extractSnippet";
 import { resolveTagName } from "@/lib/tagAliases";
 
-const FUZZY_FILTERS = [
-  ["notes", "notesMediaIds", searchMediaMatchesByNotes],
-  ["text", "textMediaIds", searchMediaMatchesByText],
-  ["filename", "filenameMediaIds", searchMediaMatchesByFilename],
-];
+const FUZZY_RESOLVERS = {
+  notes: searchMediaMatchesByNotes,
+  text: searchMediaMatchesByText,
+  filename: searchMediaMatchesByFilename,
+};
+
+// Depth-first in written order, so "the first fuzzy term" means the leftmost one the user
+// typed - which is the one whose ranking drives relevance ordering and snippets.
+function collectFuzzyTerms(node, found = []) {
+  if (!node) return found;
+
+  if (node.type === "TERM") {
+    if (FUZZY_RESOLVERS[node.kind]) found.push(node);
+    return found;
+  }
+
+  collectFuzzyTerms(node.left, found);
+  collectFuzzyTerms(node.right, found);
+
+  return found;
+}
 
 // Built here rather than in the client so a page-long OCR note never crosses the wire.
 function attachMatchSnippets(posts, matchByMediaId) {
@@ -85,31 +101,22 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
   });
 
   // Constant for a given search, so it is reported per page rather than per post.
-  const subtitleKinds = getSubtitleKinds(parsed.filters);
+  const subtitleKinds = getSubtitleKinds(parsed);
 
   let rankedIds = null;
   let matchByMediaId = null;
 
-  for (const [filterKey, idsKey, resolve] of FUZZY_FILTERS) {
-    if (!parsed.filters[filterKey]) continue;
+  for (const term of collectFuzzyTerms(parsed.expression)) {
+    const matches = await FUZZY_RESOLVERS[term.kind](term.query, { limit: 10000 });
 
-    const matches = await resolve(parsed.filters[filterKey], { limit: 10000 });
-    const mediaIds = matches.map(row => row.mediaId);
-    if (!mediaIds.length) {
-      return {
-        posts: [],
-        hasMore: false,
-        nextOffset: safeOffset,
-        subtitleKinds,
-      };
-    }
+    // Resolved onto the term itself: it may sit inside an OR, where no matches means that
+    // branch fails rather than the whole query.
+    term.mediaIds = matches.map(row => row.mediaId);
 
-    parsed.filters[idsKey] = mediaIds;
-    // With several fuzzy filters active the result is their intersection, so ordering by
-    // any one of them is defensible; the first in FUZZY_FILTERS order wins, and it also
-    // supplies the snippets.
-    if (!rankedIds) {
-      rankedIds = mediaIds;
+    // Only the first positive term supplies ranking and snippets. A negated one describes
+    // what to exclude, so its ranking says nothing about what is shown.
+    if (!rankedIds && !term.negated && term.mediaIds.length) {
+      rankedIds = term.mediaIds;
       matchByMediaId = new Map(matches.map(row => [row.mediaId, row]));
     }
   }
