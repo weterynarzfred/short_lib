@@ -95,6 +95,32 @@ Entry route: `src/app/api/upload/route.js`
    - videos: frame extraction via `ffmpeg`, then same image pipeline
 7. Insert DB rows (`addMediaToDb`) and auto-add meta tags: `meta:image`, `meta:video`, `meta:has_audio` when detected.
 
+### Hover previews
+
+`src/lib/generateVideoPreview.js` writes a ~10 s silent AV1 clip per video, sampled as four
+2.5 s segments from the middle 90% so it neither opens on a title card nor ends on credits.
+Shorter videos are used whole. Seeking happens **before** each `-i`, so cost barely depends
+on source length - a 47 minute 4K file takes about 2.8 s.
+
+Size comes from a **total-pixel budget** (`THUMB_PIXELS`, the same one image thumbnails
+use) via the shared `scaleToTotalPixels`, not a width cap. A width cap gave portrait video
+far more pixels than landscape - a 9:16 clip came out 480x1006, nearly five times a 16:9
+clip's area at the same setting. Dimensions are rounded **down** to even, which yuv420p
+requires; rounding inside `scaleToTotalPixels` means the result can still land a few hundred
+pixels over budget, so treat it as a target rather than a hard ceiling.
+
+The module deliberately uses no `@/` imports: `scripts/backfill-video-previews.mjs` runs it
+under plain node, which does not resolve the jsconfig alias. That script is resumable, and
+writes each row's `variants` as it goes rather than batching at the end.
+
+A post is skipped only when **both** the clip exists on disk and the row already records
+it. Keying on the file alone stranded a post when a run was killed between writing the clip
+and updating the row: the file was there, so every later run skipped it and the variant was
+never recorded. Requiring both makes an interrupted write heal itself on the next run.
+
+A preview failure never fails an upload; the post is usable with just a thumbnail and the
+backfill can fill the gap later.
+
 ## Media Serving
 
 Route: `src/app/api/media/[year]/[month]/[file]/route.js`
@@ -103,7 +129,8 @@ Route: `src/app/api/media/[year]/[month]/[file]/route.js`
 - Streams from:
   - `full` (original media)
   - `thumbs` when `?size=thumb`
-  - `prevs` when `?size=prev`
+  - `prevs` when `?size=prev` (legacy; no longer generated)
+  - `vprevs` when `?size=vprev` - the hover preview clip
 - Supports HTTP range requests for normal files.
 - For `.mkv`, remuxes to MP4 stream on demand with `ffmpeg`.
 

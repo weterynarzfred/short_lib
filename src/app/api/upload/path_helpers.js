@@ -11,12 +11,12 @@ export function getThumbPath(metadata) {
   return path.join(dir, `${metadata.checksum}.jpg`);
 }
 
-export function getPrevPath(metadata) {
+export function getVideoPreviewPath(metadata) {
   const year = metadata.uploadDate.getFullYear().toString();
   const month = (metadata.uploadDate.getMonth() + 1).toString().padStart(2, "0");
-  const dir = path.join(STORAGE_DIR, "prevs", year, month);
+  const dir = path.join(STORAGE_DIR, "vprevs", year, month);
   mkdirSync(dir, { recursive: true });
-  return path.join(dir, `${metadata.checksum}.jpg`);
+  return path.join(dir, `${metadata.checksum}.mp4`);
 }
 
 export function getFinalPath(metadata, ext) {

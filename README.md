@@ -93,7 +93,9 @@ Search suggestions and `notes:` filtering use an in-memory Fuse.js index built f
 
 - `full/YYYY/MM/<checksum>.<ext>` - original uploaded media
 - `thumbs/YYYY/MM/<checksum>.jpg` - thumbnail derivative
-- `prevs/YYYY/MM/<checksum>.jpg` - preview derivative
+- `vprevs/YYYY/MM/<checksum>.mp4` - short silent AV1 clip, played on hover for videos
+- `prevs/YYYY/MM/<checksum>.jpg` - **no longer generated**; existing files are left in
+  place and are safe to delete
 - `tmp/` - temporary upload/transcode files
 - `deleted/` - soft-deleted files (same sub-structure as above)
 

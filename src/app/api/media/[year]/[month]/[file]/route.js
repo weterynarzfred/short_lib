@@ -126,6 +126,12 @@ export async function GET(req, { params }) {
     filename = `${checksum}.jpg`;
   }
 
+  // Short silent AV1 clip used for hover previews on video posts.
+  if (size === "vprev") {
+    baseDir = "vprevs";
+    filename = `${checksum}.mp4`;
+  }
+
   const basePath = path.resolve(STORAGE_DIR, baseDir);
   const filePath = path.resolve(basePath, year, month, filename);
   const relative = path.relative(basePath, filePath);

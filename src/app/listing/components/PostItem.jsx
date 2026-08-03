@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import classNames from "classnames";
 import Image from "next/image";
 
@@ -14,8 +17,13 @@ export default function PostItem({
   onInteractPost,
 }) {
   const thumb = post?.variants?.thumb;
+  const videoPreview = post?.variants?.videoPreview;
   const badgeLabel = getPostBadgeLabel(post);
   const subtitles = getPostSubtitles(post, subtitleKinds);
+
+  // Mounted only while hovered, so a grid of 100 cards is not 100 decoding videos. The
+  // thumbnail stays underneath, which keeps the card's height stable during the swap.
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   return <div
     className={classNames(styles.card, {
@@ -23,6 +31,8 @@ export default function PostItem({
       [styles.selectionMode]: isMultiSelectEnabled,
     })}
     onClick={event => onInteractPost(post.id, event)}
+    onMouseEnter={videoPreview ? () => setIsPreviewing(true) : undefined}
+    onMouseLeave={videoPreview ? () => setIsPreviewing(false) : undefined}
   >
     {isMultiSelectEnabled ?
       <div className={styles.selectIndicator}>{isSelected ? "x" : ""}</div> :
@@ -41,6 +51,19 @@ export default function PostItem({
         // filename takes the space the image would have occupied.
         <div className={styles.thumbFallbackName}>{post.original_filename}</div>
       )}
+
+      {isPreviewing && videoPreview ? (
+        <video
+          className={styles.hoverPreview}
+          src={`/api/media/${post.file_path}?size=vprev`}
+          autoPlay
+          loop
+          muted
+          playsInline
+          // Pointer events would land on the video instead of the card, breaking clicks.
+          style={{ pointerEvents: "none" }}
+        />
+      ) : null}
 
       <div className={styles.fileExtBadge}>{badgeLabel}</div>
     </div>

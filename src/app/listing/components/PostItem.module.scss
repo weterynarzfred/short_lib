@@ -47,6 +47,18 @@
     pointer-events: none;
   }
 
+  // Sits over the thumbnail rather than replacing it, so the card does not resize when the
+  // preview appears or the clip fails to load.
+  .hoverPreview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: $radiusMd;
+    object-fit: contain;
+    background: $colorBg;
+  }
+
   // Centred on both axes by the flex container, standing in for the missing image.
   .thumbFallbackName {
     padding: 0.6rem;
