@@ -86,6 +86,15 @@ export function TooltipProvider({ children }) {
     requestRef.current += 1;
   }, []);
 
+  // How an open card dismisses itself. It must not use `hideTooltip`: moving the pointer
+  // from one anchor straight onto the next fires the old card's watcher *after* the new
+  // anchor has already scheduled its request, and a full hide would clear that timer and
+  // bump the request counter - which is why every second hover did nothing.
+  const closeCard = useCallback(requestId => {
+    if (requestId === requestRef.current) hideTooltip();
+    else setState(null);
+  }, [hideTooltip]);
+
   const showTooltip = useCallback(({
     rect,
     content = null,
@@ -111,7 +120,7 @@ export function TooltipProvider({ children }) {
       // A later request, or a hide, happened while this was in flight.
       if (requestId !== requestRef.current || !resolved) return;
 
-      setState({ content: resolved, anchor, source });
+      setState({ content: resolved, anchor, source, requestId });
     };
 
     // Keyboard focus is already a deliberate act, so it should not also wait out a delay
@@ -168,7 +177,7 @@ export function TooltipProvider({ children }) {
           content={state.content}
           anchor={state.anchor}
           source={state.source}
-          onClose={hideTooltip}
+          onClose={() => closeCard(state.requestId)}
         />
       ) : null}
     </TooltipContext.Provider>

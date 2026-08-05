@@ -1,0 +1,50 @@
+@use "/src/scss/variables" as *;
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  // Column gap wider than the word spacing inside a multi-word tag, so "office chair" reads
+  // as one tag rather than two.
+  gap: 0.15rem 0.6rem;
+}
+
+// The colour comes from the tag-type class, which outranks the global `a { color: inherit }`.
+.tag {
+  overflow-wrap: anywhere;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.meta {
+  color: $colorContent2;
+  font-size: 0.75rem;
+}
+
+.muted {
+  color: $colorContent2;
+  font-style: italic;
+}
+
+// Clipped twice: by character count so the card never carries a page of OCR text, and by
+// line count so a run of short lines cannot make it tall either.
+.notes {
+  padding-top: 0.35rem;
+  border-top: 1px solid $colorBorder;
+  color: $colorContent2;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
+  overflow: hidden;
+}

@@ -3,7 +3,7 @@ import formatDate from "@/lib/formatDate";
 import { MAX_SCORE } from "@/lib/score";
 
 // `formatBytes` reports 0 for a missing size, which would read as a real measurement.
-function formatFileSize(fileSize) {
+export function formatFileSize(fileSize) {
   const bytes = Number(fileSize);
   if (!Number.isFinite(bytes) || bytes <= 0) return "";
 
@@ -25,7 +25,7 @@ function formatTagCount(tagCount) {
 
 // A row of stars reads at a glance where a bare number would not. Zero renders nothing,
 // so an unrated post simply has no score line.
-function formatScore(score) {
+export function formatScore(score) {
   const value = Number(score);
   if (!Number.isFinite(value) || value <= 0) return "";
 

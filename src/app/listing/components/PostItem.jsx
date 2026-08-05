@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import getPostBadgeLabel from "../lib/postBadge";
 import getPostSubtitles from "../lib/postSubtitle";
+import { usePostTooltip } from "./PostTooltip";
 
 import styles from "./PostItem.module.scss";
 
@@ -25,14 +26,30 @@ export default function PostItem({
   // thumbnail stays underneath, which keeps the card's height stable during the swap.
   const [isPreviewing, setIsPreviewing] = useState(false);
 
+  // Both the preview and the tooltip hang off the same hover, so the handlers are merged
+  // rather than one overwriting the other.
+  const { getHoverProps, hidePostTooltip } = usePostTooltip();
+  const tooltipHoverProps = getHoverProps(post, subtitleKinds);
+
   return <div
     className={classNames(styles.card, {
       [styles.selected]: isSelected,
       [styles.selectionMode]: isMultiSelectEnabled,
     })}
-    onClick={event => onInteractPost(post.id, event)}
-    onMouseEnter={videoPreview ? () => setIsPreviewing(true) : undefined}
-    onMouseLeave={videoPreview ? () => setIsPreviewing(false) : undefined}
+    onClick={event => {
+      // The panel opens over the same area the card sits in, so a lingering tooltip would
+      // end up floating on top of it.
+      hidePostTooltip();
+      onInteractPost(post.id, event);
+    }}
+    onMouseEnter={event => {
+      if (videoPreview) setIsPreviewing(true);
+      tooltipHoverProps.onMouseEnter(event);
+    }}
+    onMouseLeave={() => {
+      if (videoPreview) setIsPreviewing(false);
+      tooltipHoverProps.onMouseLeave();
+    }}
   >
     {isMultiSelectEnabled ?
       <div className={styles.selectIndicator}>{isSelected ? "x" : ""}</div> :
