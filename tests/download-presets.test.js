@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildDownloadFilename,
+  clampCrf,
+  CRF_MAX,
+  CRF_MIN,
+  DEFAULT_CRF,
   DOWNLOAD_PRESETS,
   getPresetsForMimeType,
   isPresetAllowed,
@@ -83,6 +87,41 @@ describe("presets", () => {
     expect(supportsTrim("video/mp4")).toBe(true);
     expect(supportsTrim("audio/mpeg")).toBe(true);
     expect(supportsTrim("image/png")).toBe(false);
+  });
+});
+
+describe("clampCrf", () => {
+  // The whole range is offered on purpose, extremes included.
+  it("keeps any value AV1 accepts", () => {
+    expect(clampCrf(CRF_MIN)).toBe(CRF_MIN);
+    expect(clampCrf(CRF_MAX)).toBe(CRF_MAX);
+    expect(clampCrf(32)).toBe(32);
+    expect(clampCrf("18")).toBe(18);
+  });
+
+  it("clamps out-of-range values rather than refusing them", () => {
+    expect(clampCrf(-10)).toBe(CRF_MIN);
+    expect(clampCrf(999)).toBe(CRF_MAX);
+  });
+
+  it("rounds fractions and falls back for junk", () => {
+    expect(clampCrf(31.4)).toBe(31);
+    expect(clampCrf(31.6)).toBe(32);
+    expect(clampCrf("abc")).toBe(DEFAULT_CRF);
+    expect(clampCrf(null)).toBe(DEFAULT_CRF);
+    expect(clampCrf(undefined)).toBe(DEFAULT_CRF);
+    expect(clampCrf("")).toBe(DEFAULT_CRF);
+  });
+});
+
+describe("video options", () => {
+  // Only the AV1 preset has a video encode to adjust: mp3 is audio-only, and jpeg and
+  // original have no audio stage at all.
+  it("belong to the av1 preset alone", () => {
+    expect(DOWNLOAD_PRESETS.av1.videoOptions).toBe(true);
+    expect(DOWNLOAD_PRESETS.mp3.videoOptions).toBeUndefined();
+    expect(DOWNLOAD_PRESETS.jpeg.videoOptions).toBeUndefined();
+    expect(DOWNLOAD_PRESETS.original.videoOptions).toBeUndefined();
   });
 });
 

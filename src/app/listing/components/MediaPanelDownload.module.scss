@@ -44,6 +44,21 @@
   }
 }
 
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: $fontSizeMonoInput;
+  cursor: pointer;
+}
+
+.crfInput {
+  @include inputBase(0 0.3rem);
+
+  width: 4rem;
+  font-size: $fontSizeMonoInput;
+}
+
 .hint {
   @include subtleText();
 }

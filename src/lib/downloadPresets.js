@@ -1,5 +1,23 @@
 import mimetypeToType from "@/lib/mimetypeToType";
 
+// AV1's full range. Deliberately unrestricted rather than clipped to the useful band -
+// the UI explains what the extremes cost instead of refusing them.
+export const CRF_MIN = 0;
+export const CRF_MAX = 63;
+export const DEFAULT_CRF = 32;
+
+export function clampCrf(value) {
+  // Checked before coercion: Number("") and Number(null) are both 0, so a cleared field or
+  // a bare `crf=` would silently mean lossless rather than the default.
+  if (value === null || value === undefined) return DEFAULT_CRF;
+  if (typeof value === "string" && value.trim() === "") return DEFAULT_CRF;
+
+  const crf = Number(value);
+  if (!Number.isFinite(crf)) return DEFAULT_CRF;
+
+  return Math.min(Math.max(Math.round(crf), CRF_MIN), CRF_MAX);
+}
+
 // `original` is always available; the rest are offered per media type.
 export const DOWNLOAD_PRESETS = {
   original: {
@@ -23,10 +41,13 @@ export const DOWNLOAD_PRESETS = {
   },
   av1: {
     key: "av1",
-    label: "av1 mp4 (crf 32)",
+    label: "av1 mp4",
     appliesTo: "video",
     extension: "mp4",
     contentType: "video/mp4",
+    // Quality and audio are only adjustable where there is a video encode to adjust:
+    // mp3 is audio-only, and jpeg and original have no audio stage at all.
+    videoOptions: true,
   },
 };
 

@@ -4,8 +4,10 @@ import { spawn } from "child_process";
 
 import db from "@/lib/db";
 import {
+  CRF_MAX,
   DOWNLOAD_PRESETS,
   buildDownloadFilename,
+  clampCrf,
   isPresetAllowed,
   resolveTrim,
   supportsTrim,
@@ -41,14 +43,17 @@ function detectAv1Encoder() {
   return av1EncoderPromise;
 }
 
-function buildVideoArgs(encoder) {
+function buildVideoArgs(encoder, crf) {
   if (encoder === "libsvtav1")
-    return ["-c:v", "libsvtav1", "-crf", "32", "-preset", "8"];
+    return ["-c:v", "libsvtav1", "-crf", String(crf), "-preset", "8"];
 
   if (encoder === "libaom-av1")
-    return ["-c:v", "libaom-av1", "-crf", "32", "-b:v", "0", "-cpu-used", "6"];
+    return ["-c:v", "libaom-av1", "-crf", String(crf), "-b:v", "0", "-cpu-used", "6"];
 
-  return ["-c:v", "librav1e", "-qp", "80"];
+  // rav1e has no CRF; its quantizer runs 0-255, so the requested quality is scaled onto
+  // that range rather than passed through.
+  const qp = Math.round((crf / CRF_MAX) * 255);
+  return ["-c:v", "librav1e", "-qp", String(qp)];
 }
 
 function spawnFfmpeg(args, signal, label) {
@@ -164,13 +169,20 @@ export async function GET(req) {
     const encoder = await detectAv1Encoder();
     if (!encoder) return new Response("No AV1 encoder available", { status: 501 });
 
+    // Clamped rather than rejected: an out-of-range value can only produce a bounded
+    // encode, never a wrong one, and this matches how limit: and score: behave.
+    const crf = clampCrf(url.searchParams.get("crf"));
+    const dropAudio = url.searchParams.get("noAudio") === "1";
+
+    args.push("-map", "0:v:0?");
+    if (!dropAudio) args.push("-map", "0:a?");
+
+    args.push(...buildVideoArgs(encoder, crf), "-pix_fmt", "yuv420p");
+
+    if (dropAudio) args.push("-an");
+    else args.push("-c:a", "aac", "-b:a", "192k");
+
     args.push(
-      "-map", "0:v:0?",
-      "-map", "0:a?",
-      ...buildVideoArgs(encoder),
-      "-pix_fmt", "yuv420p",
-      "-c:a", "aac",
-      "-b:a", "192k",
       // Fragmented output, because a pipe cannot be seeked back to write the moov atom.
       "-movflags", "+frag_keyframe+empty_moov",
       "-f", "mp4",

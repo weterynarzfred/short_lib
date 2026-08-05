@@ -3,6 +3,10 @@
 import { useMemo, useState } from "react";
 
 import {
+  CRF_MAX,
+  CRF_MIN,
+  DEFAULT_CRF,
+  DOWNLOAD_PRESETS,
   getPresetsForMimeType,
   resolveTrim,
   supportsTrim,
@@ -16,6 +20,11 @@ export default function MediaPanelDownload({ post }) {
   const [preset, setPreset] = useState("original");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  // Kept as a string so the field can be cleared while typing; the route clamps anyway.
+  const [crf, setCrf] = useState(String(DEFAULT_CRF));
+  const [dropAudio, setDropAudio] = useState(false);
+
+  const hasVideoOptions = DOWNLOAD_PRESETS[preset]?.videoOptions === true;
 
   const presets = useMemo(
     () => getPresetsForMimeType(post.mime_type),
@@ -35,8 +44,13 @@ export default function MediaPanelDownload({ post }) {
       if (end.trim()) params.set("end", end.trim());
     }
 
+    if (hasVideoOptions) {
+      params.set("crf", crf.trim() || String(DEFAULT_CRF));
+      if (dropAudio) params.set("noAudio", "1");
+    }
+
     return `/api/download/post?${params.toString()}`;
-  }, [post.id, preset, trim, start, end]);
+  }, [post.id, preset, trim, start, end, hasVideoOptions, crf, dropAudio]);
 
   return (
     <div className={styles.download}>
@@ -59,6 +73,32 @@ export default function MediaPanelDownload({ post }) {
           aria-disabled={isTrimInvalid || undefined}
         >download</a>
       </div>
+
+      {hasVideoOptions ? (
+        <div className={styles.row}>
+          <label className={styles.option} htmlFor={`download-crf-${post.id}`}>
+            crf
+            <input
+              id={`download-crf-${post.id}`}
+              className={styles.crfInput}
+              type="number"
+              min={CRF_MIN}
+              max={CRF_MAX}
+              value={crf}
+              onChange={event => setCrf(event.target.value)}
+            />
+          </label>
+
+          <label className={styles.option}>
+            <input
+              type="checkbox"
+              checked={dropAudio}
+              onChange={event => setDropAudio(event.target.checked)}
+            />
+            no audio
+          </label>
+        </div>
+      ) : null}
 
       {supportsTrim(post.mime_type) ? (
         <div className={styles.row}>
