@@ -7,6 +7,7 @@ import {
   updatePostScoreAction,
   updatePostTagsAction,
 } from "@/lib/actions";
+import formatBytes from "@/lib/formatBytes";
 import isEditableTarget from "@/lib/isEditableTarget";
 import ScoreInput from "@/components/ScoreInput";
 import TagEditor from "@/components/TagEditor";
@@ -231,6 +232,15 @@ export default function MediaPanelMeta({
           </div>
         </div>
       </div>
+
+      {Number.isFinite(Number(post.file_size)) && Number(post.file_size) > 0 ? (
+        // Guarded rather than always rendered: formatBytes reports "0 B" for a missing
+        // size, which reads as a real measurement of an empty file.
+        <div className={styles.fileSize}>
+          <span className={styles.fileSizeLabel}>file size</span>
+          <span>{formatBytes(post.file_size)}</span>
+        </div>
+      ) : null}
 
       <MediaPanelDownload post={post} />
 

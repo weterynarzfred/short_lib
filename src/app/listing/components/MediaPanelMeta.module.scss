@@ -66,6 +66,17 @@
   }
 }
 
+.fileSize {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.fileSizeLabel {
+  @include subtleText();
+}
+
 .filename {
   display: flex;
   flex-direction: column;
