@@ -7,6 +7,7 @@ import {
   updatePostScoreAction,
   updatePostTagsAction,
 } from "@/lib/actions";
+import isEditableTarget from "@/lib/isEditableTarget";
 import ScoreInput from "@/components/ScoreInput";
 import TagEditor from "@/components/TagEditor";
 import MediaPanelDownload from "./MediaPanelDownload";
@@ -44,8 +45,8 @@ export default function MediaPanelMeta({
   useEffect(() => {
     function handleKeydown(event) {
       if (event.repeat) return;
-      const active = document.activeElement;
-      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) return;
+      if (isEditableTarget(event.target)) return;
+
       if (event.key === "e") {
         event.preventDefault();
         tagFocusRef.current?.focus();
@@ -199,9 +200,8 @@ export default function MediaPanelMeta({
               placeholder="original filename"
               onChange={event => setFilenameValue(event.target.value)}
               onKeyDown={event => {
-                if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-                  event.stopPropagation();
-                } else if (event.key === "Escape") {
+                // No arrow handling needed: navigation ignores events aimed at a field.
+                if (event.key === "Escape") {
                   event.stopPropagation();
                   event.currentTarget.blur();
                 } else if (event.key === "Enter") {

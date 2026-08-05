@@ -52,9 +52,10 @@ export default function MediaPanelNotesEditor({ postId, initialValue, onPatchPos
         placeholder="notes"
         onChange={event => setNotesValue(event.target.value)}
         onKeyDown={event => {
-          if (event.key === "ArrowLeft" || event.key === "ArrowRight")
-            event.stopPropagation();
-          else if (event.key === "Escape") {
+          // Arrow keys used to be stopped here because they navigated between posts.
+          // Navigation now ignores events aimed at a field, so no key needs special
+          // handling just to keep the caret working.
+          if (event.key === "Escape") {
             event.stopPropagation();
             event.currentTarget.blur();
           }
