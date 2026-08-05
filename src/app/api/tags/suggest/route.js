@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
-import { searchTagSuggestions } from "@/lib/search";
+import { searchTagSuggestions } from "@/lib/tagSuggestions";
 
 const OPERATORS = [
   {

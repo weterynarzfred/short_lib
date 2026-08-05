@@ -154,3 +154,29 @@ describe("addMediaToDb", () => {
     ]);
   });
 });
+
+// The duplicate guard the upload route depends on: one query for the whole batch, and
+// blanks never reach it.
+describe("findExistingChecksums", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("de-duplicates parameters and returns the first usable match", async () => {
+    const all = vi.fn(() => [
+      { id: 1, checksum: "" },
+      { id: 2, checksum: "abc" },
+    ]);
+    const db = { prepare: vi.fn(() => ({ all })) };
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { findExistingChecksums } = await import("@/lib/mediaChecksums");
+
+    expect(findExistingChecksums(["abc", "abc", null, "def", ""]))
+      .toEqual({ id: 2, checksum: "abc" });
+    expect(all).toHaveBeenCalledWith("abc", "def");
+    // Nothing usable to look up means no query at all.
+    expect(findExistingChecksums([null, "", 123])).toBeUndefined();
+    expect(db.prepare).toHaveBeenCalledTimes(1);
+  });
+});

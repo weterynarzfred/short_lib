@@ -11,6 +11,9 @@
   - `src/lib/*` for shared server logic
   - `src/lib/listingQuery/*` for the search pipeline, shared by the listing page and `/api/listing`
   - `src/components/*` for reusable UI parts
+- Two Fuse-backed searches, deliberately separate: `src/lib/search.js` matches media text
+  (notes and filenames, indexes cached until something edits them) and
+  `src/lib/tagSuggestions.js` matches tag names for the editors (rebuilt per call).
 
 ## Data Model (SQLite)
 
@@ -40,6 +43,7 @@ one has, which fails if an `ADDED_COLUMNS` entry is forgotten.
 - `media`
   - file path, created timestamp (ms), size, MIME, dimensions, duration
   - `original_filename`, `notes_md`, `variants` (JSON), `checksum`
+  - `score` 0-5, where 0 means unrated - there is deliberately no distinct "unset"
 - `tags`
   - unique `name`, `type`, `post_count` (cache to prevent counting on every request)
   - `description` (free text, shown on the tag list)
@@ -68,7 +72,11 @@ one has, which fails if an `ADDED_COLUMNS` entry is forgotten.
 - `GET /api/tags/suggest?q=&is_edit=` 
   - Returns operator suggestions + in-memory Fuse-backed tag suggestions for search and tag editors.
 
-- `GET /api/media/[year]/[month]/[file]?size=thumb|prev`
+- `GET /api/tags/lookup?name=`
+  - One tag with its stats, description, aliases and implications, for the tag tooltip.
+  - An alias resolves to its target and reports which alias matched.
+
+- `GET /api/media/[year]/[month]/[file]?size=thumb|vprev`
   - Streams full media or derived variants.
   - Supports HTTP range requests for non-MKV files.
   - Remuxes MKV to MP4 stream on the fly.
@@ -77,6 +85,20 @@ one has, which fails if an `ADDED_COLUMNS` entry is forgotten.
   - Takes `{ postIds: number[] }` and returns a zip of the original files.
   - Names entries from `original_filename`, de-duplicating collisions as `name (n).ext`.
   - Blocks traversal outside `STORAGE_DIR/full` and skips missing files.
+
+- `GET /api/download/post?id=&preset=&start=&end=&crf=&noAudio=&mode=&targetMb=`
+  - One post, streamed as it encodes. Presets: `original`, `jpeg`, `mp3`, `av1`.
+  - `start`/`end` trim. Cuts are frame-exact because the output is re-encoded, which is
+    also why `original` cannot be trimmed.
+  - `mode=size` switches from CRF to a two-pass target size. Pass 1 emits nothing, so the
+    body is a `PassThrough` that pass 2 is piped into once the analysis finishes. Its
+    passlog is UUID-named under `STORAGE_DIR/tmp` and removed by prefix afterwards, or two
+    concurrent downloads would read each other's statistics.
+  - Measured results landed between 0.87x and 1.01x of the requested size.
+
+`src/lib/ffmpeg.js` wraps every ffmpeg call in the app: keep the tail of stderr for the
+error message, kill the process when the client aborts, and report the exit code.
+`generateVideoPreview.js` has its own copy on purpose - see below.
 
 ## Upload Pipeline
 
@@ -129,8 +151,8 @@ Route: `src/app/api/media/[year]/[month]/[file]/route.js`
 - Streams from:
   - `full` (original media)
   - `thumbs` when `?size=thumb`
-  - `prevs` when `?size=prev` (legacy; no longer generated)
   - `vprevs` when `?size=vprev` - the hover preview clip
+  - any other `size` falls back to the original
 - Supports HTTP range requests for normal files.
 - For `.mkv`, remuxes to MP4 stream on demand with `ffmpeg`.
 
@@ -208,7 +230,7 @@ action boundary.
 ## Delete and Storage Maintenance
 
 - Post delete (`src/lib/deletePost.js`):
-  - moves matching files from `full/thumbs/prevs` into `deleted/...`
+  - moves matching files from `full`, `thumbs` and `vprevs` into `deleted/...`
   - deletes media DB row
   - decrements linked tag post counts
 - Deleted-bin cleanup (`src/lib/clearDeletedStorage.js`):
@@ -219,26 +241,50 @@ action boundary.
 `src/lib/getHomeStats.js`
 
 - DB aggregate stats (post counts and total media bytes)
-- filesystem usage across `full`, `thumbs`, `prevs`, and `deleted`
+- filesystem usage across `full`, `thumbs`, `vprevs`, and `deleted`
 
 ## Client UX Notes
 
 - Upload page uses XHR progress per file (`useUploadQueue`).
 - Listing uses infinite loading + manual "load more" fallback.
 - Media panel keyboard controls:
-  - `ArrowLeft` / `ArrowRight` for prev/next
-  - `Escape` to close panel
+  - `ArrowUp` / `ArrowDown` for prev/next. Left/Right are deliberately unbound so they
+    reach a focused video and seek it.
+  - `Escape` to close the panel, `e` to focus tags, `n` to focus notes.
+  - `src/lib/isEditableTarget.js` is the single guard that makes all of these stand aside
+    while something is taking typed input.
 - Notes/tag editors support `Ctrl+Enter` or `Cmd+Enter` to save.
+
+### Tooltips
+
+`src/components/TooltipProvider.jsx` is one card for the whole app, positioned `fixed` from
+a viewport rect. It owns placement, timing and dismissal and knows nothing about what it is
+describing: callers pass `content` directly, or `load` + `cacheKey` for anything fetched.
+
+- `TagTooltip` is the tag-shaped user of it (lookup + card), `PostTooltip` the post-shaped
+  one (synchronous - the listing row already carries tags, score, notes and the rest),
+  `useFieldHint` + `InfoHint` the "(i)" icons next to form controls.
+- A card opened by **focus** records that it was, because the pointer watcher that closes a
+  hovered card would close it on the first stray mouse movement. Focus is dismissed by blur
+  or Escape instead, and skips the open delay.
+- The card is measured at the left edge before being placed: a `fixed` element with only
+  `left` set is shrink-to-fit, so measuring it near the right edge reads a squeezed width.
+- An open card dismisses itself through `closeCard(requestId)`, not `hideTooltip` - moving
+  the pointer straight from one anchor to the next fires the old card's watcher *after* the
+  new one has scheduled its request, and a full hide would cancel it.
 
 ## Test Coverage
 
-Vitest tests in `tests/` cover:
+Vitest tests in `tests/`, one file per subject rather than one per source module:
 
-- route behavior (`/api/upload`, `/api/listing`, `/api/tags/suggest`, `/api/media`)
-- search parsing and SQL building
-- tag management, aliases, implications, and settings logic
-- upload helpers and metadata extraction
-- integration flows over temporary SQLite databases
+- routes: `upload-route`, `listing-route`, `media-route`, `download-route`,
+  `tags-suggest-route`, `tags-lookup-route`
+- search: `search-query`, `text-search`, `extract-snippet`
+- tags: `add-tags`, `manage-tag`, `tag-implications`, `tags-language`
+- display helpers: `post-display` (badge, subtitles, tooltip), `formatting`, `ui-helpers`
+- storage and schema: `storage` (delete, deleted-bin, home stats), `schema`
+- pipelines: `upload-pipeline`, `extract-metadata`, `process-video`, `video-preview`
+- whole features end to end: `score`, `integration-db`, `actions`
 
 DB-backed tests build their database with `tests/helpers/tempDb.js`, which applies the real
 `applySchema`. Prefer that over hand-written `CREATE TABLE` or a fake `db.prepare` that

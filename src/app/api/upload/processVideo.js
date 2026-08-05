@@ -1,30 +1,20 @@
 import fs from "fs/promises";
 import { spawn } from "child_process";
 
+import { runFfmpeg } from "@/lib/ffmpeg";
 import processImage from "./processImage";
 import generateVideoPreview from "@/lib/generateVideoPreview";
 import { getTempPath, getVideoPreviewPath } from "@/app/api/upload/path_helpers";
 
+// A quarter of the way in, which is far enough past a title card to be recognisable.
 function extractFrame(input, output, duration) {
-  return new Promise((resolve, reject) => {
-    const timestampSeconds = (duration * 0.25) / 1000;
-
-    const ff = spawn("ffmpeg", [
-      "-y",
-      "-ss",
-      String(timestampSeconds),
-      "-i",
-      input,
-      "-frames:v",
-      "1",
-      output,
-    ]);
-
-    ff.on("close", code => {
-      if (code === 0) resolve();
-      else reject(new Error("ffmpeg failed"));
-    });
-  });
+  return runFfmpeg([
+    "-y",
+    "-ss", String((duration * 0.25) / 1000),
+    "-i", input,
+    "-frames:v", "1",
+    output,
+  ], { label: "extracting a video frame" }).closed;
 }
 
 export default async function processVideo(metadata) {

@@ -38,6 +38,36 @@ export function normalizeTagTypeColor(value) {
   return color.startsWith("#") ? color : `#${color}`;
 }
 
+// A stored map of type -> colour, cleaned up: lowercased keys, every value a usable hex.
+export function normalizeTagTypeColors(rawValue) {
+  const normalized = {};
+  if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue))
+    return normalized;
+
+  for (const [rawType, rawColor] of Object.entries(rawValue)) {
+    const type = String(rawType ?? "").trim().toLowerCase();
+    if (!type) continue;
+    normalized[type] = normalizeTagTypeColor(rawColor);
+  }
+
+  return normalized;
+}
+
+// The colours actually in play: one entry per type that exists, preferring the stored
+// colour and falling back to the default. Types that no longer exist drop out.
+export function mergeTagTypeColors(preferredColors = {}, availableTypes = []) {
+  const normalizedColors = normalizeTagTypeColors(preferredColors);
+  const merged = {};
+
+  for (const rawType of availableTypes) {
+    const type = String(rawType ?? "").trim().toLowerCase();
+    if (!type || merged[type]) continue;
+    merged[type] = normalizedColors[type] ?? DEFAULT_TAG_TYPE_COLOR;
+  }
+
+  return merged;
+}
+
 export function getTagTypeClassName(value) {
   const suffix = String(value ?? "").trim().replace(TAG_TYPE_CLASS_CHAR_PATTERN, "_");
   return suffix ? `tag-type-${suffix}` : "";

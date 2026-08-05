@@ -26,7 +26,7 @@ describe("tags suggest route", () => {
     const { db } = createDbMock();
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q="));
@@ -42,7 +42,7 @@ describe("tags suggest route", () => {
       { id: 2, name: "mime", type: "general", postCount: 7 },
     ]);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=mi"));
@@ -62,7 +62,7 @@ describe("tags suggest route", () => {
     });
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=mime_type:video/"));
@@ -79,7 +79,7 @@ describe("tags suggest route", () => {
     const { db } = createDbMock();
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=order:im"));
@@ -94,7 +94,7 @@ describe("tags suggest route", () => {
     const { db } = createDbMock();
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=no"));
@@ -107,7 +107,7 @@ describe("tags suggest route", () => {
   it("marks free-text operators so accepting them opens a quoted phrase", async () => {
     const { db } = createDbMock();
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=n"));
@@ -121,7 +121,7 @@ describe("tags suggest route", () => {
   it("marks which operators have a value list", async () => {
     const { db } = createDbMock();
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const byName = new Map(
@@ -149,7 +149,7 @@ describe("tags suggest route", () => {
   it("does not mark operators that take a value from a list", async () => {
     const { db } = createDbMock();
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions: vi.fn(async () => []) }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=o"));
@@ -164,7 +164,7 @@ describe("tags suggest route", () => {
     });
     const searchTagSuggestions = vi.fn(async () => []);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=has:c"));
@@ -183,7 +183,7 @@ describe("tags suggest route", () => {
       { id: 3, name: "misc", type: "general", postCount: 9 },
     ]);
     vi.doMock("@/lib/db", () => ({ default: db }));
-    vi.doMock("@/lib/search", () => ({ searchTagSuggestions }));
+    vi.doMock("@/lib/tagSuggestions", () => ({ searchTagSuggestions }));
 
     const { GET } = await import("../src/app/api/tags/suggest/route");
     const res = await GET(new Request("http://localhost/api/tags/suggest?q=mi&is_edit=true"));

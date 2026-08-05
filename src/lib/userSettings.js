@@ -1,10 +1,10 @@
 import db from "@/lib/db";
 import {
-  DEFAULT_TAG_TYPE_COLOR,
   DEFAULT_TAG_TYPE_ORDER,
   buildTagTypeColorsCss,
   buildTagTypeOrderSql,
-  normalizeTagTypeColor,
+  mergeTagTypeColors,
+  normalizeTagTypeColors,
   normalizeTagTypeOrder,
 } from "@/lib/tagTypeOrder";
 
@@ -101,33 +101,20 @@ function normalizeTagNames(rawValue) {
   return normalized;
 }
 
-function parseStoredTagNames(rawValue) {
-  if (typeof rawValue !== "string") return [];
+// Settings are written as JSON, but rows written before that are plain strings, so both
+// shapes are read. Each caller supplies its own normaliser, which decides the empty value.
+function parseStored(rawValue, normalize) {
+  if (typeof rawValue !== 'string') return normalize(null);
 
   const trimmed = rawValue.trim();
-  if (!trimmed) return [];
+  if (!trimmed) return normalize(null);
 
   try {
-    const parsed = JSON.parse(trimmed);
-    return normalizeTagNames(parsed);
-  } catch { }
-
-  return normalizeTagNames(trimmed);
+    return normalize(JSON.parse(trimmed));
+  } catch {
+    return normalize(trimmed);
+  }
 }
-
-function parseStoredTagTypeOrder(rawValue) {
-  if (typeof rawValue !== "string") return [];
-
-  const trimmed = rawValue.trim();
-  if (!trimmed) return [];
-
-  try {
-    return normalizeTagTypeOrder(JSON.parse(trimmed));
-  } catch { }
-
-  return normalizeTagTypeOrder(trimmed);
-}
-
 function mergeTagTypeOrder(preferredOrder = [], availableTypes = []) {
   const merged = [];
   const seen = new Set();
@@ -140,48 +127,6 @@ function mergeTagTypeOrder(preferredOrder = [], availableTypes = []) {
   }
 
   return merged.length ? merged : [...DEFAULT_TAG_TYPE_ORDER];
-}
-
-function normalizeTagTypeColors(rawValue) {
-  const normalized = {};
-  if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue))
-    return normalized;
-
-  for (const [rawType, rawColor] of Object.entries(rawValue)) {
-    const type = String(rawType ?? "").trim().toLowerCase();
-    if (!type) continue;
-    normalized[type] = normalizeTagTypeColor(rawColor);
-  }
-
-  return normalized;
-}
-
-function parseStoredTagTypeColors(rawValue) {
-  if (typeof rawValue !== "string") return {};
-
-  const trimmed = rawValue.trim();
-  if (!trimmed) return {};
-
-  try {
-    return normalizeTagTypeColors(JSON.parse(trimmed));
-  } catch {
-    return {};
-  }
-}
-
-function mergeTagTypeColors(preferredColors = {}, availableTypes = []) {
-  const normalizedColors = normalizeTagTypeColors(preferredColors);
-  const merged = {};
-  const seen = new Set();
-
-  for (const rawType of availableTypes) {
-    const type = String(rawType ?? "").trim().toLowerCase();
-    if (!type || seen.has(type)) continue;
-    seen.add(type);
-    merged[type] = normalizedColors[type] ?? DEFAULT_TAG_TYPE_COLOR;
-  }
-
-  return merged;
 }
 
 function getAvailableTagTypes() {
@@ -227,7 +172,7 @@ export function setMediaSettings(partialSettings) {
 export function getBlacklistedTags() {
   try {
     const row = getSettingStmt.get(BLACKLISTED_TAGS_KEY);
-    return parseStoredTagNames(row?.value);
+    return parseStored(row?.value, normalizeTagNames);
   } catch {
     return [];
   }
@@ -250,7 +195,7 @@ export function getTagTypeOrder() {
 
   try {
     const row = getSettingStmt.get(TAG_TYPE_ORDER_KEY);
-    const storedOrder = parseStoredTagTypeOrder(row?.value);
+    const storedOrder = parseStored(row?.value, normalizeTagTypeOrder);
     const preferredOrder = storedOrder.length ? storedOrder : DEFAULT_TAG_TYPE_ORDER;
     return mergeTagTypeOrder(preferredOrder, availableTypes);
   } catch {
@@ -275,7 +220,7 @@ export function getTagTypeColors() {
 
   try {
     const row = getSettingStmt.get(TAG_TYPE_COLORS_KEY);
-    const storedColors = parseStoredTagTypeColors(row?.value);
+    const storedColors = parseStored(row?.value, normalizeTagTypeColors);
     return mergeTagTypeColors(storedColors, availableTypes);
   } catch {
     return mergeTagTypeColors({}, availableTypes);

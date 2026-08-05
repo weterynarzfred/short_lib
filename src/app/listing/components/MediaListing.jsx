@@ -63,7 +63,6 @@ export default function MediaListing({
     [selectedPostIds]
   );
   const selectedCount = selectedPostIds.length;
-  const isBulkEditActive = isMultiSelectEnabled;
   const activePostId = active?.id ?? null;
 
   const clearSelection = useCallback(() => {
@@ -188,8 +187,8 @@ export default function MediaListing({
         onLoadMore={loadMore}
       />
 
-      <div className={classNames(styles.sidebar, { [styles.sidebarActive]: isPanelActive || isBulkEditActive })}>
-        {isBulkEditActive ? (
+      <div className={classNames(styles.sidebar, { [styles.sidebarActive]: isPanelActive || isMultiSelectEnabled })}>
+        {isMultiSelectEnabled ? (
           <MediaPanelBulkTagEditor
             postIds={selectedPostIds}
             onDeleteAll={clearSelection}

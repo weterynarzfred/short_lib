@@ -173,6 +173,15 @@ export default function useUploadQueue() {
     setUploads(prev => prev.filter(upload => !isUploadSettled(upload)));
   }, []);
 
+  // One way to change an entry, rather than a named setter per field. Callers say what
+  // they mean - `patchUpload(id, { isSavingTags: true, tagsSaveNote: "" })` - instead of
+  // looking up which wrapper happens to clear the note too.
+  function patchUpload(uploadId, patch) {
+    updateUpload(uploadId, upload => ({ ...upload, ...patch }));
+  }
+
+  // Its own function because the tag editor passes an updater, and because typing must
+  // clear the "saved" note.
   function setUploadTagsValue(uploadId, nextValue) {
     updateUpload(uploadId, upload => ({
       ...upload,
@@ -183,43 +192,16 @@ export default function useUploadQueue() {
     }));
   }
 
-  function setUploadTagSaving(uploadId, isSavingTags) {
-    updateUpload(uploadId, upload => ({
-      ...upload,
-      isSavingTags,
-      tagsSaveNote: isSavingTags ? "" : upload.tagsSaveNote,
-    }));
-  }
-
-  function setUploadTagNote(uploadId, tagsSaveNote) {
-    updateUpload(uploadId, upload => ({ ...upload, tagsSaveNote }));
-  }
-
+  // Tags saved on the server come back as rows; the editor text is derived from them so the
+  // two cannot drift.
   function setUploadKnownTags(uploadId, tags) {
-    const normalizedTags = normalizeKnownTags(tags);
+    const knownTags = normalizeKnownTags(tags);
 
-    updateUpload(uploadId, upload => ({
-      ...upload,
-      knownTags: normalizedTags,
-      tagsValue: buildTagEditorValue(normalizedTags),
+    patchUpload(uploadId, {
+      knownTags,
+      tagsValue: buildTagEditorValue(knownTags),
       tagsSaveNote: "",
-    }));
-  }
-
-  function setUploadNotesValue(uploadId, nextValue) {
-    updateUpload(uploadId, upload => ({
-      ...upload,
-      notesValue: nextValue,
-      notesSaveNote: "",
-    }));
-  }
-
-  function setUploadNoteSaving(uploadId, isSavingNotes) {
-    updateUpload(uploadId, upload => ({ ...upload, isSavingNotes }));
-  }
-
-  function setUploadNoteNote(uploadId, notesSaveNote) {
-    updateUpload(uploadId, upload => ({ ...upload, notesSaveNote }));
+    });
   }
 
   function applyMediaTagValues(values) {
@@ -252,13 +234,9 @@ export default function useUploadQueue() {
     successUploads,
     uploadFiles,
     clearSettledUploads,
+    patchUpload,
     setUploadTagsValue,
-    setUploadTagSaving,
-    setUploadTagNote,
     setUploadKnownTags,
-    setUploadNotesValue,
-    setUploadNoteSaving,
-    setUploadNoteNote,
     applyMediaTagValues,
   };
 }

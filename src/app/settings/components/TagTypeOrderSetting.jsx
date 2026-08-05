@@ -1,77 +1,33 @@
 "use client";
 
-import classNames from "classnames";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { HexColorPicker } from "react-colorful";
 
 import { updateTagTypeOrderAction } from "@/lib/actions";
 import {
   DEFAULT_TAG_TYPE_COLOR,
-  getTagTypeClassName,
+  mergeTagTypeColors,
   normalizeTagTypeColor,
+  normalizeTagTypeColors,
   normalizeTagTypeOrder,
 } from "@/lib/tagTypeOrder";
+import TagTypeRow from "./TagTypeRow";
 
 import styles from "../page.module.scss";
-
-const HEX_COLOR_PATTERN = /^#?[0-9a-fA-F]{3,6}$/;
-
-function isHexColor(value) {
-  return typeof value === "string" && HEX_COLOR_PATTERN.test(value.trim());
-}
-
-function normalizeTagTypeColors(rawValue) {
-  const normalized = {};
-  if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue))
-    return normalized;
-
-  for (const [rawType, rawColor] of Object.entries(rawValue)) {
-    const type = String(rawType ?? "").trim().toLowerCase();
-    if (!type) continue;
-    normalized[type] = normalizeTagTypeColor(rawColor);
-  }
-
-  return normalized;
-}
-
-function mergeTagTypeColors(preferredColors = {}, availableTypes = []) {
-  const normalizedColors = normalizeTagTypeColors(preferredColors);
-  const merged = {};
-  const seen = new Set();
-
-  for (const rawType of availableTypes) {
-    const type = String(rawType ?? "").trim().toLowerCase();
-    if (!type || seen.has(type)) continue;
-    seen.add(type);
-    merged[type] = normalizedColors[type] ?? DEFAULT_TAG_TYPE_COLOR;
-  }
-
-  return merged;
-}
 
 function buildOrderedTypes(preferredOrder, availableTypes) {
   const availableSet = new Set(availableTypes);
   const ordered = [];
   const seen = new Set();
 
-  for (const type of preferredOrder) {
+  for (const type of [...preferredOrder, ...availableTypes]) {
     if (!availableSet.has(type) || seen.has(type)) continue;
-
-    seen.add(type);
-    ordered.push(type);
-  }
-
-  for (const type of availableTypes) {
-    if (seen.has(type)) continue;
 
     seen.add(type);
     ordered.push(type);
@@ -80,155 +36,11 @@ function buildOrderedTypes(preferredOrder, availableTypes) {
   return ordered;
 }
 
+// Compared as one string so a colour change counts as dirty just like a reorder does.
 function serializeColors(types, colorMap) {
   return types
     .map(type => `${type}:${normalizeTagTypeColor(colorMap?.[type])}`)
     .join("|");
-}
-
-function buildColorPayload(types, colorMap) {
-  const payload = {};
-
-  for (const type of types)
-    payload[type] = normalizeTagTypeColor(colorMap?.[type]);
-
-  return payload;
-}
-
-function SortableTypeItem({
-  id,
-  index,
-  total,
-  color,
-  isPickerOpen,
-  onColorChange,
-  onOpenPicker,
-  onClosePicker,
-  onMoveUp,
-  onMoveDown,
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const pickerWrapRef = useRef(null);
-  const [hexInputValue, setHexInputValue] = useState(color);
-
-  useEffect(() => {
-    setHexInputValue(color);
-  }, [color]);
-
-  useEffect(() => {
-    if (!isPickerOpen) return;
-
-    const handlePointerDown = event => {
-      if (!pickerWrapRef.current?.contains(event.target))
-        onClosePicker();
-    };
-    const handleKeyDown = event => {
-      if (event.key === "Escape")
-        onClosePicker();
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("touchstart", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("touchstart", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isPickerOpen, onClosePicker]);
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      className={styles.tagTypeOrderItem}
-      data-dragging={isDragging || undefined}
-    >
-      <button
-        type="button"
-        className={styles.tagTypeOrderHandle}
-        aria-label={`drag ${id}`}
-        {...attributes}
-        {...listeners}
-      ><svg viewBox="0 0 10 10">
-          <path d="M3 9L3 1M5 9L5 1M7 9L7 1" />
-        </svg></button>
-
-      <code className={classNames(styles.tagTypeOrderName, getTagTypeClassName(id))}>{id}</code>
-
-      <div className={styles.tagTypeColorField} ref={pickerWrapRef}>
-        <input
-          type="text"
-          className={styles.tagTypeColorHexInput}
-          value={hexInputValue}
-          aria-label={`hex color for ${id}`}
-          spellCheck={false}
-          onFocus={onOpenPicker}
-          onClick={onOpenPicker}
-          onChange={event => {
-            const nextValue = event.target.value;
-            setHexInputValue(nextValue);
-
-            if (isHexColor(nextValue))
-              onColorChange(nextValue.trim());
-          }}
-          onBlur={() => {
-            if (isHexColor(hexInputValue)) {
-              const normalized = hexInputValue.trim();
-              setHexInputValue(normalized);
-              onColorChange(normalized);
-              return;
-            }
-
-            setHexInputValue(color);
-          }}
-        />
-
-        {isPickerOpen ? <div className={styles.tagTypeColorPopup}>
-          <div className={styles.tagTypeColorPicker}>
-            <HexColorPicker
-              color={color}
-              onChange={nextColor => {
-                const normalized = normalizeTagTypeColor(nextColor);
-                onColorChange(normalized);
-                setHexInputValue(normalized);
-              }}
-            />
-          </div>
-        </div> : null}
-      </div>
-
-      <div className={styles.tagTypeOrderItemActions}>
-        <button
-          type="button"
-          className={styles.settingButton}
-          onClick={onMoveUp}
-          disabled={index === 0}
-        >{"\u2191"}</button>
-
-        <button
-          type="button"
-          className={styles.settingButton}
-          onClick={onMoveDown}
-          disabled={index === total - 1}
-        >{"\u2193"}</button>
-      </div>
-    </li>
-  );
 }
 
 export default function TagTypeOrderSetting({
@@ -310,7 +122,7 @@ export default function TagTypeOrderSetting({
 
     startTransition(async () => {
       try {
-        const requestedColors = buildColorPayload(value, colors);
+        const requestedColors = mergeTagTypeColors(colors, value);
         const result = await updateTagTypeOrderAction(value.join(" "), requestedColors);
 
         const persistedColors = mergeTagTypeColors(
@@ -348,7 +160,7 @@ export default function TagTypeOrderSetting({
         >
           <ul className={styles.tagTypeOrderList}>
             {value.map((type, index) => (
-              <SortableTypeItem
+              <TagTypeRow
                 key={type}
                 id={type}
                 index={index}

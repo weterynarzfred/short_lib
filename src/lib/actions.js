@@ -119,13 +119,6 @@ export async function updatePostTagsAction(postId, rawTagString) {
   };
 }
 
-export async function addPostTagsAction(postId, rawTagString) {
-  const safePostId = normalizePostId(postId);
-  const tags = parseTagString(rawTagString);
-  addTags(safePostId, tags, { replace: false });
-  revalidatePath("/listing");
-}
-
 export async function addPostTagsBulkAction(postIds, rawTagString) {
   const tags = parseTagString(rawTagString);
   const ids = normalizePostIds(postIds);

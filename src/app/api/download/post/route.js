@@ -5,6 +5,7 @@ import { PassThrough } from "stream";
 import { spawn } from "child_process";
 
 import db from "@/lib/db";
+import { runFfmpeg, streamFfmpeg } from "@/lib/ffmpeg";
 import { getTempPath } from "@/app/api/upload/path_helpers";
 import {
   CRF_MAX,
@@ -62,35 +63,6 @@ function buildVideoArgs(encoder, crf) {
   return ["-c:v", "librav1e", "-qp", String(qp)];
 }
 
-function spawnFfmpeg(args, signal, label) {
-  const ffmpeg = spawn("ffmpeg", args);
-
-  let stderr = "";
-  ffmpeg.stderr.on("data", chunk => {
-    stderr += chunk.toString();
-    if (stderr.length > 8192) stderr = stderr.slice(-8192);
-  });
-
-  ffmpeg.on("error", error => {
-    console.error(`ffmpeg spawn failed while ${label}:`, error);
-  });
-
-  ffmpeg.on("close", code => {
-    if (code === 0) return;
-    console.error(`ffmpeg ${label} failed:`, stderr.trim() || `exit code ${code}`);
-  });
-
-  // The response is streamed as it encodes, so a cancelled download must stop the encode
-  // rather than leave ffmpeg burning CPU on output nobody will read.
-  if (signal) {
-    signal.addEventListener("abort", () => {
-      if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
-    }, { once: true });
-  }
-
-  return ffmpeg.stdout;
-}
-
 // ffmpeg writes "<base>-0.log" and sometimes a companion file, so the whole set is removed
 // by prefix. Named per request: two concurrent size-target downloads sharing a log would
 // each read the other's statistics.
@@ -107,30 +79,6 @@ function cleanupPassLog(passLogPath) {
   }
 }
 
-function runToCompletion(args, signal, label) {
-  return new Promise((resolve, reject) => {
-    const ffmpeg = spawn("ffmpeg", args);
-
-    let stderr = "";
-    ffmpeg.stderr.on("data", chunk => {
-      stderr += chunk.toString();
-      if (stderr.length > 8192) stderr = stderr.slice(-8192);
-    });
-
-    const onAbort = () => {
-      if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-
-    ffmpeg.on("error", reject);
-    ffmpeg.on("close", code => {
-      signal?.removeEventListener("abort", onAbort);
-      if (code === 0) resolve();
-      else reject(new Error(stderr.trim() || `ffmpeg ${label} exited with code ${code}`));
-    });
-  });
-}
-
 // Pass 1 produces no output, so nothing can be sent until it finishes. The response body is
 // handed back immediately as an empty stream and pass 2 is piped into it once the analysis
 // is done - which is why this mode looks like it hangs before any bytes arrive.
@@ -139,35 +87,17 @@ function streamTwoPass(firstArgs, secondArgs, passLogPath, signal, label) {
 
   (async () => {
     try {
-      await runToCompletion(firstArgs, signal, `${label} pass 1`);
+      await runFfmpeg(firstArgs, { signal, label: `${label} pass 1` }).closed;
       if (signal?.aborted) throw new Error("aborted");
 
-      const second = spawn("ffmpeg", secondArgs);
-
-      let stderr = "";
-      second.stderr.on("data", chunk => {
-        stderr += chunk.toString();
-        if (stderr.length > 8192) stderr = stderr.slice(-8192);
-      });
-
-      const onAbort = () => {
-        if (!second.killed) second.kill("SIGKILL");
-      };
-      signal?.addEventListener("abort", onAbort, { once: true });
-
-      second.stdout.pipe(output);
-      second.on("close", code => {
-        signal?.removeEventListener("abort", onAbort);
-        if (code !== 0) {
-          console.error(`ffmpeg ${label} pass 2 failed:`, stderr.trim() || `code ${code}`);
-          output.destroy(new Error("encode failed"));
-        }
-        cleanupPassLog(passLogPath);
-      });
+      const second = runFfmpeg(secondArgs, { signal, label: `${label} pass 2` });
+      second.process.stdout.pipe(output);
+      await second.closed;
     } catch (error) {
-      console.error(`ffmpeg ${label} failed:`, error);
-      cleanupPassLog(passLogPath);
+      console.error(`ffmpeg ${label} failed:`, error.message);
       output.destroy(error);
+    } finally {
+      cleanupPassLog(passLogPath);
     }
   })();
 
@@ -245,95 +175,90 @@ export async function GET(req) {
     });
   }
 
-  const args = ["-v", "error", "-nostdin"];
-  // Input-side seek, which is fast and still frame-exact because the output is re-encoded
-  // rather than copied. Duration goes after the input so it counts from the seek point.
-  if (trim) args.push("-ss", String(trim.start));
-  args.push("-i", filePath);
-  if (trim?.duration) args.push("-t", String(trim.duration));
-
-  if (presetKey === "mp3") {
-    args.push("-vn", "-c:a", "libmp3lame", "-b:a", "320k", "-f", "mp3", "pipe:1");
-  } else {
-    const encoder = await detectAv1Encoder();
-    if (!encoder) return new Response("No AV1 encoder available", { status: 501 });
-
-    // Clamped rather than rejected: an out-of-range value can only produce a bounded
-    // encode, never a wrong one, and this matches how limit: and score: behave.
-    const crf = clampCrf(url.searchParams.get("crf"));
-    const dropAudio = url.searchParams.get("noAudio") === "1";
-    const wantsTargetSize = url.searchParams.get("mode") === RATE_MODES.size;
-
-    args.push("-map", "0:v:0?");
-    if (!dropAudio) args.push("-map", "0:a?");
-
-    let videoArgs = buildVideoArgs(encoder, crf);
-    let passLogPath = null;
-
-    if (wantsTargetSize) {
-      const seconds = resolveOutputSeconds(media.duration_ms, trim);
-      if (!seconds)
-        return new Response("This media has no usable duration to size against", { status: 400 });
-
-      const videoBitrate = resolveTargetBitrate({
-        targetMb: url.searchParams.get("targetMb"),
-        seconds,
-        withAudio: !dropAudio,
-      });
-
-      if (!videoBitrate)
-        return new Response("Target size is too small for this duration", { status: 400 });
-
-      videoArgs = ["-c:v", encoder, "-b:v", String(videoBitrate)];
-      passLogPath = getTempPath(`pass-${crypto.randomUUID()}`);
-    }
-
-    const audioArgs = dropAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "192k"];
-    const outputArgs = [
-      // Fragmented output, because a pipe cannot be seeked back to write the moov atom.
-      "-movflags", "+frag_keyframe+empty_moov",
-      "-f", "mp4",
-      "pipe:1",
-    ];
-
-    if (passLogPath) {
-      // Pass 1 analyses only: no audio encode, no muxing, output discarded.
-      const firstArgs = [
-        ...args, ...videoArgs,
-        "-pix_fmt", "yuv420p",
-        "-pass", "1", "-passlogfile", passLogPath,
-        "-an", "-f", "null", process.platform === "win32" ? "NUL" : "/dev/null",
-      ];
-      const secondArgs = [
-        ...args, ...videoArgs,
-        "-pix_fmt", "yuv420p",
-        "-pass", "2", "-passlogfile", passLogPath,
-        ...audioArgs, ...outputArgs,
-      ];
-
-      return new Response(
-        streamTwoPass(firstArgs, secondArgs, passLogPath, req.signal, `media ${id}`),
-        {
-          headers: {
-            "Content-Type": preset.contentType,
-            "Content-Disposition": contentDisposition(filename),
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
-    args.push(...videoArgs, "-pix_fmt", "yuv420p", ...audioArgs, ...outputArgs);
-  }
-
-  const stream = spawnFfmpeg(args, req.signal, `encoding media ${id} as ${presetKey}`);
-
-  return new Response(stream, {
+  // Length is unknown until the encode finishes, and it is streamed as it goes.
+  const encodedResponse = body => new Response(body, {
     headers: {
       "Content-Type": preset.contentType,
       "Content-Disposition": contentDisposition(filename),
-      // Length is unknown until the encode finishes, and it is streamed as it goes.
       "Cache-Control": "no-store",
     },
   });
+
+  const inputArgs = ["-v", "error", "-nostdin"];
+  // Input-side seek, which is fast and still frame-exact because the output is re-encoded
+  // rather than copied. Duration goes after the input so it counts from the seek point.
+  if (trim) inputArgs.push("-ss", String(trim.start));
+  inputArgs.push("-i", filePath);
+  if (trim?.duration) inputArgs.push("-t", String(trim.duration));
+
+  if (presetKey === "mp3") {
+    return encodedResponse(streamFfmpeg(
+      [...inputArgs, "-vn", "-c:a", "libmp3lame", "-b:a", "320k", "-f", "mp3", "pipe:1"],
+      { signal: req.signal, label: `encoding media ${id} as mp3` }
+    ));
+  }
+
+  const encoder = await detectAv1Encoder();
+  if (!encoder) return new Response("No AV1 encoder available", { status: 501 });
+
+  // Clamped rather than rejected: an out-of-range value can only produce a bounded encode,
+  // never a wrong one, and this matches how limit: and score: behave.
+  const crf = clampCrf(url.searchParams.get("crf"));
+  const dropAudio = url.searchParams.get("noAudio") === "1";
+  const wantsTargetSize = url.searchParams.get("mode") === RATE_MODES.size;
+
+  inputArgs.push("-map", "0:v:0?");
+  if (!dropAudio) inputArgs.push("-map", "0:a?");
+
+  const audioArgs = dropAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "192k"];
+  const outputArgs = [
+    // Fragmented output, because a pipe cannot be seeked back to write the moov atom.
+    "-movflags", "+frag_keyframe+empty_moov",
+    "-f", "mp4",
+    "pipe:1",
+  ];
+
+  if (!wantsTargetSize) {
+    const args = [
+      ...inputArgs, ...buildVideoArgs(encoder, crf),
+      "-pix_fmt", "yuv420p",
+      ...audioArgs, ...outputArgs,
+    ];
+
+    return encodedResponse(streamFfmpeg(args, {
+      signal: req.signal,
+      label: `encoding media ${id} as ${presetKey}`,
+    }));
+  }
+
+  const seconds = resolveOutputSeconds(media.duration_ms, trim);
+  if (!seconds)
+    return new Response("This media has no usable duration to size against", { status: 400 });
+
+  const videoBitrate = resolveTargetBitrate({
+    targetMb: url.searchParams.get("targetMb"),
+    seconds,
+    withAudio: !dropAudio,
+  });
+
+  if (!videoBitrate)
+    return new Response("Target size is too small for this duration", { status: 400 });
+
+  const passLogPath = getTempPath(`pass-${crypto.randomUUID()}`);
+  const twoPassArgs = [
+    ...inputArgs, "-c:v", encoder, "-b:v", String(videoBitrate),
+    "-pix_fmt", "yuv420p",
+  ];
+
+  return encodedResponse(streamTwoPass(
+    // Pass 1 analyses only: no audio encode, no muxing, output discarded.
+    [
+      ...twoPassArgs, "-pass", "1", "-passlogfile", passLogPath,
+      "-an", "-f", "null", process.platform === "win32" ? "NUL" : "/dev/null",
+    ],
+    [...twoPassArgs, "-pass", "2", "-passlogfile", passLogPath, ...audioArgs, ...outputArgs],
+    passLogPath,
+    req.signal,
+    `media ${id}`
+  ));
 }

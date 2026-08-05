@@ -12,7 +12,7 @@ export function getFileExtension(post) {
 
 // Extension stays last so the variable-width parts grow leftward from a stable anchor.
 // Anything unavailable is dropped rather than rendered as a placeholder.
-export function getPostBadgeParts(post) {
+function getPostBadgeParts(post) {
   const mediaType = mimetypeToType(post?.mime_type);
   const parts = [];
 

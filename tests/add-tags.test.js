@@ -54,6 +54,26 @@ describe("addTags", () => {
     ]);
   });
 
+  // Saving "-cat" used to create a tag literally named "-cat", since removal is handled
+  // before this point and a leading "-" never means a tag name.
+  it("skips negated tokens rather than tagging them", async () => {
+    const { parseTagString } = await import("../src/lib/addTags");
+
+    expect(parseTagString("cat -dog -meta:image")).toEqual([{ name: "cat" }]);
+    expect(parseTagString("-cat")).toEqual([]);
+    expect(parseTagString("")).toEqual([]);
+  });
+
+  it("does not save a negated token as a tag", async () => {
+    const mediaId = insertMedia("a");
+    const { default: addTags, parseTagString } = await import("../src/lib/addTags");
+
+    addTags(mediaId, parseTagString("cat -dog"), { replace: true });
+
+    expect(getLinkedTagNames(mediaId)).toEqual(["cat"]);
+    expect(getTag("-dog")).toBeUndefined();
+  });
+
   it("replaces existing media tags and updates type when needed", async () => {
     const mediaId = insertMedia("a");
     const staleTagId = insertTag("stale", "general", 1);

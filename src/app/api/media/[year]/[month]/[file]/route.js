@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
 import mime from "mime-types";
-import { spawn } from "child_process";
+
+import { streamFfmpeg } from "@/lib/ffmpeg";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
 const CHECKSUM_RE = /^[a-f0-9]{64}$/i;
@@ -50,49 +51,20 @@ function parseRange(rangeHeader, fileSize) {
   return { start, end };
 }
 
+// Streams copied, not re-encoded: browsers will not play mkv, but its contents are usually
+// already mp4-compatible, so only the container has to change.
 function remuxMkvToMp4(filePath, signal) {
-  const ffmpeg = spawn("ffmpeg", [
-    "-v",
-    "error",
-    "-i",
-    filePath,
-    "-map",
-    "0:v?",
-    "-map",
-    "0:a?",
-    "-c",
-    "copy",
-    "-movflags",
-    "+frag_keyframe+empty_moov",
-    "-f",
-    "mp4",
+  return streamFfmpeg([
+    "-v", "error",
+    "-i", filePath,
+    "-map", "0:v?",
+    "-map", "0:a?",
+    "-c", "copy",
+    // A pipe cannot be seeked back to write the moov atom, so the output is fragmented.
+    "-movflags", "+frag_keyframe+empty_moov",
+    "-f", "mp4",
     "pipe:1",
-  ]);
-
-  let stderr = "";
-  ffmpeg.stderr.on("data", chunk => {
-    stderr += chunk.toString();
-    if (stderr.length > 8192) stderr = stderr.slice(-8192);
-  });
-
-  ffmpeg.on("error", err => {
-    console.error("ffmpeg spawn failed while remuxing mkv:", err);
-  });
-
-  ffmpeg.on("close", code => {
-    if (code !== 0) {
-      const message = stderr.trim() || `ffmpeg exited with code ${code}`;
-      console.error("ffmpeg remux failed:", message);
-    }
-  });
-
-  if (signal) {
-    signal.addEventListener("abort", () => {
-      if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
-    }, { once: true });
-  }
-
-  return ffmpeg.stdout;
+  ], { signal, label: "remuxing mkv" });
 }
 
 export async function GET(req, { params }) {

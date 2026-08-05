@@ -1,6 +1,6 @@
 import { buildTagTypeOrderSql } from "@/lib/tagTypeOrder";
 
-export const TAG_ORDER_SQL = buildTagTypeOrderSql();
+const TAG_ORDER_SQL = buildTagTypeOrderSql();
 
 function clampInt(value, { min, max, fallback }) {
   const parsed = Number.parseInt(value, 10);
@@ -11,15 +11,14 @@ function clampInt(value, { min, max, fallback }) {
 // A comparison against a column that can be NULL is NULL, and NOT NULL is still NULL - so
 // a naive negation quietly drops rows with no value. Coalescing the comparison itself to
 // false makes negation total: `-duration:>60s` includes media with no duration at all.
-function comparison(expression, { op, value }, negated, params) {
-  params.push(value);
-  const predicate = `${expression} ${op} ?`;
-
+function negatable(predicate, negated) {
   return negated ? `NOT COALESCE(${predicate}, 0)` : predicate;
 }
 
-function negatable(predicate, negated) {
-  return negated ? `NOT COALESCE(${predicate}, 0)` : predicate;
+function comparison(expression, { op, value }, negated, params) {
+  params.push(value);
+
+  return negatable(`${expression} ${op} ?`, negated);
 }
 
 const MPIXELS_SQL = "(CAST(m.width AS REAL) * CAST(m.height AS REAL))";

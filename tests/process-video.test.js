@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => ({
   unlink: vi.fn(),
-  spawn: vi.fn(),
+  runFfmpeg: vi.fn(),
   processImage: vi.fn(),
   getTempPath: vi.fn(),
 }));
@@ -14,8 +14,8 @@ vi.mock("fs/promises", () => ({
   unlink: hoisted.unlink,
 }));
 
-vi.mock("child_process", () => ({
-  spawn: hoisted.spawn,
+vi.mock("@/lib/ffmpeg", () => ({
+  runFfmpeg: hoisted.runFfmpeg,
 }));
 
 vi.mock("../src/app/api/upload/processImage", () => ({
@@ -26,25 +26,19 @@ vi.mock("@/app/api/upload/path_helpers", () => ({
   getTempPath: hoisted.getTempPath,
 }));
 
-function ffmpegCloseEmitter(code) {
-  return {
-    on: (event, handler) => {
-      if (event === "close") handler(code);
-    },
-  };
-}
+
 
 describe("processVideo", () => {
   beforeEach(() => {
     vi.resetModules();
     hoisted.unlink.mockReset();
-    hoisted.spawn.mockReset();
+    hoisted.runFfmpeg.mockReset();
     hoisted.processImage.mockReset();
     hoisted.getTempPath.mockReset();
 
     hoisted.getTempPath.mockReturnValue("C:\\storage\\tmp\\abc-frame.jpg");
     hoisted.unlink.mockResolvedValue();
-    hoisted.spawn.mockReturnValue(ffmpegCloseEmitter(0));
+    hoisted.runFfmpeg.mockReturnValue({ closed: Promise.resolve() });
   });
 
   it("removes temp frame even when image processing fails", async () => {

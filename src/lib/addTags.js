@@ -2,10 +2,13 @@ import db from "@/lib/db";
 import { findTagByAliasName } from "@/lib/tagAliases";
 
 export function parseTagString(raw = "") {
-  return raw
+  return String(raw ?? "")
     .split(/\s+/)
     .map(t => t.trim())
-    .filter(Boolean)
+    // A leading "-" always means "not this tag". The bulk editor strips it before calling
+    // here and handles removal itself, so a "-" that reaches this point is a typo - and
+    // taking it literally created a tag actually named "-cat".
+    .filter(token => token && !token.startsWith("-"))
     .map(token => {
       const idx = token.indexOf(":");
       if (idx > 0 && idx < token.length - 1) {

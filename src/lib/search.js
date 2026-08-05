@@ -2,13 +2,6 @@ import Fuse from "fuse.js";
 
 import db from "@/lib/db";
 
-const TAG_FUSE_OPTIONS = {
-  includeScore: true,
-  ignoreLocation: true,
-  threshold: 0.4,
-  keys: ["name"],
-};
-
 // includeMatches gives character ranges, which is what lets the listing show the matched
 // fragment of a long note rather than just its opening.
 const NOTES_FUSE_OPTIONS = {
@@ -32,18 +25,33 @@ const FILENAME_EXTENSION = /\.[a-z0-9]{1,5}$/i;
 const FILENAME_SEPARATORS = /[_+\-.]+/g;
 const NUMERIC_TERM = /^\d+$/;
 
-let mediaNotesDirty = true;
-let mediaNotesRows = [];
-let mediaNotesFuse = null;
+// Both text indexes are the same shape - rows read once, rebuilt when something edits
+// them - so they share one holder rather than two copies of the dirty-flag dance.
+function createIndex({ read, fuseOptions }) {
+  let rows = [];
+  let fuse = null;
+  let isDirty = true;
 
-let mediaFilenamesDirty = true;
-let mediaFilenameRows = [];
-let mediaFilenameFuse = null;
+  return {
+    get() {
+      if (isDirty || !fuse) {
+        rows = read();
+        fuse = new Fuse(rows, fuseOptions);
+        isDirty = false;
+      }
+
+      return { rows, fuse };
+    },
+    markDirty() {
+      isDirty = true;
+    },
+  };
+}
 
 // Separators become spaces so a filename typed with a space still matches
 // "Koreans+gaming_176287.mp4". The extension is dropped: it matches on hundreds of files
 // at once and mime_type: is the proper way to filter by file type.
-export function normalizeFilenameForSearch(originalFilename) {
+function normalizeFilenameForSearch(originalFilename) {
   return String(originalFilename ?? "")
     .replace(FILENAME_EXTENSION, "")
     .replace(FILENAME_SEPARATORS, " ")
@@ -62,6 +70,10 @@ function splitTerms(raw = "") {
 
 function normalizeScore(score) {
   return Number.isFinite(score) ? score : 1;
+}
+
+function clampSearchLimit(limit) {
+  return Number.isInteger(limit) && limit > 0 ? Math.min(limit, 10000) : 5000;
 }
 
 // Fuse reports one inclusive [start, end] pair per contiguous run of matched characters,
@@ -95,60 +107,21 @@ function bestMatchRange(hit, term) {
   return best;
 }
 
-function buildTagsIndex() {
-  const rows = db.prepare(`
-    SELECT
-      t.id,
-      t.name,
-      t.type,
-      t.post_count AS postCount
-    FROM tags t
-    WHERE TRIM(COALESCE(t.name, '')) <> ''
-    ORDER BY t.id ASC
-  `).all();
-
-  const aliasRows = db.prepare(`
-    SELECT a.name AS aliasName, t.id, t.name AS realName, t.type, t.post_count AS postCount
-    FROM tag_aliases a
-    JOIN tags t ON t.id = a.tag_id
-  `).all().map(row => ({
-    id: row.id,
-    name: row.aliasName,
-    type: row.type,
-    postCount: row.postCount,
-    isAlias: true,
-    realName: row.realName,
-  }));
-
-  const allRows = [...rows, ...aliasRows];
-  return { rows: allRows, fuse: new Fuse(allRows, TAG_FUSE_OPTIONS) };
-}
-
-function rebuildMediaNotesIndex() {
-  mediaNotesRows = db.prepare(`
+const notesIndex = createIndex({
+  fuseOptions: NOTES_FUSE_OPTIONS,
+  read: () => db.prepare(`
     SELECT
       m.id AS mediaId,
       m.notes_md AS notesMd
     FROM media m
     WHERE TRIM(COALESCE(m.notes_md, '')) <> ''
     ORDER BY m.id ASC
-  `).all();
+  `).all(),
+});
 
-  mediaNotesFuse = new Fuse(mediaNotesRows, NOTES_FUSE_OPTIONS);
-  mediaNotesDirty = false;
-}
-
-function ensureMediaNotesIndex() {
-  if (!mediaNotesDirty && mediaNotesFuse) return;
-  rebuildMediaNotesIndex();
-}
-
-export function markMediaNotesIndexDirty() {
-  mediaNotesDirty = true;
-}
-
-function rebuildMediaFilenameIndex() {
-  mediaFilenameRows = db.prepare(`
+const filenameIndex = createIndex({
+  fuseOptions: FILENAME_FUSE_OPTIONS,
+  read: () => db.prepare(`
     SELECT
       m.id AS mediaId,
       m.original_filename AS originalFilename
@@ -160,21 +133,17 @@ function rebuildMediaFilenameIndex() {
       mediaId: row.mediaId,
       searchText: normalizeFilenameForSearch(row.originalFilename),
     }))
-    .filter(row => row.searchText);
+    .filter(row => row.searchText),
+});
 
-  mediaFilenameFuse = new Fuse(mediaFilenameRows, FILENAME_FUSE_OPTIONS);
-  mediaFilenamesDirty = false;
-}
-
-function ensureMediaFilenameIndex() {
-  if (!mediaFilenamesDirty && mediaFilenameFuse) return;
-  rebuildMediaFilenameIndex();
+export function markMediaNotesIndexDirty() {
+  notesIndex.markDirty();
 }
 
 // Unlike notes, filenames are written on upload as well as on edit, so both paths have to
 // invalidate or a freshly uploaded file stays unfindable by text:.
 export function markMediaFilenamesIndexDirty() {
-  mediaFilenamesDirty = true;
+  filenameIndex.markDirty();
 }
 
 // Lower is better, matching Fuse's convention. An exact whole-value match scores 0; past
@@ -230,124 +199,59 @@ function rankByAllTerms(terms, searchTerm, limit) {
     }));
 }
 
-export async function searchTagSuggestions(query, { limit = 16 } = {}) {
-  const safeQuery = String(query ?? "").trim();
-  if (!safeQuery) return [];
-  if (!/[\p{L}\p{N}]/u.test(safeQuery)) return [];
-
-  const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 16;
-  const { rows: tagRows, fuse: tagsFuse } = buildTagsIndex();
-  if (!tagRows.length) return [];
-
-  const normalizedQuery = safeQuery.toLowerCase();
-  const overscan = Math.max(safeLimit * 4, 32);
-
-  const prefixMatches = tagRows
-    .filter(row => String(row.name ?? "").toLowerCase().startsWith(normalizedQuery))
-    .map(row => ({ item: row, score: 0 }));
-
-  const fuzzyMatches = tagsFuse.search(safeQuery, { limit: overscan });
-
-  const ranked = [...prefixMatches, ...fuzzyMatches]
-    .sort((left, right) => {
-      const leftScore = normalizeScore(left.score);
-      const rightScore = normalizeScore(right.score);
-      if (leftScore !== rightScore) return leftScore - rightScore;
-
-      const leftPostCount = Number(left.item?.postCount) || 0;
-      const rightPostCount = Number(right.item?.postCount) || 0;
-      if (leftPostCount !== rightPostCount) return rightPostCount - leftPostCount;
-
-      return Number(left.item?.id) - Number(right.item?.id);
-    });
-
-  const seen = new Set();
-  const suggestions = [];
-
-  for (const result of ranked) {
-    const tag = result?.item;
-    const id = Number(tag?.id);
-    const name = String(tag?.name ?? "").trim();
-    if (!Number.isInteger(id) || !name || seen.has(id)) continue;
-
-    seen.add(id);
-    const isAlias = tag?.isAlias === true;
-    suggestions.push({
-      id,
-      name: isAlias ? `${name} → ${tag.realName}` : name,
-      insertName: isAlias ? tag.realName : undefined,
-      matchName: isAlias ? name : undefined,
-      type: String(tag?.type ?? "general"),
-      postCount: Number(tag?.postCount) || 0,
-    });
-
-    if (suggestions.length >= safeLimit) break;
-  }
-
-  return suggestions;
-}
-
-async function rankMediaByNotes(query, { limit = 5000 } = {}) {
+// Both matchers return `{ mediaId, score, field, ranges }` in rank order. `field` says
+// which text matched so the listing can show the right thing, and `ranges` locate the
+// matched words within it, for notes only.
+export async function searchMediaMatchesByNotes(query, { limit = 5000 } = {}) {
   const safeQuery = String(query ?? "").trim();
   if (!safeQuery) return [];
 
-  const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 10000) : 5000;
+  const safeLimit = clampSearchLimit(limit);
   const terms = splitTerms(safeQuery);
   if (!terms.length) return [];
 
-  ensureMediaNotesIndex();
-  if (!mediaNotesRows.length) return [];
+  const { rows, fuse } = notesIndex.get();
+  if (!rows.length) return [];
 
-  const overscan = Math.max(mediaNotesRows.length, safeLimit);
+  const overscan = Math.max(rows.length, safeLimit);
 
   return rankByAllTerms(terms, term =>
-    mediaNotesFuse.search(term, { limit: overscan }).map(hit => ({
+    fuse.search(term, { limit: overscan }).map(hit => ({
       mediaId: Number(hit?.item?.mediaId),
       score: normalizeScore(hit?.score),
       range: bestMatchRange(hit, term),
     })), safeLimit).map(row => ({ ...row, field: "notes" }));
 }
 
-async function rankMediaByFilename(query, { limit = 5000 } = {}) {
+export async function searchMediaMatchesByFilename(query, { limit = 5000 } = {}) {
   const safeQuery = String(query ?? "").trim();
   if (!safeQuery) return [];
 
-  const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 10000) : 5000;
+  const safeLimit = clampSearchLimit(limit);
   const terms = splitTerms(safeQuery).map(term => term.toLowerCase());
   if (!terms.length) return [];
 
-  ensureMediaFilenameIndex();
-  if (!mediaFilenameRows.length) return [];
+  const { rows, fuse } = filenameIndex.get();
+  if (!rows.length) return [];
 
-  const overscan = Math.max(mediaFilenameRows.length, safeLimit);
+  const overscan = Math.max(rows.length, safeLimit);
 
   return rankByAllTerms(terms, term => {
     // Digits in these filenames are ids, pasted or half-remembered exactly. Fuzzy
     // matching them mostly finds a different number - "2026" fuzzily matched 55 files
     // that do not contain it anywhere.
     if (NUMERIC_TERM.test(term)) {
-      return mediaFilenameRows
+      return rows
         .map(row => ({ mediaId: row.mediaId, score: substringScore(row.searchText, term) }))
         .filter(row => row.score !== null);
     }
 
-    return mediaFilenameFuse.search(term, { limit: overscan }).map(hit => ({
+    return fuse.search(term, { limit: overscan }).map(hit => ({
       mediaId: Number(hit?.item?.mediaId),
       score: normalizeScore(hit?.score),
     }));
     // No range: filenames are short enough to show whole, so there is nothing to window.
   }, safeLimit).map(row => ({ ...row, field: "filename", ranges: [] }));
-}
-
-// All three return `{ mediaId, score, field, range }` in rank order. `field` says which
-// text matched so the listing can show the right thing, and `range` locates the match
-// within it, for notes only.
-export async function searchMediaMatchesByNotes(query, options) {
-  return rankMediaByNotes(query, options);
-}
-
-export async function searchMediaMatchesByFilename(query, options) {
-  return rankMediaByFilename(query, options);
 }
 
 // A post matches when all terms are found in its notes, or all in its filename. Letting
@@ -358,11 +262,11 @@ export async function searchMediaMatchesByFilename(query, options) {
 // other buried an exact filename match under loose note matches. Both matchers score
 // 0 (best) to 1, so the scales are comparable enough to interleave.
 export async function searchMediaMatchesByText(query, { limit = 5000 } = {}) {
-  const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 10000) : 5000;
+  const safeLimit = clampSearchLimit(limit);
 
   const [noteRows, filenameRows] = await Promise.all([
-    rankMediaByNotes(query, { limit: safeLimit }),
-    rankMediaByFilename(query, { limit: safeLimit }),
+    searchMediaMatchesByNotes(query, { limit: safeLimit }),
+    searchMediaMatchesByFilename(query, { limit: safeLimit }),
   ]);
 
   // Keeping the better-scoring row also keeps its field, so a post matching both shows

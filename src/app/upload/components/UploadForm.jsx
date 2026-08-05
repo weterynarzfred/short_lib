@@ -27,13 +27,9 @@ export default function UploadForm() {
     successUploads,
     uploadFiles,
     clearSettledUploads,
+    patchUpload,
     setUploadTagsValue,
-    setUploadTagSaving,
-    setUploadTagNote,
     setUploadKnownTags,
-    setUploadNotesValue,
-    setUploadNoteSaving,
-    setUploadNoteNote,
     applyMediaTagValues,
   } = useUploadQueue();
 
@@ -60,16 +56,16 @@ export default function UploadForm() {
     if (!upload?.mediaId) return;
     const rawTagsValue = upload.tagsValue;
 
-    setUploadTagSaving(uploadId, true);
+    patchUpload(uploadId, { isSavingTags: true, tagsSaveNote: "" });
 
     try {
       const result = await updatePostTagsAction(upload.mediaId, rawTagsValue);
       setUploadKnownTags(uploadId, result.tags);
-      setUploadTagNote(uploadId, "saved");
+      patchUpload(uploadId, { tagsSaveNote: "saved" });
     } catch {
-      setUploadTagNote(uploadId, "save failed");
+      patchUpload(uploadId, { tagsSaveNote: "save failed" });
     } finally {
-      setUploadTagSaving(uploadId, false);
+      patchUpload(uploadId, { isSavingTags: false });
     }
   }
 
@@ -78,15 +74,15 @@ export default function UploadForm() {
     if (!upload?.mediaId) return;
     const notesValue = upload.notesValue;
 
-    setUploadNoteSaving(uploadId, true);
+    patchUpload(uploadId, { isSavingNotes: true });
 
     try {
       await updatePostNotesAction(upload.mediaId, notesValue);
-      setUploadNoteNote(uploadId, "saved");
+      patchUpload(uploadId, { notesSaveNote: "saved" });
     } catch {
-      setUploadNoteNote(uploadId, "save failed");
+      patchUpload(uploadId, { notesSaveNote: "save failed" });
     } finally {
-      setUploadNoteSaving(uploadId, false);
+      patchUpload(uploadId, { isSavingNotes: false });
     }
   }
 
@@ -155,7 +151,8 @@ export default function UploadForm() {
           uploads={uploads}
           setUploadTagsValue={setUploadTagsValue}
           saveUploadTags={saveUploadTags}
-          setUploadNotesValue={setUploadNotesValue}
+          setUploadNotesValue={(uploadId, notesValue) =>
+            patchUpload(uploadId, { notesValue, notesSaveNote: "" })}
           saveUploadNotes={saveUploadNotes}
         />
       </div>

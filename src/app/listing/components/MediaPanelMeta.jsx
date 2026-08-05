@@ -70,45 +70,53 @@ export default function MediaPanelMeta({
   const isTagsDirty = tagsValue.trim() !== originalTags;
   const isFilenameDirty = filenameValue !== originalFilename;
 
+  // Every edit here works the same way: run the action in a transition, then patch the post
+  // locally with what came back rather than revalidating, so the panel does not flicker
+  // while you type or click through ratings. `toPatch` returns null when the response is
+  // not the shape it expects, which leaves the post untouched.
+  const save = (startTransition, action, toPatch) => {
+    startTransition(() => {
+      action()
+        .then(result => {
+          const patch = toPatch(result);
+          if (patch) onPatchPost?.(post.id, patch);
+        })
+        .catch(error => console.error(error));
+    });
+  };
+
   const saveTags = () => {
     if (!isTagsDirty) return;
 
     tagFocusRef.current?.blur();
     const nextValue = tagsValue.trim();
-    startTagsTransition(() => {
-      updatePostTagsAction(post.id, nextValue)
-        .then(result => {
-          if (Array.isArray(result?.tags)) onPatchPost?.(post.id, { tags: result.tags });
-        })
-        .catch(error => console.error(error));
-    });
+    save(
+      startTagsTransition,
+      () => updatePostTagsAction(post.id, nextValue),
+      result => Array.isArray(result?.tags) ? { tags: result.tags } : null
+    );
   };
 
-  // Patched locally rather than revalidated, matching the other panel edits, so the panel
-  // does not flicker while you click through ratings.
   const saveScore = nextScore => {
     if (nextScore === (post.score ?? 0)) return;
 
-    startScoreTransition(() => {
-      updatePostScoreAction(post.id, nextScore)
-        .then(result => {
-          if (Number.isInteger(result?.score)) onPatchPost?.(post.id, { score: result.score });
-        })
-        .catch(error => console.error(error));
-    });
+    save(
+      startScoreTransition,
+      () => updatePostScoreAction(post.id, nextScore),
+      result => Number.isInteger(result?.score) ? { score: result.score } : null
+    );
   };
 
   const saveFilename = () => {
     if (!isFilenameDirty) return;
 
-    startFilenameTransition(() => {
-      updatePostOriginalFilenameAction(post.id, filenameValue)
-        .then(result => {
-          if (typeof result?.original_filename === "string")
-            onPatchPost?.(post.id, { original_filename: result.original_filename });
-        })
-        .catch(error => console.error(error));
-    });
+    save(
+      startFilenameTransition,
+      () => updatePostOriginalFilenameAction(post.id, filenameValue),
+      result => typeof result?.original_filename === "string"
+        ? { original_filename: result.original_filename }
+        : null
+    );
   };
 
   return (
