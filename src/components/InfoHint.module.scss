@@ -1,0 +1,29 @@
+@use "/src/scss/variables" as *;
+
+.infoHint {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid $colorBorder2;
+  border-radius: 50%;
+  background: none;
+  color: $colorContent2;
+  font-size: 0.65rem;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  transition:
+    color $controlTransition,
+    border-color $controlTransition;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $colorContent2;
+    color: $colorContent;
+  }
+}

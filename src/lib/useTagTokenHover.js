@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import parseTagToken from "@/lib/parseTagToken";
-import { useTagTooltip } from "@/components/TagTooltipProvider";
+import { useTagTooltip } from "@/components/TagTooltip";
 
 // The highlighted layer sits under a transparent textarea and is `pointer-events: none`,
 // so the spans never receive a hover of their own. Enabling pointer events on them would

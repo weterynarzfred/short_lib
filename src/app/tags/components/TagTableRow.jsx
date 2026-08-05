@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import TagSuggestions from "@/components/TagSuggestions";
-import { useTagTooltip } from "@/components/TagTooltipProvider";
+import { useTagHoverProps } from "@/components/TagTooltip";
 import useCombobox from "@/lib/useCombobox";
 import useTagSuggestions from "@/lib/useTagSuggestions";
 import { getTagTypeClassName } from "@/lib/tagTypeOrder";
@@ -111,20 +111,6 @@ function ImplicationInput({ tagId, isPending, onAdd }) {
 
     <TagSuggestions items={items} isLoading={isLoading} combobox={combobox} />
   </div>;
-}
-
-// Hover handlers for anything that renders a tag name, so the same card appears wherever
-// a tag is shown.
-export function useTagHoverProps() {
-  const { showTagTooltip, cancelTagTooltip } = useTagTooltip();
-
-  return name => ({
-    onMouseEnter: event =>
-      showTagTooltip(name, event.currentTarget.getBoundingClientRect()),
-    // Cancels a pending hover only; an open card closes itself once the pointer leaves
-    // both it and the tag, so its edit link stays reachable.
-    onMouseLeave: () => cancelTagTooltip(),
-  });
 }
 
 export default function TagTableRow({ tag, editor }) {

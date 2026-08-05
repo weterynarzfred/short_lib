@@ -13,7 +13,42 @@ import {
   supportsTrim,
 } from "@/lib/downloadPresets";
 
+import InfoHint from "@/components/InfoHint";
+
 import styles from "./MediaPanelDownload.module.scss";
+
+// One hint covering both modes, since the control that opens it is the mode selector -
+// explaining only the selected mode leaves you unable to read about the other one before
+// choosing it.
+const RATE_MODE_HINT = (
+  <>
+    <strong>quality (crf)</strong>
+    <p>
+      crf <code>0-63</code>, where lower means better quality and a bigger file. 32 is the
+      default; around 20 is visually lossless and large; 50+ turns to mush; 0 is lossless
+      and enormous. Starts downloading immediately.
+    </p>
+
+    <strong>target size</strong>
+    <p>
+      Two-pass and slow: the whole video is analysed before any of it is written, so
+      nothing downloads until that finishes. Measured results landed between 0.87× and
+      1.01× of the target, so aim slightly under if you have a hard limit.
+    </p>
+  </>
+);
+
+const TRIM_HINT = (
+  <>
+    <strong>trim</strong>
+    <p>
+      Accepts <code>SS</code>, <code>MM:SS</code> or <code>HH:MM:SS</code>. Leave the end
+      empty to run to the end of the file. Cuts are frame-exact because the output is
+      re-encoded rather than copied, which is also why trimming needs a format other than
+      the original.
+    </p>
+  </>
+);
 
 // A plain link rather than a fetch: the response is streamed as ffmpeg encodes, so letting
 // the browser own the download avoids buffering the whole file in memory first.
@@ -97,6 +132,8 @@ export default function MediaPanelDownload({ post }) {
             <option value={RATE_MODES.size}>target size</option>
           </select>
 
+          <InfoHint content={RATE_MODE_HINT} label="about rate control" />
+
           {wantsTargetSize ? (
             <label className={styles.option} htmlFor={`download-size-${post.id}`}>
               <input
@@ -136,12 +173,6 @@ export default function MediaPanelDownload({ post }) {
         </div>
       ) : null}
 
-      {wantsTargetSize ? (
-        <div className={styles.hint}>
-          two-pass: slow, and lands near the target rather than on it
-        </div>
-      ) : null}
-
       {supportsTrim(post.mime_type) ? (
         <div className={styles.row}>
           <input
@@ -160,6 +191,8 @@ export default function MediaPanelDownload({ post }) {
             aria-label="trim end"
             disabled={!canTrim}
           />
+
+          <InfoHint content={TRIM_HINT} label="about trimming" />
         </div>
       ) : null}
 

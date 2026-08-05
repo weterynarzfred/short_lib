@@ -1,6 +1,6 @@
 import InactiveDetection from "@/app/components/InactiveDetection";
 import { PageResetProvider } from "@/components/PageResetProvider";
-import { TagTooltipProvider } from "@/components/TagTooltipProvider";
+import { TooltipProvider } from "@/components/TooltipProvider";
 import { getTagTypeColorsCss } from "@/lib/userSettings";
 
 import '@/scss/main.scss';
@@ -18,7 +18,7 @@ export default function RootLayout({ children }) {
       <body>
         {tagTypeColorCss ? <style id="tag-type-colors">{tagTypeColorCss}</style> : null}
         <PageResetProvider>
-          <TagTooltipProvider>{children}</TagTooltipProvider>
+          <TooltipProvider>{children}</TooltipProvider>
         </PageResetProvider>
         <InactiveDetection />
       </body>

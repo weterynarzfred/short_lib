@@ -3,7 +3,9 @@
 .tooltip {
   position: fixed;
   z-index: 100;
-  max-width: 22rem;
+  // The second term keeps the card inside viewports narrower than the card itself, where
+  // clamping alone would still leave it overflowing.
+  max-width: min(22rem, calc(100vw - 1rem));
   padding: 0.4rem 0.6rem;
   display: flex;
   flex-direction: column;
@@ -13,8 +15,35 @@
   background: $colorBg;
   font-size: 0.8rem;
   line-height: 1.35;
-  // The pointer has to be able to reach the edit link.
+  // The pointer has to be able to reach any links inside.
   pointer-events: auto;
+
+  // Field hints are prose rather than a structured card, so they style themselves.
+  code {
+    padding: 0 0.2em;
+    border-radius: $radiusSm;
+    background: $colorBg2;
+  }
+
+  strong {
+    color: $colorContent;
+  }
+
+  // A hint with several sections needs the gap between them, but not a leading or
+  // trailing one - the card already has padding.
+  p {
+    margin: 0.15rem 0 0.5rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .header {

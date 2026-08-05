@@ -2,7 +2,7 @@
 
 import classNames from "classnames";
 import { getTagTypeClassName } from "@/lib/tagTypeOrder";
-import { useTagTooltip } from "./TagTooltipProvider";
+import { useTagTooltip } from "./TagTooltip";
 
 import styles from "./TagSuggestions.module.scss";
 
