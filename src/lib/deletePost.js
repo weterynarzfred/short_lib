@@ -75,9 +75,11 @@ export default async function deletePost(id) {
     const linkedTags = getMediaTagIds.all(id);
     for (const row of linkedTags) decrementTagPostCount.run(row.tag_id);
 
+    // Every derivative folder has to be listed here. One left out is not moved into
+    // deleted/, so clearDeletedStorage can never reach it and the file leaks forever.
     moveIfExists(["full", yearMonthDir, `${checksum}${ext}`]);
     moveIfExists(["thumbs", yearMonthDir, `${checksum}.jpg`]);
-    moveIfExists(["prevs", yearMonthDir, `${checksum}.jpg`]);
+    moveIfExists(["vprevs", yearMonthDir, `${checksum}.mp4`]);
 
     db.prepare("DELETE FROM media WHERE id = ?").run(id);
   });

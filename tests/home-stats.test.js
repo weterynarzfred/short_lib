@@ -37,7 +37,7 @@ describe("getHomeStats", () => {
 
     writeBytes(path.join(storageDir, "full", "2026", "03", "a.mp4"), 11);
     writeBytes(path.join(storageDir, "thumbs", "2026", "03", "a.jpg"), 3);
-    writeBytes(path.join(storageDir, "prevs", "2026", "03", "a.jpg"), 5);
+    writeBytes(path.join(storageDir, "vprevs", "2026", "03", "a.mp4"), 5);
     writeBytes(path.join(storageDir, "deleted", "full", "2026", "03", "a.mp4"), 13);
 
     const { default: getHomeStats } = await import("../src/lib/getHomeStats");
@@ -55,7 +55,7 @@ describe("getHomeStats", () => {
         configured: true,
         full: { files: 1, bytes: 11 },
         thumbs: { files: 1, bytes: 3 },
-        prevs: { files: 1, bytes: 5 },
+        videoPreviews: { files: 1, bytes: 5 },
         deleted: { files: 1, bytes: 13 },
         active: { files: 3, bytes: 19 },
       },

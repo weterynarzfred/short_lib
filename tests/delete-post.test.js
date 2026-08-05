@@ -55,21 +55,21 @@ describe("deletePost", () => {
 
     const fullPath = path.join(storageDir, "full", yearMonthDir, `${checksum}.mp4`);
     const thumbPath = path.join(storageDir, "thumbs", yearMonthDir, `${checksum}.jpg`);
-    const prevPath = path.join(storageDir, "prevs", yearMonthDir, `${checksum}.jpg`);
+    const videoPreviewPath = path.join(storageDir, "vprevs", yearMonthDir, `${checksum}.mp4`);
     writeFile(fullPath);
     writeFile(thumbPath);
-    writeFile(prevPath);
+    writeFile(videoPreviewPath);
 
     const { default: deletePost } = await import("../src/lib/deletePost");
     await deletePost(mediaId);
 
     expect(fs.existsSync(fullPath)).toBe(false);
     expect(fs.existsSync(thumbPath)).toBe(false);
-    expect(fs.existsSync(prevPath)).toBe(false);
+    expect(fs.existsSync(videoPreviewPath)).toBe(false);
 
     expect(fs.existsSync(path.join(storageDir, "deleted", "full", yearMonthDir, `${checksum}.mp4`))).toBe(true);
     expect(fs.existsSync(path.join(storageDir, "deleted", "thumbs", yearMonthDir, `${checksum}.jpg`))).toBe(true);
-    expect(fs.existsSync(path.join(storageDir, "deleted", "prevs", yearMonthDir, `${checksum}.jpg`))).toBe(true);
+    expect(fs.existsSync(path.join(storageDir, "deleted", "vprevs", yearMonthDir, `${checksum}.mp4`))).toBe(true);
 
     const postCountFirst = db.prepare(`SELECT post_count FROM tags WHERE id = ?`).get(firstTagId).post_count;
     const postCountSecond = db.prepare(`SELECT post_count FROM tags WHERE id = ?`).get(secondTagId).post_count;

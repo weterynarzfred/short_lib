@@ -47,7 +47,7 @@ function getStorageStats() {
       configured: false,
       full: empty,
       thumbs: empty,
-      prevs: empty,
+      videoPreviews: empty,
       deleted: empty,
       active: empty,
     };
@@ -56,19 +56,21 @@ function getStorageStats() {
   const storageRoot = path.resolve(storageDir);
   const full = getDirectoryStats(path.join(storageRoot, "full"));
   const thumbs = getDirectoryStats(path.join(storageRoot, "thumbs"));
-  const prevs = getDirectoryStats(path.join(storageRoot, "prevs"));
+  const videoPreviews = getDirectoryStats(path.join(storageRoot, "vprevs"));
   const deleted = getDirectoryStats(path.join(storageRoot, "deleted"));
 
+  // Every derivative folder counts towards the active total, or the reported library size
+  // silently drifts from what is on disk.
   const active = {
-    files: full.files + thumbs.files + prevs.files,
-    bytes: full.bytes + thumbs.bytes + prevs.bytes,
+    files: full.files + thumbs.files + videoPreviews.files,
+    bytes: full.bytes + thumbs.bytes + videoPreviews.bytes,
   };
 
   return {
     configured: true,
     full,
     thumbs,
-    prevs,
+    videoPreviews,
     deleted,
     active,
   };

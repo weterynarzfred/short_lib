@@ -121,11 +121,6 @@ export async function GET(req, { params }) {
     filename = `${checksum}.jpg`;
   }
 
-  if (size === "prev") {
-    baseDir = "prevs";
-    filename = `${checksum}.jpg`;
-  }
-
   // Short silent AV1 clip used for hover previews on video posts.
   if (size === "vprev") {
     baseDir = "vprevs";

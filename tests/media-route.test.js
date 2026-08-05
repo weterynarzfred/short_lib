@@ -206,9 +206,9 @@ describe("media route", () => {
     );
   });
 
-  it("serves preview variants when size=prev", async () => {
+  it("serves the hover clip when size=vprev", async () => {
     const { GET } = await import("../src/app/api/media/[year]/[month]/[file]/route");
-    const req = new Request("http://localhost/api/media/2026/03/file.mp4?size=prev");
+    const req = new Request("http://localhost/api/media/2026/03/file.mp4?size=vprev");
 
     const res = await GET(req, {
       params: Promise.resolve({
@@ -220,8 +220,28 @@ describe("media route", () => {
 
     expect(res.status).toBe(200);
     expect(fsHoisted.createReadStream).toHaveBeenCalledWith(
-      path.join("C:\\storage", "prevs", "2026", "03", `${CHECKSUM}.jpg`)
+      path.join("C:\\storage", "vprevs", "2026", "03", `${CHECKSUM}.mp4`)
     );
+  });
+
+  // The prevs/ JPEG is gone; an unknown size must fall back to the original rather than
+  // resolving into a folder that no longer exists.
+  it("falls back to the original for a retired or unknown size", async () => {
+    const { GET } = await import("../src/app/api/media/[year]/[month]/[file]/route");
+
+    for (const size of ["prev", "bogus"]) {
+      fsHoisted.createReadStream.mockClear();
+      const req = new Request(`http://localhost/api/media/2026/03/file.mp4?size=${size}`);
+
+      const res = await GET(req, {
+        params: Promise.resolve({ year: "2026", month: "03", file: `${CHECKSUM}.mp4` }),
+      });
+
+      expect(res.status).toBe(200);
+      expect(fsHoisted.createReadStream).toHaveBeenCalledWith(
+        path.join("C:\\storage", "full", "2026", "03", `${CHECKSUM}.mp4`)
+      );
+    }
   });
 
   it("returns 206 for valid byte range requests", async () => {
