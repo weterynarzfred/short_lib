@@ -7,6 +7,7 @@ import {
   CRF_MIN,
   DEFAULT_CRF,
   DOWNLOAD_PRESETS,
+  RATE_MODES,
   getPresetsForMimeType,
   resolveTrim,
   supportsTrim,
@@ -23,8 +24,12 @@ export default function MediaPanelDownload({ post }) {
   // Kept as a string so the field can be cleared while typing; the route clamps anyway.
   const [crf, setCrf] = useState(String(DEFAULT_CRF));
   const [dropAudio, setDropAudio] = useState(false);
+  const [rateMode, setRateMode] = useState(RATE_MODES.crf);
+  const [targetMb, setTargetMb] = useState("");
 
   const hasVideoOptions = DOWNLOAD_PRESETS[preset]?.videoOptions === true;
+  const wantsTargetSize = hasVideoOptions && rateMode === RATE_MODES.size;
+  const isTargetMissing = wantsTargetSize && !(Number(targetMb) > 0);
 
   const presets = useMemo(
     () => getPresetsForMimeType(post.mime_type),
@@ -45,12 +50,18 @@ export default function MediaPanelDownload({ post }) {
     }
 
     if (hasVideoOptions) {
-      params.set("crf", crf.trim() || String(DEFAULT_CRF));
       if (dropAudio) params.set("noAudio", "1");
+
+      if (wantsTargetSize) {
+        params.set("mode", RATE_MODES.size);
+        params.set("targetMb", targetMb.trim());
+      } else {
+        params.set("crf", crf.trim() || String(DEFAULT_CRF));
+      }
     }
 
     return `/api/download/post?${params.toString()}`;
-  }, [post.id, preset, trim, start, end, hasVideoOptions, crf, dropAudio]);
+  }, [post.id, preset, trim, start, end, hasVideoOptions, crf, dropAudio, wantsTargetSize, targetMb]);
 
   return (
     <div className={styles.download}>
@@ -68,26 +79,51 @@ export default function MediaPanelDownload({ post }) {
 
         <a
           className={styles.button}
-          href={isTrimInvalid ? undefined : href}
+          href={isTrimInvalid || isTargetMissing ? undefined : href}
           download
-          aria-disabled={isTrimInvalid || undefined}
+          aria-disabled={isTrimInvalid || isTargetMissing || undefined}
         >download</a>
       </div>
 
       {hasVideoOptions ? (
         <div className={styles.row}>
-          <label className={styles.option} htmlFor={`download-crf-${post.id}`}>
-            crf
-            <input
-              id={`download-crf-${post.id}`}
-              className={styles.crfInput}
-              type="number"
-              min={CRF_MIN}
-              max={CRF_MAX}
-              value={crf}
-              onChange={event => setCrf(event.target.value)}
-            />
-          </label>
+          <select
+            className={styles.select}
+            value={rateMode}
+            onChange={event => setRateMode(event.target.value)}
+            aria-label="rate control"
+          >
+            <option value={RATE_MODES.crf}>quality (crf)</option>
+            <option value={RATE_MODES.size}>target size</option>
+          </select>
+
+          {wantsTargetSize ? (
+            <label className={styles.option} htmlFor={`download-size-${post.id}`}>
+              <input
+                id={`download-size-${post.id}`}
+                className={styles.crfInput}
+                type="number"
+                min="0"
+                step="any"
+                value={targetMb}
+                onChange={event => setTargetMb(event.target.value)}
+              />
+              MB
+            </label>
+          ) : (
+            <label className={styles.option} htmlFor={`download-crf-${post.id}`}>
+              crf
+              <input
+                id={`download-crf-${post.id}`}
+                className={styles.crfInput}
+                type="number"
+                min={CRF_MIN}
+                max={CRF_MAX}
+                value={crf}
+                onChange={event => setCrf(event.target.value)}
+              />
+            </label>
+          )}
 
           <label className={styles.option}>
             <input
@@ -97,6 +133,12 @@ export default function MediaPanelDownload({ post }) {
             />
             no audio
           </label>
+        </div>
+      ) : null}
+
+      {wantsTargetSize ? (
+        <div className={styles.hint}>
+          two-pass: slow, and lands near the target rather than on it
         </div>
       ) : null}
 

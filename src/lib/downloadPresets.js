@@ -6,6 +6,40 @@ export const CRF_MIN = 0;
 export const CRF_MAX = 63;
 export const DEFAULT_CRF = 32;
 
+export const AUDIO_BITRATE = 192_000;
+export const RATE_MODES = { crf: "crf", size: "size" };
+
+// How many seconds the output will actually cover, which is what the bitrate budget has to
+// be divided by. A trim changes it, so the two features interact.
+export function resolveOutputSeconds(durationMs, trim) {
+  const total = Number(durationMs) / 1000;
+  if (!Number.isFinite(total) || total <= 0) return null;
+
+  if (!trim) return total;
+  if (trim.duration) return Math.min(trim.duration, Math.max(0, total - trim.start));
+
+  const remaining = total - trim.start;
+  return remaining > 0 ? remaining : null;
+}
+
+// Splits a size budget into a video bitrate. Returns null when the target cannot be met -
+// a tiny target on a long video leaves nothing for video once the audio track is paid for,
+// and ffmpeg would either fail or produce something unusable.
+export function resolveTargetBitrate({ targetMb, seconds, withAudio = true }) {
+  const megabytes = Number(targetMb);
+  if (!Number.isFinite(megabytes) || megabytes <= 0) return null;
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+
+  const totalBits = megabytes * 1024 * 1024 * 8;
+  const audioBits = withAudio ? AUDIO_BITRATE * seconds : 0;
+  const videoBitrate = Math.floor((totalBits - audioBits) / seconds);
+
+  // Below this the encoder produces noise rather than a smaller file.
+  if (videoBitrate < 1000) return null;
+
+  return videoBitrate;
+}
+
 export function clampCrf(value) {
   // Checked before coercion: Number("") and Number(null) are both 0, so a cleared field or
   // a bare `crf=` would silently mean lossless rather than the default.

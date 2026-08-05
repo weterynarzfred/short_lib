@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AUDIO_BITRATE,
   buildDownloadFilename,
   clampCrf,
   CRF_MAX,
@@ -10,6 +11,8 @@ import {
   getPresetsForMimeType,
   isPresetAllowed,
   parseTimestamp,
+  resolveOutputSeconds,
+  resolveTargetBitrate,
   resolveTrim,
   supportsTrim,
 } from "@/lib/downloadPresets";
@@ -87,6 +90,65 @@ describe("presets", () => {
     expect(supportsTrim("video/mp4")).toBe(true);
     expect(supportsTrim("audio/mpeg")).toBe(true);
     expect(supportsTrim("image/png")).toBe(false);
+  });
+});
+
+describe("resolveOutputSeconds", () => {
+  it("uses the whole duration when nothing is trimmed", () => {
+    expect(resolveOutputSeconds(56_000, null)).toBe(56);
+  });
+
+  it("uses the trimmed span", () => {
+    expect(resolveOutputSeconds(56_000, { start: 10, duration: 15 })).toBe(15);
+  });
+
+  it("measures from the start to the end when the trim is open-ended", () => {
+    expect(resolveOutputSeconds(56_000, { start: 50, duration: null })).toBe(6);
+  });
+
+  // A trim can ask for more than remains; the output cannot be longer than the source.
+  it("never exceeds what is left after the start", () => {
+    expect(resolveOutputSeconds(56_000, { start: 50, duration: 30 })).toBe(6);
+  });
+
+  it("rejects a missing or unusable duration", () => {
+    expect(resolveOutputSeconds(0, null)).toBeNull();
+    expect(resolveOutputSeconds(null, null)).toBeNull();
+    expect(resolveOutputSeconds(56_000, { start: 100, duration: null })).toBeNull();
+  });
+});
+
+describe("resolveTargetBitrate", () => {
+  it("divides the budget across the duration, paying for audio first", () => {
+    const withAudio = resolveTargetBitrate({ targetMb: 3, seconds: 56.29 });
+    const without = resolveTargetBitrate({ targetMb: 3, seconds: 56.29, withAudio: false });
+
+    expect(without - withAudio).toBe(AUDIO_BITRATE);
+    expect(withAudio).toBeGreaterThan(0);
+  });
+
+  it("scales with the target", () => {
+    const small = resolveTargetBitrate({ targetMb: 1, seconds: 60 });
+    const large = resolveTargetBitrate({ targetMb: 10, seconds: 60 });
+
+    expect(large).toBeGreaterThan(small * 8);
+  });
+
+  // A tiny target on a long video leaves nothing for video once audio is paid for.
+  it("refuses a target it cannot meet", () => {
+    expect(resolveTargetBitrate({ targetMb: 1, seconds: 3600 })).toBeNull();
+    expect(resolveTargetBitrate({ targetMb: 0, seconds: 60 })).toBeNull();
+    expect(resolveTargetBitrate({ targetMb: -5, seconds: 60 })).toBeNull();
+    expect(resolveTargetBitrate({ targetMb: "abc", seconds: 60 })).toBeNull();
+    expect(resolveTargetBitrate({ targetMb: 5, seconds: 0 })).toBeNull();
+  });
+
+  // Dropping audio frees its whole share for the picture.
+  it("gives the entire budget to video when audio is dropped", () => {
+    const seconds = 60;
+    const bitrate = resolveTargetBitrate({ targetMb: 5, seconds, withAudio: false });
+
+    expect(bitrate).toBe(Math.floor((5 * 1024 * 1024 * 8) / seconds));
   });
 });
 

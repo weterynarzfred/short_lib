@@ -1,14 +1,20 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
+import { PassThrough } from "stream";
 import { spawn } from "child_process";
 
 import db from "@/lib/db";
+import { getTempPath } from "@/app/api/upload/path_helpers";
 import {
   CRF_MAX,
   DOWNLOAD_PRESETS,
+  RATE_MODES,
   buildDownloadFilename,
   clampCrf,
   isPresetAllowed,
+  resolveOutputSeconds,
+  resolveTargetBitrate,
   resolveTrim,
   supportsTrim,
 } from "@/lib/downloadPresets";
@@ -16,7 +22,7 @@ import {
 const STORAGE_DIR = process.env.STORAGE_DIR;
 
 const selectMedia = db.prepare(`
-  SELECT file_path, mime_type, original_filename
+  SELECT file_path, mime_type, original_filename, duration_ms
   FROM media
   WHERE id = ?
 `);
@@ -83,6 +89,89 @@ function spawnFfmpeg(args, signal, label) {
   }
 
   return ffmpeg.stdout;
+}
+
+// ffmpeg writes "<base>-0.log" and sometimes a companion file, so the whole set is removed
+// by prefix. Named per request: two concurrent size-target downloads sharing a log would
+// each read the other's statistics.
+function cleanupPassLog(passLogPath) {
+  const dir = path.dirname(passLogPath);
+  const prefix = path.basename(passLogPath);
+
+  try {
+    for (const entry of fs.readdirSync(dir)) {
+      if (entry.startsWith(prefix)) fs.rmSync(path.join(dir, entry), { force: true });
+    }
+  } catch {
+    // A missing tmp directory is not worth failing a finished download over.
+  }
+}
+
+function runToCompletion(args, signal, label) {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn("ffmpeg", args);
+
+    let stderr = "";
+    ffmpeg.stderr.on("data", chunk => {
+      stderr += chunk.toString();
+      if (stderr.length > 8192) stderr = stderr.slice(-8192);
+    });
+
+    const onAbort = () => {
+      if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+
+    ffmpeg.on("error", reject);
+    ffmpeg.on("close", code => {
+      signal?.removeEventListener("abort", onAbort);
+      if (code === 0) resolve();
+      else reject(new Error(stderr.trim() || `ffmpeg ${label} exited with code ${code}`));
+    });
+  });
+}
+
+// Pass 1 produces no output, so nothing can be sent until it finishes. The response body is
+// handed back immediately as an empty stream and pass 2 is piped into it once the analysis
+// is done - which is why this mode looks like it hangs before any bytes arrive.
+function streamTwoPass(firstArgs, secondArgs, passLogPath, signal, label) {
+  const output = new PassThrough();
+
+  (async () => {
+    try {
+      await runToCompletion(firstArgs, signal, `${label} pass 1`);
+      if (signal?.aborted) throw new Error("aborted");
+
+      const second = spawn("ffmpeg", secondArgs);
+
+      let stderr = "";
+      second.stderr.on("data", chunk => {
+        stderr += chunk.toString();
+        if (stderr.length > 8192) stderr = stderr.slice(-8192);
+      });
+
+      const onAbort = () => {
+        if (!second.killed) second.kill("SIGKILL");
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+
+      second.stdout.pipe(output);
+      second.on("close", code => {
+        signal?.removeEventListener("abort", onAbort);
+        if (code !== 0) {
+          console.error(`ffmpeg ${label} pass 2 failed:`, stderr.trim() || `code ${code}`);
+          output.destroy(new Error("encode failed"));
+        }
+        cleanupPassLog(passLogPath);
+      });
+    } catch (error) {
+      console.error(`ffmpeg ${label} failed:`, error);
+      cleanupPassLog(passLogPath);
+      output.destroy(error);
+    }
+  })();
+
+  return output;
 }
 
 function contentDisposition(filename) {
@@ -173,21 +262,68 @@ export async function GET(req) {
     // encode, never a wrong one, and this matches how limit: and score: behave.
     const crf = clampCrf(url.searchParams.get("crf"));
     const dropAudio = url.searchParams.get("noAudio") === "1";
+    const wantsTargetSize = url.searchParams.get("mode") === RATE_MODES.size;
 
     args.push("-map", "0:v:0?");
     if (!dropAudio) args.push("-map", "0:a?");
 
-    args.push(...buildVideoArgs(encoder, crf), "-pix_fmt", "yuv420p");
+    let videoArgs = buildVideoArgs(encoder, crf);
+    let passLogPath = null;
 
-    if (dropAudio) args.push("-an");
-    else args.push("-c:a", "aac", "-b:a", "192k");
+    if (wantsTargetSize) {
+      const seconds = resolveOutputSeconds(media.duration_ms, trim);
+      if (!seconds)
+        return new Response("This media has no usable duration to size against", { status: 400 });
 
-    args.push(
+      const videoBitrate = resolveTargetBitrate({
+        targetMb: url.searchParams.get("targetMb"),
+        seconds,
+        withAudio: !dropAudio,
+      });
+
+      if (!videoBitrate)
+        return new Response("Target size is too small for this duration", { status: 400 });
+
+      videoArgs = ["-c:v", encoder, "-b:v", String(videoBitrate)];
+      passLogPath = getTempPath(`pass-${crypto.randomUUID()}`);
+    }
+
+    const audioArgs = dropAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "192k"];
+    const outputArgs = [
       // Fragmented output, because a pipe cannot be seeked back to write the moov atom.
       "-movflags", "+frag_keyframe+empty_moov",
       "-f", "mp4",
-      "pipe:1"
-    );
+      "pipe:1",
+    ];
+
+    if (passLogPath) {
+      // Pass 1 analyses only: no audio encode, no muxing, output discarded.
+      const firstArgs = [
+        ...args, ...videoArgs,
+        "-pix_fmt", "yuv420p",
+        "-pass", "1", "-passlogfile", passLogPath,
+        "-an", "-f", "null", process.platform === "win32" ? "NUL" : "/dev/null",
+      ];
+      const secondArgs = [
+        ...args, ...videoArgs,
+        "-pix_fmt", "yuv420p",
+        "-pass", "2", "-passlogfile", passLogPath,
+        ...audioArgs, ...outputArgs,
+      ];
+
+      return new Response(
+        streamTwoPass(firstArgs, secondArgs, passLogPath, req.signal, `media ${id}`),
+        {
+          headers: {
+            "Content-Type": preset.contentType,
+            "Content-Disposition": contentDisposition(filename),
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    args.push(...videoArgs, "-pix_fmt", "yuv420p", ...audioArgs, ...outputArgs);
   }
 
   const stream = spawnFfmpeg(args, req.signal, `encoding media ${id} as ${presetKey}`);
