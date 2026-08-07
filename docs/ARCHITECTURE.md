@@ -76,6 +76,17 @@ one has, which fails if an `ADDED_COLUMNS` entry is forgotten.
   - One tag with its stats, description, aliases and implications, for the tag tooltip.
   - An alias resolves to its target and reports which alias matched.
 
+- `GET /api/media/info?id=`
+  - The curated file metadata behind the panel's "file info" section.
+  - **ffprobe for video and audio, exiftool for stills.** exiftool is unreliable on video:
+    a 9.6 GB mp4 in this library reports nothing but its brand - no codec, no duration -
+    where ffprobe reads it completely and three times faster.
+  - Read on demand, not stored: exiftool answers in ~0.3 s, and the files never change
+    after upload, so a column would only add a backfill to keep correct.
+  - Which fields appear is decided in one place, `src/lib/mediaInfoFields.js`. Image fields
+    list several exiftool keys each, because formats file the same fact under different
+    groups (`PNG:BitDepth` vs `File:BitsPerSample`).
+
 - `GET /api/media/[year]/[month]/[file]?size=thumb|vprev`
   - Streams full media or derived variants.
   - Supports HTTP range requests for non-MKV files.

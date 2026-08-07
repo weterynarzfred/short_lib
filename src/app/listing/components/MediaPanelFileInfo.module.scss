@@ -1,0 +1,99 @@
+@use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
+
+.fileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid $colorBorder;
+  padding-top: 0.5rem;
+}
+
+.summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  // The size is the one fact worth reading without opening the section, so it rides along
+  // on the summary line.
+  color: $colorContent2;
+}
+
+.summarySize {
+  font-family: $fontMono;
+}
+
+.filename {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filenameLabel {
+  @include subtleText();
+}
+
+.filenameInput {
+  @include inputBase(0.2rem 0.5rem);
+
+  width: 100%;
+  font-family: $fontMono;
+  font-size: $fontSizeMonoInput;
+
+  &.filenameInputDirty {
+    border-color: $colorBorder2;
+  }
+}
+
+.filenameButtons {
+  @include actionRow();
+}
+
+.button {
+  @include buttonBase($disabledOpacity: 0.5);
+
+  &:disabled {
+    background-color: $colorBg2;
+  }
+}
+
+.note {
+  @include subtleText();
+
+  font-style: italic;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.rowLabel {
+  flex: 0 0 7rem;
+  color: $colorContent2;
+}
+
+.rowValue {
+  margin: 0;
+  min-width: 0;
+  font-family: $fontMono;
+  overflow-wrap: anywhere;
+}
+
+// Generation parameters run to a thousand characters, which would push everything below
+// them off the panel. Scrolls in place instead.
+.rowValueLong {
+  max-height: 8rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}

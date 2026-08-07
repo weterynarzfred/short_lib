@@ -7,6 +7,8 @@ A personal, local, media library built around a web UI using Next.js, React, and
 - Upload images and videos, it automatically generates thumbnails and adds basic tags.
 - Search with tag logic (`AND`/`OR`/negation) plus operator filters.
 - Edit tags, notes, and filenames. Tags can be edited in bulk.
+- Read a file's own metadata in the panel: codec, bitrate, frame rate, bit depth, EXIF,
+  and the generation parameters embedded in AI-made PNGs.
 - Give tags aliases, descriptions, and implications (tagging `cat` can auto-add `animal`).
 - Download a multi-selection as a zip.
 - Soft-delete media into a deleted bin and clear it from the UI.
@@ -49,9 +51,13 @@ A personal, local, media library built around a web UI using Next.js, React, and
 
 - Node.js + npm
 - `ffmpeg` and `ffprobe` available on `PATH` for full video support
-  - video metadata extraction (`ffprobe`)
-  - video preview frame extraction (`ffmpeg`)
+  - video metadata extraction on upload, and the file info panel for video and audio
+    (`ffprobe`)
+  - video preview frame extraction, hover preview clips, and re-encoding downloads
+    (`ffmpeg`)
   - MKV streaming remux to MP4 (`ffmpeg`)
+- `exiftool` on `PATH` for the file info panel on images (EXIF, ICC, PNG text chunks).
+  Without it that section reports that it could not read the file; nothing else is affected.
 
 ## Quick start
 

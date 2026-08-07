@@ -66,43 +66,6 @@
   }
 }
 
-.fileSize {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-}
-
-.fileSizeLabel {
-  @include subtleText();
-}
-
-.filename {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filenameLabel {
-  @include subtleText();
-}
-
-.filenameInput {
-  @include inputBase(0.2rem 0.5rem);
-
-  width: 100%;
-  font-family: $fontMono;
-  font-size: $fontSizeMonoInput;
-
-  &.filenameInputDirty {
-    border-color: $colorBorder2;
-  }
-}
-
-.filenameButtonList {
-  @include actionRow();
-}
-
 .button {
   @include buttonBase($disabledOpacity: 0.5);
 

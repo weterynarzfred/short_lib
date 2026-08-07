@@ -3,15 +3,14 @@ import classNames from "classnames";
 
 import {
   deletePostAction,
-  updatePostOriginalFilenameAction,
   updatePostScoreAction,
   updatePostTagsAction,
 } from "@/lib/actions";
-import formatBytes from "@/lib/formatBytes";
 import isEditableTarget from "@/lib/isEditableTarget";
 import ScoreInput from "@/components/ScoreInput";
 import TagEditor from "@/components/TagEditor";
 import MediaPanelDownload from "./MediaPanelDownload";
+import MediaPanelFileInfo from "./MediaPanelFileInfo";
 import MediaPanelNotesEditor from "./MediaPanelNotesEditor";
 
 import styles from "./MediaPanelMeta.module.scss";
@@ -29,18 +28,12 @@ export default function MediaPanelMeta({
 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [tagsValue, setTagsValue] = useState("");
-  const [filenameValue, setFilenameValue] = useState("");
   const [isSavingTags, startTagsTransition] = useTransition();
-  const [isSavingFilename, startFilenameTransition] = useTransition();
   const [isSavingScore, startScoreTransition] = useTransition();
 
   const originalTags = useMemo(
     () => post.tags.map(tag => tag.name).join(" ").trim(),
     [post.tags],
-  );
-  const originalFilename = useMemo(
-    () => typeof post.original_filename === "string" ? post.original_filename : "",
-    [post.original_filename],
   );
 
   useEffect(() => {
@@ -63,12 +56,8 @@ export default function MediaPanelMeta({
   useEffect(() => {
     setTagsValue(originalTags);
   }, [originalTags]);
-  useEffect(() => {
-    setFilenameValue(originalFilename);
-  }, [originalFilename]);
 
   const isTagsDirty = tagsValue.trim() !== originalTags;
-  const isFilenameDirty = filenameValue !== originalFilename;
 
   // Every edit here works the same way: run the action in a transition, then patch the post
   // locally with what came back rather than revalidating, so the panel does not flicker
@@ -107,17 +96,6 @@ export default function MediaPanelMeta({
     );
   };
 
-  const saveFilename = () => {
-    if (!isFilenameDirty) return;
-
-    save(
-      startFilenameTransition,
-      () => updatePostOriginalFilenameAction(post.id, filenameValue),
-      result => typeof result?.original_filename === "string"
-        ? { original_filename: result.original_filename }
-        : null
-    );
-  };
 
   return (
     <div className={classNames(className, styles.mediaPanelMeta)}>
@@ -190,65 +168,7 @@ export default function MediaPanelMeta({
         focusRef={notesFocusRef}
       />
 
-      <div className={styles.edit}>
-        <div className={styles.filename}>
-          <div>
-            <label
-              className={styles.filenameLabel}
-              htmlFor={`media-filename-${post.id}`}
-            >
-              filename
-            </label>
-            <input
-              id={`media-filename-${post.id}`}
-              className={classNames(styles.filenameInput, {
-                [styles.filenameInputDirty]: isFilenameDirty,
-              })}
-              type="text"
-              value={filenameValue}
-              placeholder="original filename"
-              onChange={event => setFilenameValue(event.target.value)}
-              onKeyDown={event => {
-                // No arrow handling needed: navigation ignores events aimed at a field.
-                if (event.key === "Escape") {
-                  event.stopPropagation();
-                  event.currentTarget.blur();
-                } else if (event.key === "Enter") {
-                  event.preventDefault();
-                  saveFilename();
-                }
-              }}
-            />
-          </div>
-          <div className={styles.filenameButtonList}>
-            <button
-              className={styles.button}
-              type="button"
-              onClick={saveFilename}
-              disabled={!isFilenameDirty || isSavingFilename}
-            >
-              {isSavingFilename ? "saving..." : "save name"}
-            </button>
-            <button
-              className={styles.button}
-              type="button"
-              onClick={() => setFilenameValue(originalFilename)}
-              disabled={!isFilenameDirty || isSavingFilename}
-            >
-              reset
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {Number.isFinite(Number(post.file_size)) && Number(post.file_size) > 0 ? (
-        // Guarded rather than always rendered: formatBytes reports "0 B" for a missing
-        // size, which reads as a real measurement of an empty file.
-        <div className={styles.fileSize}>
-          <span className={styles.fileSizeLabel}>file size</span>
-          <span>{formatBytes(post.file_size)}</span>
-        </div>
-      ) : null}
+      <MediaPanelFileInfo post={post} onPatchPost={onPatchPost} />
 
       <MediaPanelDownload post={post} />
 
