@@ -169,6 +169,17 @@ export default function MediaListing({
     setPanelSettings({ ...mediaSettings });
   }, [mediaSettings]);
 
+  // Keeps the grid in step with the panel while arrowing through posts. `nearest` scrolls
+  // only when the card is off-screen, so stepping along a visible row does not shunt the
+  // listing around. Pointless in fullscreen, where the listing is covered anyway.
+  useEffect(() => {
+    if (activePostId == null || panelSettings.fullscreen) return;
+
+    contentRef.current
+      ?.querySelector(`[data-post-id="${activePostId}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activePostId, panelSettings.fullscreen, contentRef]);
+
   return (
     <div className={styles.mediaListing}>
       <MediaListingContent

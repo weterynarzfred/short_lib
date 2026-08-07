@@ -32,6 +32,8 @@ export default function PostItem({
   const tooltipHoverProps = getHoverProps(post, subtitleKinds);
 
   return <div
+    // Lets the listing find this card to scroll to when the panel navigates onto it.
+    data-post-id={post.id}
     className={classNames(styles.card, {
       [styles.selected]: isSelected,
       [styles.selectionMode]: isMultiSelectEnabled,
