@@ -1,8 +1,10 @@
 import { spawn } from "child_process";
 
+import { FFPROBE } from "@/lib/binaries";
+
 export default function ffprobe(file) {
   return new Promise((resolve, reject) => {
-    const proc = spawn("ffprobe", [
+    const proc = spawn(FFPROBE, [
       "-v",
       "quiet",
       "-print_format",

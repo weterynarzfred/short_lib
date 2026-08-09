@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 
 import scaleToTotalPixels from "./scaleToTotalPixels.js";
+import { FFMPEG, FFPROBE } from "./binaries.js";
 
 // Deliberately free of "@/" imports: the backfill script runs under plain node, which does
 // not resolve the jsconfig alias.
@@ -108,7 +109,7 @@ function run(command, args) {
 }
 
 async function probeDimensions(filePath) {
-  const output = await run("ffprobe", [
+  const output = await run(FFPROBE, [
     "-v", "error",
     "-select_streams", "v:0",
     "-show_entries", "stream=width,height",
@@ -144,7 +145,7 @@ export default async function generateVideoPreview({
   const size = planPreviewSize(source?.width, source?.height, targetPixels);
   if (!size) return null;
 
-  await run("ffmpeg", buildPreviewArgs(inputPath, outputPath, segments, size));
+  await run(FFMPEG, buildPreviewArgs(inputPath, outputPath, segments, size));
 
   return {
     width: size.width,

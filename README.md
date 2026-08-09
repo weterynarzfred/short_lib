@@ -57,7 +57,12 @@ A personal, local, media library built around a web UI using Next.js, React, and
     (`ffmpeg`)
   - MKV streaming remux to MP4 (`ffmpeg`)
 - `exiftool` on `PATH` for the file info panel on images (EXIF, ICC, PNG text chunks).
-  Without it that section reports that it could not read the file; nothing else is affected.
+  Without it that section says so; nothing else is affected.
+
+Each of these can be named explicitly in `.env` instead of being found on `PATH`, via
+`FFMPEG_PATH`, `FFPROBE_PATH` and `EXIFTOOL_PATH`. That matters when the app runs as a
+service: a Windows service running as LocalSystem sees the machine `PATH` only, so a tool
+installed into a user `PATH` directory is invisible to it.
 
 ## Quick start
 
@@ -75,11 +80,16 @@ Example `.env`:
 STORAGE_DIR=H:/short_lib/storage/
 THUMB_PIXELS=100000
 PREVIEW_PIXELS=1000000
+
+# Only needed when a tool is not on the PATH the app runs with:
+EXIFTOOL_PATH=C:/bin/exiftool.exe
 ```
 - `STORAGE_DIR`: base directory for media files and generated derivatives.
 - `THUMB_PIXELS`: target total pixels for thumbnail generation.
 - `PREVIEW_PIXELS`: target total pixels for preview generation. (Right now previews are not displayed anywhere yet)
 - All three values above are required for the upload pipeline.
+- `FFMPEG_PATH`, `FFPROBE_PATH`, `EXIFTOOL_PATH`: optional, absolute paths to the external
+  tools. Default to the bare command name, found on `PATH`.
 
 3. Start development server:
 

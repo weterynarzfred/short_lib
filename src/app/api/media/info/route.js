@@ -4,6 +4,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 
 import db from "@/lib/db";
+import { EXIFTOOL, FFPROBE } from "@/lib/binaries";
 import mimetypeToType from "@/lib/mimetypeToType";
 import { buildAvInfoRows, buildImageInfoRows } from "@/lib/mediaInfoFields";
 
@@ -37,20 +38,28 @@ export async function GET(req) {
     return Response.json({ error: "The file is missing from storage" }, { status: 404 });
 
   const mediaType = mimetypeToType(media.mime_type);
-  const readRows = mediaType === "video" || mediaType === "audio" ? readAvRows : readImageRows;
+  const usesProbe = mediaType === "video" || mediaType === "audio";
 
   try {
-    return Response.json({ rows: await readRows(filePath) });
+    const rows = usesProbe ? await readAvRows(filePath) : await readImageRows(filePath);
+    return Response.json({ rows });
   } catch (error) {
-    // Almost always a missing binary, which is worth saying out loud rather than showing an
-    // empty section that looks like the file has no metadata.
     console.error(`reading metadata for media ${id} failed:`, error.message);
-    return Response.json({ error: "Could not read this file's metadata" }, { status: 500 });
+
+    // Say which tool is missing rather than showing an empty section that reads as "this
+    // file has no metadata". Worth naming because the app can run under an account that
+    // does not see the PATH the tool was installed on.
+    const tool = usesProbe ? FFPROBE : EXIFTOOL;
+    const message = error.code === "ENOENT"
+      ? `${tool} was not found - set FFPROBE_PATH or EXIFTOOL_PATH in .env`
+      : "Could not read this file's metadata";
+
+    return Response.json({ error: message }, { status: 500 });
   }
 }
 
 async function readAvRows(filePath) {
-  const { stdout } = await run("ffprobe", [
+  const { stdout } = await run(FFPROBE, [
     "-v", "error",
     "-print_format", "json",
     "-show_format",
@@ -64,7 +73,7 @@ async function readAvRows(filePath) {
 async function readImageRows(filePath) {
   // Grouped names (`File:`, `EXIF:`, `PNG:`) because the same fact lands in different
   // groups per format, and the field list keys off those names.
-  const { stdout } = await run("exiftool", ["-json", "-G", filePath], {
+  const { stdout } = await run(EXIFTOOL, ["-json", "-G", filePath], {
     maxBuffer: 8_000_000,
   });
 

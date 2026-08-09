@@ -1,12 +1,14 @@
 import { spawn } from "child_process";
 
+import { FFMPEG } from "./binaries.js";
+
 // ffmpeg is chatty even when it succeeds, and only the tail matters when it does not.
 const STDERR_TAIL_BYTES = 8192;
 
 // One place for the three things every ffmpeg call here needs: keep the end of stderr for
 // the error message, kill the process when the client goes away, and report the exit code.
 export function runFfmpeg(args, { signal, label } = {}) {
-  const process = spawn("ffmpeg", args);
+  const process = spawn(FFMPEG, args);
 
   let stderr = "";
   process.stderr.on("data", chunk => {
