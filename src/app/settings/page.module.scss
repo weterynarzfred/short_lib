@@ -225,3 +225,16 @@
 
   @include subtleText();
 }
+
+.describePromptEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.describePromptInput {
+  @include textareaBase($minHeight: 8rem, $padding: 0.4rem 0.5rem);
+
+  font-family: $fontMono;
+  font-size: $fontSizeMonoInput;
+}

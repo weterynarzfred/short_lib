@@ -76,6 +76,21 @@ one has, which fails if an `ADDED_COLUMNS` entry is forgotten.
   - One tag with its stats, description, aliases and implications, for the tag tooltip.
   - An alias resolves to its target and reports which alias matched.
 
+- `POST /api/describe` `{ id }`
+  - Sends one image to a local vision model and returns its text. Images only: a video
+    would need frames stitched into a sheet, and audio needs a different model.
+  - `LLM_URL` points at the **LAN service manager** (`:3403`), not koboldcpp itself, so the
+    19 GB model starts on the first request and shuts down again once idle. That first
+    request waits out the load, hence the 10 minute client timeout.
+  - The prompt is a user setting (`llm.describe_prompt`), read per request. Saving a blank
+    one restores the default in `userSettings.js`.
+  - The model reasons before answering, and **that reasoning counts against `max_tokens`**
+    even though koboldcpp returns it separately as `reasoning_content`. Too small a limit
+    truncates the model mid-thought and the unfinished reasoning comes back as the answer,
+    so the limit leaves room for both and `finish_reason: "length"` is treated as failure.
+  - The result is appended to the notes editor as an unsaved draft. Nothing reaches the
+    database until the user saves, because notes are what `notes:` and `text:` search.
+
 - `GET /api/media/info?id=`
   - The curated file metadata behind the panel's "file info" section.
   - **ffprobe for video and audio, exiftool for stills.** exiftool is unreliable on video:

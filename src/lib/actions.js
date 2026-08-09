@@ -18,6 +18,7 @@ import {
 import {
   getTagTypeOrderSql,
   setBlacklistedTags,
+  setDescribePrompt,
   setMediaSettings,
   setTagTypeColors,
   setTagTypeOrder,
@@ -349,4 +350,8 @@ export async function updateTagTypeOrderAction(rawTagTypeOrder, rawTagTypeColors
     result.tagTypeColors = tagTypeColors;
 
   return result;
+}
+
+export async function updateDescribePromptAction(rawPrompt) {
+  return { prompt: setDescribePrompt(rawPrompt) };
 }

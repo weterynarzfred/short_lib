@@ -9,6 +9,8 @@ A personal, local, media library built around a web UI using Next.js, React, and
 - Edit tags, notes, and filenames. Tags can be edited in bulk.
 - Read a file's own metadata in the panel: codec, bitrate, frame rate, bit depth, EXIF,
   and the generation parameters embedded in AI-made PNGs.
+- Describe an image with a local vision model, transcribing any text in it, and get the
+  result as a notes draft to edit before saving. The prompt is editable in settings.
 - Give tags aliases, descriptions, and implications (tagging `cat` can auto-add `animal`).
 - Download a multi-selection as a zip.
 - Soft-delete media into a deleted bin and clear it from the UI.
@@ -90,6 +92,10 @@ EXIFTOOL_PATH=C:/bin/exiftool.exe
 - All three values above are required for the upload pipeline.
 - `FFMPEG_PATH`, `FFPROBE_PATH`, `EXIFTOOL_PATH`: optional, absolute paths to the external
   tools. Default to the bare command name, found on `PATH`.
+- `LLM_URL`: optional, base URL of an OpenAI-compatible vision model, used by the describe
+  button. Defaults to `http://127.0.0.1:3403`, which is where the LAN service manager
+  serves koboldcpp on demand. Without one, the button reports that the model did not
+  respond and nothing else is affected.
 
 3. Start development server:
 

@@ -7,6 +7,7 @@ import {
   updatePostTagsAction,
 } from "@/lib/actions";
 import isEditableTarget from "@/lib/isEditableTarget";
+import mimetypeToType from "@/lib/mimetypeToType";
 import ScoreInput from "@/components/ScoreInput";
 import TagEditor from "@/components/TagEditor";
 import MediaPanelDownload from "./MediaPanelDownload";
@@ -166,6 +167,7 @@ export default function MediaPanelMeta({
         initialValue={post.notes_md}
         onPatchPost={onPatchPost}
         focusRef={notesFocusRef}
+        canDescribe={mimetypeToType(post.mime_type) === 'image'}
       />
 
       <MediaPanelFileInfo post={post} onPatchPost={onPatchPost} />

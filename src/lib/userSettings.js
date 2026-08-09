@@ -18,6 +18,18 @@ export const MEDIA_SETTINGS_DEFAULTS = {
 export const BLACKLISTED_TAGS_KEY = "listing.blacklisted_tags";
 export const TAG_TYPE_ORDER_KEY = "listing.tag_type_order";
 export const TAG_TYPE_COLORS_KEY = "listing.tag_type_colors";
+export const DESCRIBE_PROMPT_KEY = "llm.describe_prompt";
+
+// Sent with every image the describe button reads. Written to produce something worth
+// searching rather than something worth reading: prose first, then anything legible in the
+// picture, because notes are what `notes:` and `text:` match against.
+export const DEFAULT_DESCRIBE_PROMPT = `Describe this image for a searchable media library.
+
+Write two or three sentences covering the subject, the setting, the style, and anything notable about it.
+
+Then, if the image contains any readable text, add a line containing only "---" and transcribe every piece of text exactly as it appears. Leave that part out entirely when there is no text.
+
+Do not add a preamble, a title, or markdown formatting.`;
 
 const MEDIA_SETTING_KEYS = new Set(Object.keys(MEDIA_SETTINGS_DEFAULTS));
 
@@ -239,6 +251,20 @@ export function setTagTypeColors(rawTagTypeColors) {
   );
 
   return sanitizedColors;
+}
+
+export function getDescribePrompt() {
+  const row = getSettingStmt.get(DESCRIBE_PROMPT_KEY);
+  const stored = typeof row?.value === "string" ? row.value.trim() : "";
+
+  // Blank falls back to the default, so clearing the field is how you reset it.
+  return stored || DEFAULT_DESCRIBE_PROMPT;
+}
+
+export function setDescribePrompt(rawPrompt) {
+  upsertSettingStmt.run(DESCRIBE_PROMPT_KEY, String(rawPrompt ?? "").trim(), Date.now());
+
+  return getDescribePrompt();
 }
 
 export function getTagTypeOrderSql() {

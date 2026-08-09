@@ -1,11 +1,13 @@
 import Nav from "@/components/Nav";
 import {
   getBlacklistedTags,
+  getDescribePrompt,
   getMediaSettings,
   getTagTypeColors,
   getTagTypeOrder,
 } from "@/lib/userSettings";
 import BlacklistedTagsSetting from "./components/BlacklistedTagsSetting";
+import DescribePromptSetting from "./components/DescribePromptSetting";
 import MediaSettingsSetting from "./components/MediaSettingsSetting";
 import TagTypeOrderSetting from "./components/TagTypeOrderSetting";
 
@@ -18,6 +20,7 @@ export default function SettingsPage() {
   const mediaSettings = getMediaSettings();
   const tagTypeOrder = getTagTypeOrder();
   const tagTypeColors = getTagTypeColors();
+  const describePrompt = getDescribePrompt();
 
   return (
     <div className="page-settings">
@@ -61,6 +64,16 @@ export default function SettingsPage() {
           <MediaSettingsSetting
             initialSettings={mediaSettings}
           />
+        </section>
+        <section className={styles.settingCard}>
+          <h2 className={styles.settingTitle}>describe prompt</h2>
+          <p className={styles.settingDescription}>
+            sent with the image when you press describe in the media panel. the result is
+            appended to the notes as a draft, so it is searchable once you save it. clear
+            the field and save to go back to the default.
+          </p>
+
+          <DescribePromptSetting initialValue={describePrompt} />
         </section>
       </main>
     </div>

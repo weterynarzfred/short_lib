@@ -26,3 +26,9 @@
 .button {
   @include buttonBase($disabledOpacity: 0.5);
 }
+
+.describeError {
+  @include subtleText();
+
+  color: $colorWarning;
+}
