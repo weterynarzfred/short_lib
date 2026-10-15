@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import classNames from "classnames";
-import Image from "next/image";
 
 import getPostBadgeLabel from "../lib/postBadge";
 import getPostSubtitles from "../lib/postSubtitle";
@@ -58,18 +57,16 @@ export default function PostItem({
       null}
 
     <div className={styles.imageContainer}>
-      {thumb ? (
-        <Image
-          src={`/api/media/${post.file_path}?size=thumb`}
-          width={thumb.width}
-          height={thumb.height}
-          alt=""
-        />
-      ) : (
-        // Without a thumbnail there is nothing else to recognise the post by, so the
-        // filename takes the space the image would have occupied.
-        <div className={styles.thumbFallbackName}>{post.original_filename}</div>
-      )}
+      {thumb ? <img // thumbnails are already sized at upload, so no next/image here
+        src={`/api/media/${post.file_path}?size=thumb`}
+        width={thumb.width}
+        height={thumb.height}
+        loading="lazy"
+        decoding="async"
+        alt=""
+      /> : <div
+        className={styles.thumbFallbackName}>{post.original_filename}</div>
+      }
 
       {isPreviewing && videoPreview ? (
         <video

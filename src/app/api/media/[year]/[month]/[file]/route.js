@@ -9,6 +9,9 @@ const CHECKSUM_RE = /^[a-f0-9]{64}$/i;
 const YEAR_RE = /^\d{4}$/;
 const MONTH_RE = /^(0[1-9]|1[0-2])$/;
 
+// Filenames are checksums already
+const IMMUTABLE = "public, max-age=31536000, immutable";
+
 function outOfRange(fileSize) {
   return new Response(null, {
     status: 416,
@@ -117,6 +120,7 @@ export async function GET(req, { params }) {
     return new Response(stream, {
       headers: {
         "Content-Type": "video/mp4",
+        "Cache-Control": IMMUTABLE,
         "Accept-Ranges": "none",
       },
     });
@@ -129,6 +133,7 @@ export async function GET(req, { params }) {
     return new Response(stream, {
       headers: {
         "Content-Type": contentType,
+        "Cache-Control": IMMUTABLE,
         "Content-Length": fileSize.toString(),
         "Accept-Ranges": "bytes",
       },
@@ -147,6 +152,7 @@ export async function GET(req, { params }) {
     status: 206,
     headers: {
       "Content-Type": contentType,
+      "Cache-Control": IMMUTABLE,
       "Content-Length": chunkSize.toString(),
       "Content-Range": `bytes ${start}-${end}/${fileSize}`,
       "Accept-Ranges": "bytes",

@@ -124,6 +124,7 @@ describe("media route", () => {
     expect(res.headers.get("Content-Type")).toBe("video/mp4");
     expect(res.headers.get("Content-Length")).toBe("1000");
     expect(res.headers.get("Accept-Ranges")).toBe("bytes");
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
     expect(fsHoisted.createReadStream).toHaveBeenCalledWith(
       path.join("C:\\storage", "full", "2026", "03", `${CHECKSUM}.mp4`)
     );
