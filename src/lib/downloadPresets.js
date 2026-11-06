@@ -107,10 +107,7 @@ const TIMESTAMP_RE = /^(?:(\d+):)?(?:(\d+):)?(\d+(?:\.\d+)?)$/;
 // Accepts `SS`, `MM:SS` and `HH:MM:SS`, each optionally with decimals. Returns seconds, or
 // null when the input is unusable - callers treat null as "no bound given".
 export function parseTimestamp(value) {
-  const raw = String(value ?? "").trim();
-  if (!raw) return null;
-
-  const match = TIMESTAMP_RE.exec(raw);
+  const match = TIMESTAMP_RE.exec(String(value ?? "").trim());
   if (!match) return null;
 
   const [, first, second, last] = match;
@@ -119,9 +116,7 @@ export function parseTimestamp(value) {
   let seconds = 0;
   for (const part of parts) seconds = seconds * 60 + Number(part);
 
-  if (!Number.isFinite(seconds) || seconds < 0) return null;
-
-  return seconds;
+  return Number.isFinite(seconds) ? seconds : null;
 }
 
 // Returns `{ start, duration }` in seconds, or null when no usable trim was asked for.

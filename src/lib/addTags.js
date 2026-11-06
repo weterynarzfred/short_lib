@@ -1,23 +1,15 @@
 import db from "@/lib/db";
+import parseTagToken from "@/lib/parseTagToken";
 import { findTagByAliasName } from "@/lib/tagAliases";
 
 export function parseTagString(raw = "") {
   return String(raw ?? "")
     .split(/\s+/)
-    .map(t => t.trim())
-    // A leading "-" always means "not this tag". The bulk editor strips it before calling
-    // here and handles removal itself, so a "-" that reaches this point is a typo - and
-    // taking it literally created a tag actually named "-cat".
-    .filter(token => token && !token.startsWith("-"))
-    .map(token => {
-      const idx = token.indexOf(":");
-      if (idx > 0 && idx < token.length - 1) {
-        const type = token.slice(0, idx).trim();
-        const name = token.slice(idx + 1).trim();
-        if (type && name) return { name, type };
-      }
-      return { name: token };
-    });
+    .filter(Boolean)
+    .map(parseTagToken)
+    // A leading "-" always means "not this tag". The bulk editor handles removal itself,
+    // so a "-" that reaches this point is a typo, not a tag named "-cat".
+    .filter(t => !t.negated);
 }
 
 const insertTag = db.prepare(`
@@ -91,10 +83,9 @@ function normalizeInputTag(rawTag) {
   const name = String(rawTag.name).trim();
   if (!name) return null;
 
-  const providedType =
-    rawTag.type == null || String(rawTag.type).trim() === ""
-      ? null
-      : String(rawTag.type).trim();
+  // Lowercased here, on the way in, so everything that reads types can take them as stored.
+  const type = String(rawTag.type ?? "").trim().toLowerCase();
+  const providedType = type || null;
 
   return { name, providedType };
 }
@@ -109,7 +100,7 @@ function resolveOrCreateTag({ name, providedType }) {
   if (aliasTarget) return aliasTarget;
 
   insertTag.run(name, providedType);
-  return selectTagByName.get(name) ?? null;
+  return selectTagByName.get(name);
 }
 
 function replaceMediaTags(mediaId) {
@@ -122,8 +113,6 @@ export function removeTags(mediaId, tags) {
   const safeMediaId = ensureMediaId(mediaId);
 
   const tx = db.transaction((mid, inputTags) => {
-    if (!Array.isArray(inputTags) || inputTags.length === 0) return;
-
     for (const tag of inputTags) {
       const normalized = normalizeInputTag(tag);
       if (!normalized) continue;
@@ -137,7 +126,6 @@ export function removeTags(mediaId, tags) {
   });
 
   tx(safeMediaId, tags);
-
 }
 
 export default function addTags(mediaId, tags, { replace = false } = {}) {
@@ -145,7 +133,6 @@ export default function addTags(mediaId, tags, { replace = false } = {}) {
 
   const tx = db.transaction((mid, inputTags, shouldReplace) => {
     if (shouldReplace) replaceMediaTags(mid);
-    if (!Array.isArray(inputTags) || inputTags.length === 0) return;
 
     const baseTagIds = [];
 
@@ -154,8 +141,6 @@ export default function addTags(mediaId, tags, { replace = false } = {}) {
       if (!normalized) continue;
 
       const row = resolveOrCreateTag(normalized);
-      if (!row) continue;
-
       if (normalized.providedType && row.type !== normalized.providedType)
         updateTagType.run(normalized.providedType, row.id, normalized.providedType);
 
@@ -176,5 +161,4 @@ export default function addTags(mediaId, tags, { replace = false } = {}) {
   });
 
   tx(safeMediaId, tags, replace);
-
 }

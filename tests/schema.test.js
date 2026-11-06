@@ -1,4 +1,8 @@
+import { spawn } from "child_process";
+import fs from "fs";
+import os from "os";
 import path from "path";
+import { pathToFileURL } from "url";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 
@@ -109,6 +113,45 @@ describe("applySchema", () => {
     expect(columnsOf(db, "media")).toEqual(afterFirst);
     expect(columnsOf(db, "media").filter(name => name === "notes_md")).toHaveLength(1);
   });
+
+  // `next build` opens the database from a pool of workers at once, and each one migrates.
+  // Every table must already exist: creating one queues the processes up on its lock, which
+  // hides the race. Only a column missing from an otherwise current database exposes it.
+  it("migrates safely when several processes open the database together", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shortlib-schema-"));
+    const dbPath = path.join(dir, "shortlib.db");
+    const legacy = new Database(dbPath);
+    applySchema(legacy);
+    legacy.exec("ALTER TABLE media DROP COLUMN notes_md");
+    legacy.close();
+
+    // Each child opens the database, then spins until a shared start time, so every
+    // migration really does begin at once instead of being staggered by process start-up.
+    const script = `
+      import Database from "better-sqlite3";
+      import applySchema from ${JSON.stringify(pathToFileURL(path.resolve("src/lib/schema.js")).href)};
+      const db = new Database(process.argv[1]);
+      while (Date.now() < Number(process.argv[2]));
+      applySchema(db);
+    `;
+    const startAt = String(Date.now() + 3000);
+    const exitCodes = await Promise.all(Array.from({ length: 24 }, () => new Promise(resolve => {
+      const child = spawn(process.execPath, ["--input-type=module", "-e", script, dbPath, startAt], {
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+      let stderr = "";
+      child.stderr.on("data", chunk => { stderr += chunk; });
+      child.on("close", code => resolve(code === 0 ? 0 : stderr.split("\n").find(line => line.includes("Error"))));
+    })));
+
+    const migrated = new Database(dbPath);
+    const columns = columnsOf(migrated, "media");
+    migrated.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+
+    expect(exitCodes).toEqual(Array(24).fill(0));
+    expect(columns).toEqual(columnsOf(freshDb(), "media"));
+  }, 30000);
 
   it("drops retired tables", () => {
     const db = freshDb();

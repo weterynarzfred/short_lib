@@ -10,6 +10,7 @@ const ADDED_COLUMNS = [
   { table: "media", column: "notes_md", definition: "TEXT" },
   { table: "tags", column: "description", definition: "TEXT" },
   { table: "media", column: "score", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { table: "media", column: "phash", definition: "BLOB" },
 ];
 
 // Tables no longer part of the schema. Dropped on startup so every copy of the
@@ -32,7 +33,10 @@ function createTables(db) {
       variants TEXT CHECK (variants IS NULL OR json_valid(variants)),
       checksum TEXT,
       -- 0 means unrated; there is deliberately no distinct "unset".
-      score INTEGER NOT NULL DEFAULT 0
+      score INTEGER NOT NULL DEFAULT 0,
+      -- Perceptual hashes, 8 bytes per frame (one for an image). NULL means not hashed yet,
+      -- empty means hashed with nothing usable, such as a blank image.
+      phash BLOB
     );
   `);
 
@@ -115,10 +119,15 @@ function createIndexes(db) {
   `);
 }
 
+// IMMEDIATE takes the write lock before the column check, so processes opening the database
+// at once take turns. `next build` collects page data in a pool of workers that each run
+// this, and two of them both seeing a column missing failed with "duplicate column name".
 export default function applySchema(db) {
-  createTables(db);
-  // Columns first: an index may reference a column that only the ALTER pass adds.
-  addMissingColumns(db);
-  createIndexes(db);
-  dropRetiredTables(db);
+  db.transaction(() => {
+    createTables(db);
+    // Columns first: an index may reference a column that only the ALTER pass adds.
+    addMissingColumns(db);
+    createIndexes(db);
+    dropRetiredTables(db);
+  }).immediate();
 }

@@ -30,6 +30,17 @@ describe("manageTag", () => {
     expect(updated).toEqual({ name: "cat", type: "meta" });
   });
 
+  it("stores an edited type trimmed and lowercased", async () => {
+    const tagId = db
+      .prepare(`INSERT INTO tags(name, type) VALUES (?, ?)`)
+      .run("cat", "general").lastInsertRowid;
+
+    const { updateTagById } = await import("../src/lib/manageTag");
+    updateTagById(tagId, { name: "cat", type: " Character " });
+
+    expect(db.prepare(`SELECT type FROM tags WHERE id = ?`).get(tagId).type).toBe("character");
+  });
+
   it("renames a tag and preserves links when target name does not exist", async () => {
     const mediaId = db
       .prepare(`INSERT INTO media(file_path, created_at, checksum) VALUES (?, ?, ?)`)

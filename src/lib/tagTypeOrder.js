@@ -73,10 +73,7 @@ export function getTagTypeClassName(value) {
   return suffix ? `tag-type-${suffix}` : "";
 }
 
-export function buildTagTypeColorsCss(tagTypeColors = {}) {
-  if (!tagTypeColors || typeof tagTypeColors !== "object" || Array.isArray(tagTypeColors))
-    return "";
-
+export function buildTagTypeColorsCss(tagTypeColors) {
   const rules = [];
   const seen = new Set();
 

@@ -184,6 +184,26 @@ describe("search parser and query builder", () => {
       .toEqual(["koreans gaming", "mp4"]);
   });
 
+  it("parses similar: as a post id resolved like the fuzzy terms", () => {
+    const parsed = parseSearch("similar:42 -similar:7 similar:abc similar:0");
+
+    expect(findTerms(parsed.expression, "similar").map(term => [term.query, term.negated]))
+      .toEqual([[42, false], [7, true]]);
+
+    findTerm(parsed, "similar").mediaIds = [42, 9];
+    const { sql, params } = buildQuery(parsed);
+
+    expect(sql).toContain("m.id IN (?, ?)");
+    expect(params).toEqual(expect.arrayContaining([42, 9]));
+  });
+
+  it("drops the default blacklist for similar:, but not for -similar:", () => {
+    const options = { defaultExcludedTags: ["nsfw"] };
+
+    expect(parseSearch("similar:42", options).excludeTags).toEqual([]);
+    expect(parseSearch("cat -similar:42", options).excludeTags).toEqual(["nsfw"]);
+  });
+
   it("keeps notes, text and filename as independent terms", () => {
     const parsed = parseSearch("notes:a text:b filename:c");
 
@@ -278,7 +298,7 @@ describe("search parser and query builder", () => {
 
     expect(sql).toContain("COALESCE(TRIM(m.notes_md), '') <> ''");
     expect(sql).toContain("NOT");
-    expect(sql).toContain("LOWER(t.type) = ?");
+    expect(sql).toContain("t.type = ?");
     expect(params).toEqual(["character", "creator"]);
   });
 
@@ -302,6 +322,8 @@ describe("search parser and query builder", () => {
 describe("getPosts", () => {
   beforeEach(() => {
     vi.resetModules();
+    // Prepares its own statements on import, which would hit each test's fake db.
+    vi.doMock("@/lib/similarity", () => ({ default: vi.fn(() => []) }));
   });
 
   it("parses JSON fields with safe fallbacks", async () => {

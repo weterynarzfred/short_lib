@@ -4,11 +4,9 @@ import { Writable } from "stream";
 const hoisted = vi.hoisted(() => ({
   createWriteStream: vi.fn(),
   rename: vi.fn(),
-  unlink: vi.fn(),
+  rm: vi.fn(),
   formidable: vi.fn(),
-  extractMetadata: vi.fn(),
   getTempPath: vi.fn(),
-  getFinalPath: vi.fn(),
 }));
 
 vi.mock("fs", () => ({
@@ -18,23 +16,18 @@ vi.mock("fs", () => ({
 vi.mock("fs/promises", () => ({
   default: {
     rename: hoisted.rename,
-    unlink: hoisted.unlink,
+    rm: hoisted.rm,
   },
   rename: hoisted.rename,
-  unlink: hoisted.unlink,
+  rm: hoisted.rm,
 }));
 
 vi.mock("formidable", () => ({
   default: hoisted.formidable,
 }));
 
-vi.mock("../src/app/api/upload/extractMetadata", () => ({
-  default: hoisted.extractMetadata,
-}));
-
 vi.mock("@/app/api/upload/path_helpers", () => ({
   getTempPath: hoisted.getTempPath,
-  getFinalPath: hoisted.getFinalPath,
 }));
 
 function setupSingleFileForm({
@@ -62,11 +55,9 @@ describe("parseUploadForm", () => {
     vi.restoreAllMocks();
     hoisted.createWriteStream.mockReset();
     hoisted.rename.mockReset();
-    hoisted.unlink.mockReset();
+    hoisted.rm.mockReset();
     hoisted.formidable.mockReset();
-    hoisted.extractMetadata.mockReset();
     hoisted.getTempPath.mockReset();
-    hoisted.getFinalPath.mockReset();
 
     hoisted.createWriteStream.mockImplementation(() => new Writable({
       write(_chunk, _enc, cb) {
@@ -75,26 +66,13 @@ describe("parseUploadForm", () => {
     }));
 
     hoisted.getTempPath.mockImplementation(filename => `C:\\storage\\tmp\\${filename}`);
-    hoisted.getFinalPath.mockImplementation((file, ext) =>
-      `C:\\storage\\full\\2026\\03\\${file.checksum}${ext}`);
 
     hoisted.rename.mockResolvedValue();
-    hoisted.unlink.mockResolvedValue();
-    hoisted.extractMetadata.mockResolvedValue({
-      size: 123,
-      mimetype: "image/jpeg",
-      type: "image",
-      dimensions: { width: 10, height: 20 },
-      duration: null,
-      hasAudio: false,
-    });
+    hoisted.rm.mockResolvedValue();
   });
 
-  it("computes checksum, handles EEXIST rename collisions, and enriches metadata", async () => {
+  it("computes the checksum and leaves the file in tmp/ for the duplicate check", async () => {
     setupSingleFileForm();
-    hoisted.rename.mockRejectedValueOnce(
-      Object.assign(new Error("already exists"), { code: "EEXIST" })
-    );
 
     const { default: parseUploadForm } = await import("../src/app/api/upload/parseUploadForm");
     const req = new Request("http://localhost/api/upload", {
@@ -114,30 +92,24 @@ describe("parseUploadForm", () => {
     expect(hoisted.createWriteStream).toHaveBeenCalledWith("C:\\storage\\tmp\\temp-upload.jpg");
     expect(file.checksum).toMatch(/^[a-f0-9]{64}$/);
     expect(file.uploadDate instanceof Date).toBe(true);
-    expect(file.filepath).toBe(`C:\\storage\\full\\2026\\03\\${file.checksum}.jpg`);
-    expect(file.size).toBe(123);
-    expect(file.mimetype).toBe("image/jpeg");
-    expect(file.type).toBe("image");
-    expect(file.dimensions).toEqual({ width: 10, height: 20 });
-    expect(file.duration).toBeNull();
-    expect(file.hasAudio).toBe(false);
+    expect(file.filepath).toBe("C:\\storage\\tmp\\temp-upload.jpg");
     expect(file.hash).toBeUndefined();
     expect(file.finished).toBeUndefined();
-
-    expect(hoisted.rename).toHaveBeenCalledWith(
-      "C:\\storage\\tmp\\temp-upload.jpg",
-      `C:\\storage\\full\\2026\\03\\${file.checksum}.jpg`
-    );
-    expect(hoisted.unlink).toHaveBeenCalledWith("C:\\storage\\tmp\\temp-upload.jpg");
-    expect(hoisted.extractMetadata).toHaveBeenCalledWith(
-      `C:\\storage\\full\\2026\\03\\${file.checksum}.jpg`,
-      { fallbackMimeType: "image/jpeg" }
-    );
+    expect(hoisted.rename).not.toHaveBeenCalled();
   });
 
-  it("rethrows rename errors other than EEXIST", async () => {
-    setupSingleFileForm();
-    hoisted.rename.mockRejectedValueOnce(new Error("permission denied"));
+  it("destroys the write stream and removes the temp file when parsing fails", async () => {
+    hoisted.formidable.mockImplementationOnce(options => ({
+      parse: async () => {
+        const stream = options.fileWriteStreamHandler({
+          newFilename: "temp-upload.mp4",
+          originalFilename: "original.mp4",
+          mimetype: "video/mp4",
+        });
+        stream.write(Buffer.from("partial"));
+        throw new Error("aborted");
+      },
+    }));
 
     const { default: parseUploadForm } = await import("../src/app/api/upload/parseUploadForm");
     const req = new Request("http://localhost/api/upload", {
@@ -149,7 +121,11 @@ describe("parseUploadForm", () => {
       body: "x",
     });
 
-    await expect(parseUploadForm(req)).rejects.toThrow("permission denied");
-    expect(hoisted.unlink).not.toHaveBeenCalled();
+    await expect(parseUploadForm(req)).rejects.toThrow("aborted");
+
+    const writeStream = hoisted.createWriteStream.mock.results[0].value;
+    expect(writeStream.destroyed).toBe(true);
+    expect(hoisted.rm).toHaveBeenCalledWith("C:\\storage\\tmp\\temp-upload.mp4", { force: true });
+    expect(hoisted.rename).not.toHaveBeenCalled();
   });
 });

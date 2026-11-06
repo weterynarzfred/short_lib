@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import path from "path";
+import { Readable } from "stream";
 
 const fsHoisted = vi.hoisted(() => ({
   existsSync: vi.fn(),
@@ -28,11 +29,7 @@ vi.mock("child_process", () => ({
 }));
 
 function emptyStream() {
-  return new ReadableStream({
-    start(controller) {
-      controller.close();
-    },
-  });
+  return Readable.from([]);
 }
 
 function emptyEmitter() {
@@ -125,6 +122,7 @@ describe("media route", () => {
     expect(res.headers.get("Content-Length")).toBe("1000");
     expect(res.headers.get("Accept-Ranges")).toBe("bytes");
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+    expect(res.headers.get("Content-Security-Policy")).toBe("sandbox");
     expect(fsHoisted.createReadStream).toHaveBeenCalledWith(
       path.join("C:\\storage", "full", "2026", "03", `${CHECKSUM}.mp4`)
     );

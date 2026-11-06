@@ -1,58 +1,90 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 
 import isEditableTarget from "@/lib/isEditableTarget";
 
-export default function useMediaListingPanelNavigation({ visiblePosts, mediaRef }) {
-  const [activePostId, setActivePostId] = useState(null);
+function urlWithPost(postId) {
+  const url = new URL(window.location.href);
+  if (postId == null) url.searchParams.delete("post");
+  else url.searchParams.set("post", postId);
+  return url;
+}
 
-  const active = useMemo(
-    () => visiblePosts.find(post => post.id === activePostId) ?? null,
-    [visiblePosts, activePostId]
-  );
+// The open post lives in the URL (`?post=<id>`), so a reload or a copied link reopens it.
+// Opening the panel adds one history entry, marked `panelOpen`, and moving between posts
+// replaces it, so Back closes the panel instead of leaving the listing or walking back
+// through every post viewed. Next.js picks up these native history calls without a
+// server round trip.
+export default function useMediaListingPanelNavigation({ visiblePosts, hasMore, mediaRef }) {
+  const searchParams = useSearchParams();
+  const activePostId = Number(searchParams.get("post")) || null;
 
-  const close = useCallback(() => setActivePostId(null), []);
-  const open = useCallback(postId => setActivePostId(postId), []);
+  const active = visiblePosts.find(post => post.id === activePostId) ?? null;
 
-  const prev = useCallback(() => {
-    setActivePostId(currentId => {
-      if (currentId == null || visiblePosts.length < 2) return currentId;
+  // However the panel closes (Escape, the close button, Back), focus returns to the card of
+  // the post last shown, so Tab carries on from there instead of restarting at the nav.
+  const lastActiveIdRef = useRef(null);
+  useEffect(() => {
+    if (activePostId != null) {
+      lastActiveIdRef.current = activePostId;
+      return;
+    }
+    document.querySelector(`[data-post-id="${lastActiveIdRef.current}"]`)?.focus({ preventScroll: true });
+  }, [activePostId]);
 
-      const index = visiblePosts.findIndex(post => post.id === currentId);
-      if (index === -1) return null;
+  const show = postId => {
+    window.history.replaceState(
+      { panelOpen: window.history.state?.panelOpen },
+      "",
+      urlWithPost(postId)
+    );
+  };
 
-      const nextIndex = index === 0 ? visiblePosts.length - 1 : index - 1;
-      return visiblePosts[nextIndex]?.id ?? null;
-    });
-  }, [visiblePosts]);
+  const close = () => {
+    if (activePostId == null) return;
 
-  const next = useCallback(() => {
-    setActivePostId(currentId => {
-      if (currentId == null || visiblePosts.length < 2) return currentId;
+    // A post opened from a link or a reload has no entry of its own to go back past.
+    if (window.history.state?.panelOpen) window.history.back();
+    else window.history.replaceState(null, "", urlWithPost(null));
+  };
 
-      const index = visiblePosts.findIndex(post => post.id === currentId);
-      if (index === -1) return null;
+  const open = postId => {
+    if (activePostId == null) window.history.pushState({ panelOpen: true }, "", urlWithPost(postId));
+    else show(postId);
+  };
 
-      const nextIndex = index === visiblePosts.length - 1 ? 0 : index + 1;
-      return visiblePosts[nextIndex]?.id ?? null;
-    });
-  }, [visiblePosts]);
+  const prev = () => {
+    if (!active || visiblePosts.length < 2) return;
 
+    const index = visiblePosts.indexOf(active);
+    show(visiblePosts[index === 0 ? visiblePosts.length - 1 : index - 1].id);
+  };
+
+  const next = () => {
+    if (!active || visiblePosts.length < 2) return;
+
+    const index = visiblePosts.indexOf(active);
+    // Stays on the last loaded post while the next page is still coming, rather than
+    // wrapping back to the first.
+    const nextIndex = index === visiblePosts.length - 1 ? (hasMore ? index : 0) : index + 1;
+    show(visiblePosts[nextIndex].id);
+  };
+
+  // The post was deleted, or a link points past the first loaded page.
   useEffect(() => {
     if (activePostId == null) return;
     if (visiblePosts.some(post => post.id === activePostId)) return;
 
-    setActivePostId(null);
+    close();
     mediaRef.current = null;
-  }, [visiblePosts, activePostId, mediaRef]);
+  }, [visiblePosts, activePostId, mediaRef, close]);
 
   useEffect(() => {
     if (!active) return;
 
     const handleKeydown = event => {
       // Up/Down are caret keys inside a field, so a listener on window would move the
-      // caret and jump to another post at the same time. Guarding centrally covers every
-      // field rather than relying on each editor to stop propagation for the exact keys
-      // navigation happens to use today.
+      // caret and jump to another post at the same time.
       if (isEditableTarget(event.target)) return;
 
       if (event.key === "Escape") {
@@ -76,15 +108,8 @@ export default function useMediaListingPanelNavigation({ visiblePosts, mediaRef 
   }, [active, close, prev, next]);
 
   useEffect(() => {
-    if (active && mediaRef.current) mediaRef.current.focus();
+    if (active) mediaRef.current?.focus();
   }, [active?.id, mediaRef]);
 
-  return {
-    active,
-    open,
-    close,
-    prev,
-    next,
-    isPanelActive: Boolean(active),
-  };
+  return { active, open, close, prev, next };
 }

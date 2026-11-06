@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 export default function InactiveDetection() {
-  const timeoutRef = useRef(null);
-
   useEffect(() => {
+    let timeout;
+
     const detectInactive = () => {
       document.body.classList.remove("inactive");
 
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
         document.body.classList.add("inactive");
       }, 1500);
     };
@@ -19,7 +19,7 @@ export default function InactiveDetection() {
 
     return () => {
       window.removeEventListener("pointermove", detectInactive);
-      clearTimeout(timeoutRef.current);
+      clearTimeout(timeout);
     };
   }, []);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import AppSelect from "@/components/AppSelect";
@@ -24,12 +24,10 @@ export default function TagFilters({ initialName, initialType, tagTypes }) {
     setType(initialType);
   }, [initialName, initialType]);
 
-  useEffect(() => () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-  }, []);
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
 
-  const scheduleApply = useCallback((nextName, nextType) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+  function scheduleApply(nextName, nextType) {
+    clearTimeout(debounceRef.current);
 
     debounceRef.current = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -47,7 +45,7 @@ export default function TagFilters({ initialName, initialType, tagTypes }) {
       if (nextQuery !== searchParams.toString())
         router.replace(`${pathname}?${nextQuery}`);
     }, DEBOUNCE_MS);
-  }, [pathname, router, searchParams]);
+  }
 
   return (
     <div className={styles.filters}>
@@ -57,6 +55,9 @@ export default function TagFilters({ initialName, initialType, tagTypes }) {
         type="text"
         value={name}
         placeholder="filter by tag name"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         onChange={event => {
           const nextName = event.target.value;
           setName(nextName);

@@ -47,7 +47,7 @@ describe("addTags", () => {
   it("parses typed and untyped tokens from a tag string", async () => {
     const { parseTagString } = await import("../src/lib/addTags");
 
-    expect(parseTagString("meta:image  plain  series:one:two")).toEqual([
+    expect(parseTagString("meta:image  plain  series:one:two")).toMatchObject([
       { name: "image", type: "meta" },
       { name: "plain" },
       { name: "one:two", type: "series" },
@@ -59,7 +59,7 @@ describe("addTags", () => {
   it("skips negated tokens rather than tagging them", async () => {
     const { parseTagString } = await import("../src/lib/addTags");
 
-    expect(parseTagString("cat -dog -meta:image")).toEqual([{ name: "cat" }]);
+    expect(parseTagString("cat -dog -meta:image")).toMatchObject([{ name: "cat" }]);
     expect(parseTagString("-cat")).toEqual([]);
     expect(parseTagString("")).toEqual([]);
   });
@@ -88,6 +88,18 @@ describe("addTags", () => {
     expect(getTag("new-tag").type).toBe("general");
     expect(getTag("stale").post_count).toBe(0);
     expect(getTag("cat").post_count).toBe(1);
+  });
+
+  // Readers take types as stored, so a capitalised type must never reach the table.
+  it("stores types trimmed and lowercased", async () => {
+    const mediaId = insertMedia("a");
+    insertTag("cat", "general");
+
+    const { default: addTags } = await import("../src/lib/addTags");
+    addTags(mediaId, [{ name: "cat", type: " Meta " }, { name: "dog", type: "Character" }]);
+
+    expect(getTag("cat").type).toBe("meta");
+    expect(getTag("dog").type).toBe("character");
   });
 
   it("clears links when replace=true and tag input is empty", async () => {

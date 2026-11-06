@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -20,12 +20,6 @@ export default function useTagTableEditor({ tags }) {
   const [pendingTagId, setPendingTagId] = useState(null);
   const [error, setError] = useState("");
 
-  const tagsById = useMemo(() => {
-    const next = new Map();
-    for (const tag of tags) next.set(tag.id, tag);
-    return next;
-  }, [tags]);
-
   useEffect(() => {
     setDrafts(prev => {
       const next = {};
@@ -33,12 +27,12 @@ export default function useTagTableEditor({ tags }) {
       return next;
     });
 
-    if (editingTagId && !tagsById.has(editingTagId)) setEditingTagId(null);
-    if (confirmDeleteTagId && !tagsById.has(confirmDeleteTagId))
-      setConfirmDeleteTagId(null);
-  }, [tags, tagsById, editingTagId, confirmDeleteTagId]);
+    const ids = new Set(tags.map(tag => tag.id));
+    setEditingTagId(id => ids.has(id) ? id : null);
+    setConfirmDeleteTagId(id => ids.has(id) ? id : null);
+  }, [tags]);
 
-  const updateDraft = useCallback((tagId, patch) => {
+  function updateDraft(tagId, patch) {
     setDrafts(prev => ({
       ...prev,
       [tagId]: {
@@ -46,20 +40,20 @@ export default function useTagTableEditor({ tags }) {
         ...patch,
       },
     }));
-  }, []);
+  }
 
-  const getDraft = useCallback(tag => drafts[tag.id] ?? buildDraft(tag), [drafts]);
+  const getDraft = tag => drafts[tag.id] ?? buildDraft(tag);
 
-  const isDirty = useCallback((tag) => {
+  function isDirty(tag) {
     const draft = getDraft(tag);
     return (
       draft.name.trim() !== tag.name ||
       (draft.type.trim() || "general") !== tag.type ||
       draft.description !== (tag.description ?? "")
     );
-  }, [getDraft]);
+  }
 
-  const runWithPending = useCallback(async (tagId, callback) => {
+  async function runWithPending(tagId, callback) {
     setPendingTagId(tagId);
     setError("");
 
@@ -79,26 +73,25 @@ export default function useTagTableEditor({ tags }) {
     } finally {
       setPendingTagId(null);
     }
-  }, [router]);
+  }
 
-  const startEdit = useCallback((tag) => {
+  function startEdit(tag) {
     setEditingTagId(tag.id);
     setConfirmDeleteTagId(null);
     setError("");
     setDrafts(prev => ({ ...prev, [tag.id]: prev[tag.id] ?? buildDraft(tag) }));
-  }, []);
+  }
 
-  const cancelEdit = useCallback((tag) => {
+  function cancelEdit(tag) {
     setEditingTagId(null);
     setError("");
     setDrafts(prev => ({ ...prev, [tag.id]: buildDraft(tag) }));
-  }, []);
+  }
 
-  const saveEdit = useCallback(async (tag) => {
+  async function saveEdit(tag) {
     const draft = getDraft(tag);
     const nextName = draft.name.trim();
     const nextType = draft.type.trim() || "general";
-    const nextDescription = draft.description ?? "";
 
     if (!nextName) {
       setError("Tag name cannot be empty.");
@@ -106,7 +99,7 @@ export default function useTagTableEditor({ tags }) {
     }
 
     return runWithPending(tag.id, async () => {
-      const result = await updateTagAction(tag.id, { name: nextName, type: nextType, description: nextDescription });
+      const result = await updateTagAction(tag.id, { name: nextName, type: nextType, description: draft.description });
       // Keep the editor open with the draft intact when the update was rejected.
       if (result?.ok === false) return result;
 
@@ -114,9 +107,9 @@ export default function useTagTableEditor({ tags }) {
       setConfirmDeleteTagId(null);
       return result;
     });
-  }, [getDraft, runWithPending]);
+  }
 
-  const deleteTag = useCallback(async (tagId) => {
+  function deleteTag(tagId) {
     return runWithPending(tagId, async () => {
       const result = await deleteTagAction(tagId);
       if (result?.ok === false) return result;
@@ -125,25 +118,21 @@ export default function useTagTableEditor({ tags }) {
       setConfirmDeleteTagId(null);
       return result;
     });
-  }, [runWithPending]);
+  }
 
-  const addAlias = useCallback((tagId, aliasName) =>
-    runWithPending(tagId, () => addTagAliasAction(tagId, aliasName)),
-    [runWithPending]);
+  const addAlias = (tagId, aliasName) =>
+    runWithPending(tagId, () => addTagAliasAction(tagId, aliasName));
 
-  const removeAlias = useCallback((tagId, aliasName) =>
-    runWithPending(tagId, () => removeTagAliasAction(aliasName)),
-    [runWithPending]);
+  const removeAlias = (tagId, aliasName) =>
+    runWithPending(tagId, () => removeTagAliasAction(aliasName));
 
-  const addImplication = useCallback((tagId, impliedTagName) =>
-    runWithPending(tagId, () => addTagImplicationAction(tagId, impliedTagName)),
-    [runWithPending]);
+  const addImplication = (tagId, impliedTagName) =>
+    runWithPending(tagId, () => addTagImplicationAction(tagId, impliedTagName));
 
-  const removeImplication = useCallback((tagId, impliedTagId) =>
-    runWithPending(tagId, () => removeTagImplicationAction(tagId, impliedTagId)),
-    [runWithPending]);
+  const removeImplication = (tagId, impliedTagId) =>
+    runWithPending(tagId, () => removeTagImplicationAction(tagId, impliedTagId));
 
-  const handleEditKeyDown = useCallback((event, tag, isRowPending) => {
+  function handleEditKeyDown(event, tag, isRowPending) {
     if (event.key === "Escape") {
       event.preventDefault();
       if (!isRowPending) cancelEdit(tag);
@@ -152,9 +141,9 @@ export default function useTagTableEditor({ tags }) {
 
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
-      if (!isRowPending) void saveEdit(tag);
+      if (!isRowPending) saveEdit(tag);
     }
-  }, [cancelEdit, saveEdit]);
+  }
 
   return {
     editingTagId,

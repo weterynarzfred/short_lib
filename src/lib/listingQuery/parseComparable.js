@@ -1,5 +1,4 @@
-export default function parseComparable(rawValue, regex, units, defaultUnit, options = {}) {
-  const { integer = true } = options;
+export default function parseComparable(rawValue, regex, units, defaultUnit, { integer = true } = {}) {
   const match = regex.exec(rawValue.trim());
   if (!match) return null;
 

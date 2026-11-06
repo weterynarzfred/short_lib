@@ -10,12 +10,13 @@ export default function MediaListingContent({
   visiblePosts,
   subtitleKinds,
   isMultiSelectEnabled,
-  selectedCount,
   selectedPostIds,
+  activePostId,
   onPostInteract,
   onClearSelection,
   hasMore,
   isLoadingMore,
+  loadFailed,
   onLoadMore,
 }) {
   return (
@@ -28,8 +29,8 @@ export default function MediaListingContent({
         <Search initialValue={search} />
 
         <div className={styles.multiSelectTools}>
-          {selectedCount > 0 ? <>
-            <div className={styles.selectionCount}>{selectedCount} selected</div>
+          {selectedPostIds.size > 0 ? <>
+            <div className={styles.selectionCount}>{selectedPostIds.size} selected</div>
             <button
               type="button"
               className={styles.clearSelection}
@@ -45,6 +46,7 @@ export default function MediaListingContent({
             post={post}
             subtitleKinds={subtitleKinds}
             isSelected={selectedPostIds.has(post.id)}
+            isActive={post.id === activePostId}
             isMultiSelectEnabled={isMultiSelectEnabled}
             onInteractPost={onPostInteract}
           />
@@ -59,13 +61,13 @@ export default function MediaListingContent({
             disabled={isLoadingMore}
             onClick={onLoadMore}
           >
-            {isLoadingMore ? "loading..." : "load more"}
+            {isLoadingMore ? "loading..." : loadFailed ? "couldn't load more, retry" : "load more"}
           </button>
         )}
 
-        {visiblePosts.length > 0 && !hasMore ?
-          <div className={styles.loadMoreDone}>all matching posts loaded</div> :
-          null}
+        {!hasMore && <div className={styles.loadMoreDone}>
+          {visiblePosts.length > 0 ? "all matching posts loaded" : "no posts match"}
+        </div>}
       </div>
 
       <div ref={sentinelRef} className={styles.loadMoreSentinel} aria-hidden />

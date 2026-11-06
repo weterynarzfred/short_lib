@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import classNames from "classnames";
 
 import { updatePostOriginalFilenameAction } from "@/lib/actions";
-import formatBytes from "@/lib/formatBytes";
+import { formatFileSize } from "../lib/postSubtitle";
 
 import styles from "./MediaPanelFileInfo.module.scss";
 
@@ -16,11 +16,11 @@ export default function MediaPanelFileInfo({ post, onPatchPost }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
 
-  const originalFilename = typeof post.original_filename === "string"
-    ? post.original_filename
-    : "";
+  const originalFilename = post.original_filename ?? "";
   const [filenameValue, setFilenameValue] = useState(originalFilename);
   const [isSaving, startSaving] = useTransition();
+  // Tagged with its post: this component is not keyed, so it outlives arrowing on.
+  const [saveFailure, setSaveFailure] = useState(null);
 
   useEffect(() => {
     setFilenameValue(originalFilename);
@@ -38,8 +38,8 @@ export default function MediaPanelFileInfo({ post, onPatchPost }) {
       .then(response => response.json())
       .then(payload => {
         if (!isCurrent) return;
-        if (payload?.error) setError(payload.error);
-        else setRows(payload.rows ?? []);
+        if (payload.error) setError(payload.error);
+        else setRows(payload.rows);
       })
       .catch(() => {
         if (isCurrent) setError("Could not read this file's metadata");
@@ -49,19 +49,20 @@ export default function MediaPanelFileInfo({ post, onPatchPost }) {
   }, [isOpen, post.id]);
 
   const isDirty = filenameValue !== originalFilename;
-  // formatBytes reports "0 B" for a missing size, which reads as a real measurement.
-  const fileSize = Number(post.file_size) > 0 ? formatBytes(post.file_size) : "";
+  const fileSize = formatFileSize(post.file_size);
 
   function saveFilename() {
     if (!isDirty) return;
 
+    const postId = post.id;
+    setSaveFailure(null);
     startSaving(() => {
-      updatePostOriginalFilenameAction(post.id, filenameValue)
+      updatePostOriginalFilenameAction(postId, filenameValue)
         .then(result => {
-          if (typeof result?.original_filename === "string")
-            onPatchPost?.(post.id, { original_filename: result.original_filename });
+          if (result.ok === false) setSaveFailure({ postId, message: result.error });
+          else onPatchPost(postId, { original_filename: result.original_filename });
         })
-        .catch(error => console.error(error));
+        .catch(() => setSaveFailure({ postId, message: "no reason given, see the server log" }));
     });
   }
 
@@ -90,7 +91,6 @@ export default function MediaPanelFileInfo({ post, onPatchPost }) {
           placeholder="original filename"
           onChange={event => setFilenameValue(event.target.value)}
           onKeyDown={event => {
-            // No arrow handling needed: navigation ignores events aimed at a field.
             if (event.key === "Escape") {
               event.stopPropagation();
               event.currentTarget.blur();
@@ -114,6 +114,9 @@ export default function MediaPanelFileInfo({ post, onPatchPost }) {
             disabled={!isDirty || isSaving}
           >reset</button>
         </div>
+        {saveFailure?.postId === post.id && (
+          <div className={styles.error}>save failed: {saveFailure.message}</div>
+        )}
       </div>
 
       {error ? <div className={styles.note}>{error}</div> : null}

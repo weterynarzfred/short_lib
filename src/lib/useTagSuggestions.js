@@ -12,10 +12,7 @@ export default function useTagSuggestions(value, options = {}) {
 
   useEffect(() => {
     const pos = typeof options.position === "number" ? options.position : value.length;
-    const before = value.slice(0, pos);
-    const lastChar = before.slice(-1);
-
-    if (!value || lastChar === " ") {
+    if (!value || value[pos - 1] === " ") {
       setItems([]);
       didMountRef.current = true;
       prevKey.current = options.key;
@@ -34,7 +31,7 @@ export default function useTagSuggestions(value, options = {}) {
 
     for (const match of value.matchAll(/\S+/g)) {
       const token = match[0];
-      const tokenStart = match.index ?? 0;
+      const tokenStart = match.index;
       const tokenEnd = tokenStart + token.length;
       const overlapsCurrentToken = tokenStart < end && tokenEnd > start;
       if (overlapsCurrentToken) continue;
@@ -46,14 +43,14 @@ export default function useTagSuggestions(value, options = {}) {
     // Inside a quoted phrase the caret is in free text, not a tag name, so suggesting
     // tags there is noise - notes:"that's the fi should not offer "fish".
     if (!query || inQuotes) {
-      if (abortRef.current) abortRef.current.abort();
+      abortRef.current?.abort();
       setItems([]);
       setIsLoading(false);
       return;
     }
 
     const id = setTimeout(async () => {
-      if (abortRef.current) abortRef.current.abort();
+      abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       setIsLoading(true);
@@ -67,11 +64,7 @@ export default function useTagSuggestions(value, options = {}) {
         if (!res.ok) throw new Error();
 
         const data = await res.json();
-        const tags = (Array.isArray(data.tags) ? data.tags : []).filter(
-          tag => !usedTags.has(tag.name)
-        );
-
-        setItems(tags);
+        setItems(data.tags.filter(tag => !usedTags.has(tag.name)));
       } catch (e) {
         if (e.name !== "AbortError") setItems([]);
       } finally {
@@ -81,7 +74,7 @@ export default function useTagSuggestions(value, options = {}) {
 
     return () => {
       clearTimeout(id);
-      if (abortRef.current) abortRef.current.abort();
+      abortRef.current?.abort();
     };
   }, [value, options.mode, options.position]);
 

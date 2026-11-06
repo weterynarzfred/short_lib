@@ -11,9 +11,9 @@ const STARS = Array.from({ length: MAX_SCORE }, (_, index) => index + 1);
 // A circle for "unrated" followed by five stars. The circle is a real option rather than
 // an empty state, so clearing a score is one click and not a hunt for how to undo it.
 export default function ScoreInput({
-  value = 0,
+  value,
   onChange,
-  disabled = false,
+  disabled,
   label = "score",
 }) {
   const score = Number(value) || 0;
@@ -30,7 +30,7 @@ export default function ScoreInput({
           [styles.clearActive]: score === 0,
         })}
         disabled={disabled}
-        onClick={() => onChange?.(0)}
+        onClick={() => onChange(0)}
       >{"●"}</button>
 
       {STARS.map(star => (
@@ -45,7 +45,7 @@ export default function ScoreInput({
             [styles.starFilled]: star <= score,
           })}
           disabled={disabled}
-          onClick={() => onChange?.(star)}
+          onClick={() => onChange(star)}
         >{"★"}</button>
       ))}
     </div>

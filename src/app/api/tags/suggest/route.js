@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import { ORDER_KEYS } from "@/lib/listingQuery/parseSearch";
 import { searchTagSuggestions } from "@/lib/tagSuggestions";
 
 const OPERATORS = [
@@ -8,79 +9,54 @@ const OPERATORS = [
     // `hasValues` is declared rather than derived: the dynamic lists come from the
     // database, and asking for them on every keystroke just to learn whether they are
     // non-empty would cost a query per suggestion.
-    label: "mime_type:",
     hasValues: true,
   },
   {
     key: "file_size",
-    label: "file_size:",
   },
   {
     key: "order",
-    label: "order:",
     hasValues: true,
-    values: [
-      "date",
-      "date_asc",
-      "duration",
-      "duration_asc",
-      "file_size",
-      "file_size_asc",
-      "pixelcount",
-      "pixelcount_asc",
-      "image_ratio",
-      "image_ratio_asc",
-      "tag_count",
-      "tag_count_asc",
-      "score",
-      "score_asc",
-    ],
+    values: ORDER_KEYS,
   },
   {
     key: "age",
-    label: "age:",
   },
   {
     key: "mpixels",
-    label: "mpixels:",
   },
   {
     key: "score",
-    label: "score:",
   },
   {
     key: "duration",
-    label: "duration:",
   },
   {
     key: "notes",
     // Takes free text rather than a value from a list, so accepting it opens a quoted
     // phrase for the caret to land inside.
-    label: "notes:",
     quoted: true,
   },
   {
     key: "text",
-    label: "text:",
     quoted: true,
   },
   {
     key: "filename",
-    label: "filename:",
     quoted: true,
   },
   {
     key: "has",
-    label: "has:",
     hasValues: true,
   },
   {
+    key: "similar",
+  },
+  {
     key: "image_ratio",
-    label: "image_ratio:",
   },
   {
     key: "limit",
-    label: "limit:",
   },
 ];
 
@@ -94,12 +70,11 @@ const mimeTypeValuesStmt = db.prepare(`
   LIMIT 32
 `);
 
+// Types are stored trimmed and lowercased, and never empty, so they group as they are.
 const hasTypeValuesStmt = db.prepare(`
-  SELECT
-    LOWER(TRIM(t.type)) AS value
+  SELECT t.type AS value
   FROM tags t
-  WHERE TRIM(COALESCE(t.type, '')) <> ''
-  GROUP BY LOWER(TRIM(t.type))
+  GROUP BY t.type
   ORDER BY COUNT(*) DESC, value ASC
   LIMIT 32
 `);
@@ -107,13 +82,13 @@ const hasTypeValuesStmt = db.prepare(`
 function getOperatorValues(operator) {
   if (!operator) return [];
 
-  if (Array.isArray(operator.values)) return operator.values;
+  if (operator.values) return operator.values;
 
   if (operator.key === "mime_type")
-    return mimeTypeValuesStmt.all().map(row => row.value).filter(Boolean);
+    return mimeTypeValuesStmt.all().map(row => row.value);
 
   if (operator.key === "has") {
-    const types = hasTypeValuesStmt.all().map(row => row.value).filter(Boolean);
+    const types = hasTypeValuesStmt.all().map(row => row.value);
     return [...new Set(["notes", "score", ...types])];
   }
 
@@ -127,16 +102,16 @@ export async function GET(req) {
   const isEdit = searchParams.get("is_edit") === "true";
   const colonIndex = q.indexOf(":");
 
-  let suggestions = [];
+  const suggestions = [];
 
   if (!isEdit) {
     if (colonIndex === -1) {
-      const matchingOps = OPERATORS.filter(op => op.label.startsWith(q));
+      const matchingOps = OPERATORS.filter(op => `${op.key}:`.startsWith(q));
 
       suggestions.push(
         ...matchingOps.map(op => ({
           id: `op_${op.key}`,
-          name: op.label,
+          name: `${op.key}:`,
           type: "operator",
           postCount: null,
           quoted: op.quoted === true,
@@ -145,12 +120,9 @@ export async function GET(req) {
           hasValues: op.hasValues === true,
         }))
       );
-    }
-
-    if (colonIndex !== -1) {
-      const prefix = q.slice(0, colonIndex + 1);
+    } else {
       const valuePart = q.slice(colonIndex + 1);
-      const operator = OPERATORS.find(op => op.label === prefix);
+      const operator = OPERATORS.find(op => op.key === q.slice(0, colonIndex));
       const operatorValues = getOperatorValues(operator);
 
       if (operatorValues.length) {
@@ -161,7 +133,7 @@ export async function GET(req) {
         suggestions.push(
           ...matchingValues.map(v => ({
             id: `op_${operator.key}_${v}`,
-            name: `${operator.label}${v}`,
+            name: `${operator.key}:${v}`,
             type: "value",
             postCount: null,
           }))

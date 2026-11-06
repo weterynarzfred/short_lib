@@ -30,6 +30,10 @@ $colorScoreFilled: #e0b23c;
 // Smaller than the stars so it reads as "none" rather than as a sixth rating step.
 .clear {
   font-size: 0.6rem;
+
+  @media (pointer: coarse) {
+    font-size: 1rem;
+  }
 }
 
 .clearActive {
@@ -38,6 +42,10 @@ $colorScoreFilled: #e0b23c;
 
 .star {
   font-size: 1rem;
+
+  @media (pointer: coarse) {
+    font-size: 1.75rem;
+  }
 }
 
 .starFilled {

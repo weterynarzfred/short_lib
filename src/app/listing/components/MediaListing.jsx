@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 
+import isEditableTarget from "@/lib/isEditableTarget";
 import MediaPanel from "./MediaPanel";
 import MediaPanelBulkTagEditor from "./MediaPanelBulkTagEditor";
 import MediaListingContent from "./MediaListingContent";
@@ -14,15 +15,14 @@ import styles from "./MediaListing.module.scss";
 export default function MediaListing({
   posts,
   search,
+  seed,
   mediaSettings,
-  subtitleKinds = [],
-  initialHasMore = false,
-  initialNextOffset = 0,
+  subtitleKinds,
+  initialHasMore,
+  initialNextOffset,
 }) {
   const mediaRef = useRef(null);
-  const [panelSettings, setPanelSettings] = useState(() => ({
-    ...mediaSettings,
-  }));
+  const [panelSettings, setPanelSettings] = useState(mediaSettings);
   const [isMultiSelectEnabled, setIsMultiSelectEnabled] = useState(false);
   const [selectedPostIds, setSelectedPostIds] = useState([]);
   const [selectionAnchorId, setSelectionAnchorId] = useState(null);
@@ -32,121 +32,82 @@ export default function MediaListing({
     sentinelRef,
     visiblePosts,
     patchVisiblePost,
+    removeVisiblePosts,
     hasMore,
     isLoadingMore,
+    loadFailed,
     loadMore,
   } = useMediaListingPagination({
     posts,
     search,
+    seed,
     initialHasMore,
     initialNextOffset,
   });
 
-  const {
-    active,
-    open,
-    close,
-    prev,
-    next,
-    isPanelActive,
-  } = useMediaListingPanelNavigation({
+  const { active, open, close, prev, next } = useMediaListingPanelNavigation({
     visiblePosts,
+    // After a failed load nothing is coming, so wrap rather than sit on the last post.
+    hasMore: hasMore && !loadFailed,
     mediaRef,
   });
 
-  const visiblePostIds = useMemo(
-    () => visiblePosts.map(post => post.id),
-    [visiblePosts]
-  );
-  const selectedPostIdsSet = useMemo(
-    () => new Set(selectedPostIds),
-    [selectedPostIds]
-  );
-  const selectedCount = selectedPostIds.length;
+  const visiblePostIds = visiblePosts.map(post => post.id);
+  const selectedPostIdsSet = new Set(selectedPostIds);
   const activePostId = active?.id ?? null;
 
-  const clearSelection = useCallback(() => {
+  const clearSelection = () => {
     setSelectedPostIds([]);
     setSelectionAnchorId(null);
-  }, []);
+  };
 
-  const setMultiSelect = useCallback(enabled => {
-    setIsMultiSelectEnabled(enabled);
-    if (enabled) {
-      close();
-      return;
-    }
-
-    clearSelection();
-  }, [clearSelection, close]);
-
-  const getRangeSelectionIds = useCallback((fromId, toId) => {
+  const getRangeSelectionIds = (fromId, toId) => {
     const fromIndex = visiblePostIds.indexOf(fromId);
     const toIndex = visiblePostIds.indexOf(toId);
     if (fromIndex < 0 || toIndex < 0) return [toId];
 
-    const [start, end] = fromIndex < toIndex
-      ? [fromIndex, toIndex]
-      : [toIndex, fromIndex];
+    return visiblePostIds.slice(Math.min(fromIndex, toIndex), Math.max(fromIndex, toIndex) + 1);
+  };
 
-    return visiblePostIds.slice(start, end + 1);
-  }, [visiblePostIds]);
+  const interactWithPost = (postId, event) => {
+    const hasToggleModifier = event.ctrlKey || event.metaKey;
+    const hasRangeModifier = event.shiftKey;
 
-  const interactWithPost = useCallback((postId, event) => {
-    const hasToggleModifier = Boolean(event?.ctrlKey || event?.metaKey);
-    const hasRangeModifier = Boolean(event?.shiftKey);
-    const hasModifier = hasToggleModifier || hasRangeModifier;
-    const shouldSeedFromActive = !isMultiSelectEnabled && hasModifier && activePostId != null;
-    const shouldUseMultiSelect = isMultiSelectEnabled || hasModifier;
-
-    if (!shouldUseMultiSelect) {
+    if (!isMultiSelectEnabled && !hasToggleModifier && !hasRangeModifier) {
       open(postId);
       return;
     }
 
-    if (shouldSeedFromActive) {
-      close();
-      setIsMultiSelectEnabled(true);
+    close();
+    setIsMultiSelectEnabled(true);
 
-      if (hasRangeModifier) {
-        setSelectedPostIds(getRangeSelectionIds(activePostId, postId));
-      } else if (hasToggleModifier) {
-        setSelectedPostIds([...new Set([activePostId, postId])]);
-      }
-
+    // A modifier click while a post is open starts the selection from that post.
+    if (!isMultiSelectEnabled && activePostId != null) {
+      setSelectedPostIds(hasRangeModifier
+        ? getRangeSelectionIds(activePostId, postId)
+        : [...new Set([activePostId, postId])]);
       setSelectionAnchorId(activePostId);
       return;
     }
 
-    close();
-    if (hasModifier && !isMultiSelectEnabled) setIsMultiSelectEnabled(true);
-
     setSelectedPostIds(previous => {
-      const next = new Set(previous);
+      const selection = new Set(previous);
 
       if (hasRangeModifier) {
-        const anchor = selectionAnchorId ?? postId;
-        const rangeIds = getRangeSelectionIds(anchor, postId);
+        const rangeIds = getRangeSelectionIds(selectionAnchorId ?? postId, postId);
 
-        if (!hasToggleModifier) next.clear();
-        for (const id of rangeIds) next.add(id);
+        if (!hasToggleModifier) selection.clear();
+        for (const id of rangeIds) selection.add(id);
       } else {
-        if (next.has(postId)) next.delete(postId);
-        else next.add(postId);
+        if (selection.has(postId)) selection.delete(postId);
+        else selection.add(postId);
       }
 
-      return [...next];
+      return [...selection];
     });
 
     setSelectionAnchorId(postId);
-  }, [
-    activePostId,
-    close,
-    getRangeSelectionIds,
-    isMultiSelectEnabled,
-    open,
-    selectionAnchorId,
-  ]);
+  };
 
   useEffect(() => {
     const visiblePostIdSet = new Set(visiblePostIds);
@@ -161,12 +122,27 @@ export default function MediaListing({
 
   useEffect(() => {
     if (isMultiSelectEnabled && selectedPostIds.length === 0) {
-      setMultiSelect(false);
+      setIsMultiSelectEnabled(false);
+      clearSelection();
     }
-  }, [isMultiSelectEnabled, selectedPostIds, setMultiSelect]);
+  }, [isMultiSelectEnabled, selectedPostIds, clearSelection]);
+
+  // Escape leaves selection mode the way it closes the post panel. Below tablet width the
+  // bulk panel covers the listing's "clear selection", so this and the panel's own "done"
+  // are the only ways out there.
+  useEffect(() => {
+    if (!isMultiSelectEnabled) return;
+
+    const handleKeydown = event => {
+      if (event.key === "Escape" && !isEditableTarget(event.target)) clearSelection();
+    };
+
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, [isMultiSelectEnabled, clearSelection]);
 
   useEffect(() => {
-    setPanelSettings({ ...mediaSettings });
+    setPanelSettings(mediaSettings);
   }, [mediaSettings]);
 
   // Keeps the grid in step with the panel while arrowing through posts. `nearest` scrolls
@@ -176,9 +152,17 @@ export default function MediaListing({
     if (activePostId == null || panelSettings.fullscreen) return;
 
     contentRef.current
-      ?.querySelector(`[data-post-id="${activePostId}"]`)
+      .querySelector(`[data-post-id="${activePostId}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [activePostId, panelSettings.fullscreen, contentRef]);
+
+  // Panel navigation never reaches the grid's sentinel in fullscreen, so fetch ahead here.
+  // loadMore changes identity when a load ends, so without the loadFailed guard a failure
+  // would retry in a loop.
+  useEffect(() => {
+    if (activePostId == null || !hasMore || loadFailed) return;
+    if (visiblePostIds.indexOf(activePostId) >= visiblePostIds.length - 10) loadMore();
+  }, [activePostId, visiblePostIds, hasMore, loadFailed, loadMore]);
 
   return (
     <div className={styles.mediaListing}>
@@ -189,21 +173,24 @@ export default function MediaListing({
         visiblePosts={visiblePosts}
         subtitleKinds={subtitleKinds}
         isMultiSelectEnabled={isMultiSelectEnabled}
-        selectedCount={selectedCount}
         selectedPostIds={selectedPostIdsSet}
+        activePostId={activePostId}
         onPostInteract={interactWithPost}
         onClearSelection={clearSelection}
         hasMore={hasMore}
         isLoadingMore={isLoadingMore}
+        loadFailed={loadFailed}
         onLoadMore={loadMore}
       />
 
-      <div className={classNames(styles.sidebar, { [styles.sidebarActive]: isPanelActive || isMultiSelectEnabled })}>
+      <div className={classNames(styles.sidebar, { [styles.sidebarActive]: active || isMultiSelectEnabled })}>
         {isMultiSelectEnabled ? (
           <MediaPanelBulkTagEditor
             postIds={selectedPostIds}
-            onDeleteAll={clearSelection}
+            posts={visiblePosts.filter(post => selectedPostIdsSet.has(post.id))}
+            onClose={clearSelection}
             onPatchPost={patchVisiblePost}
+            onRemovePosts={removeVisiblePosts}
           />
         ) : active && (
           <MediaPanel
@@ -214,6 +201,7 @@ export default function MediaListing({
             mediaRef={mediaRef}
             initialSettings={panelSettings}
             onPatchPost={patchVisiblePost}
+            onRemovePosts={removeVisiblePosts}
             onSettingsChange={setPanelSettings}
           />
         )}

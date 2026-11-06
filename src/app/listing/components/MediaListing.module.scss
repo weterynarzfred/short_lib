@@ -6,7 +6,7 @@
 
   .content {
     width: 100%;
-    height: 100vh;
+    height: 100dvh;
     overflow: auto;
     padding-bottom: $spacingHalf;
 
@@ -16,24 +16,6 @@
 
     .multiSelectTools {
       @include actionRow();
-    }
-
-    .multiSelectToggle {
-      input[type="checkbox"] {
-        display: none;
-      }
-
-      .toggleButton {
-        @include buttonBase(
-          $padding: 0 $spacingQuarter,
-          $borderColor: $colorBorder
-        );
-      }
-
-      input[type="checkbox"]:checked + .toggleButton {
-        background-color: $colorContent;
-        color: $colorBg;
-      }
     }
 
     .selectionCount {
@@ -53,6 +35,11 @@
       grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
       gap: 0.5rem;
       margin-top: $spacingQuarter;
+
+      // Two columns instead of one tall card per screen.
+      @media (max-width: $resPhone) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     .loadMore {
@@ -85,11 +72,25 @@
     flex: 1 0 auto;
     width: 0;
     max-width: 70%;
-    height: 100vh;
+    height: 100dvh;
     overflow: auto;
 
     &.sidebarActive {
       width: 40rem;
+    }
+
+    // Side by side leaves both halves too narrow to use, so the panel covers the listing.
+    // Opaque here because the bulk editor, unlike the post panel, has no background.
+    @media (max-width: $resTablet) {
+      &.sidebarActive {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        width: 100%;
+        max-width: none;
+        height: 100dvh;
+        background-color: $colorBg;
+      }
     }
   }
 }

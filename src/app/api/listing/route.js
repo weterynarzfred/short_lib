@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getPostsPage } from "@/lib/listingQuery/getPosts";
+import { MAX_RANDOM_SEED } from "@/lib/listingQuery/buildQuery";
 import { getBlacklistedTags, getTagTypeOrderSql } from "@/lib/userSettings";
 
-function parseIntParam(value, { min, max, fallback } = {}) {
+function parseIntParam(value, { min, max, fallback }) {
   if (value == null || value === "") return fallback;
 
   const parsed = Number.parseInt(value, 10);
@@ -24,8 +25,14 @@ export async function GET(req) {
     max: 500,
     fallback: undefined,
   });
+  // The seed the first page was rendered with, so `order:random` continues the same shuffle.
+  const seed = parseIntParam(searchParams.get("seed"), {
+    min: 0,
+    max: MAX_RANDOM_SEED - 1,
+    fallback: 0,
+  });
 
-  if (offset == null || (searchParams.has("limit") && limit == null))
+  if (offset == null || seed == null || (searchParams.has("limit") && limit == null))
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
 
   const result = await getPostsPage(search, {
@@ -33,6 +40,7 @@ export async function GET(req) {
     limit,
     defaultExcludedTags: getBlacklistedTags(),
     tagOrderSql: getTagTypeOrderSql(),
+    seed,
   });
   return NextResponse.json(result);
 }

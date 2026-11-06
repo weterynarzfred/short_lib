@@ -12,25 +12,6 @@ describe("integration: addTags + getPosts", () => {
     vi.doMock("@/lib/db", () => ({ default: db }));
     vi.doMock("@/lib/search", () => ({
       markMediaNotesIndexDirty: vi.fn(),
-      searchTagSuggestions: vi.fn(async (query, { limit = 16 } = {}) => {
-        const safeQuery = String(query ?? "").trim();
-        if (!safeQuery) return [];
-
-        const rows = db.prepare(`
-          SELECT id, name, type, post_count
-          FROM tags
-          WHERE name LIKE ? || '%'
-          ORDER BY post_count DESC, id ASC
-          LIMIT ?
-        `).all(safeQuery, limit);
-
-        return rows.map(row => ({
-          id: row.id,
-          name: row.name,
-          type: row.type,
-          postCount: row.post_count,
-        }));
-      }),
       searchMediaMatchesByNotes: vi.fn(async query => asMatches(query, "notes")),
       searchMediaMatchesByFilename: vi.fn(async query => asMatches(query, "filename")),
       // Mirrors the real per-field rule: all terms in notes, or all in the filename.
@@ -125,6 +106,25 @@ describe("integration: addTags + getPosts", () => {
 
     const negated = await getPosts("-felines");
     expect(negated.map(post => post.id)).toEqual([second]);
+  });
+
+  it("reports a next page at the maximum limit", async () => {
+    const insertMedia = db.prepare(`
+      INSERT INTO media (file_path, created_at, variants, checksum)
+      VALUES (?, ?, ?, ?)
+    `);
+    db.transaction(() => {
+      for (let index = 0; index < 501; index++) {
+        insertMedia.run(`2026/03/${index}.jpg`, index, null, `c${index}`);
+      }
+    })();
+
+    const { getPostsPage } = await import("../src/lib/listingQuery/getPosts");
+    const page = await getPostsPage("limit:500");
+
+    expect(page.posts).toHaveLength(500);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextOffset).toBe(500);
   });
 
   it("resolves blacklisted tag aliases, but lets an explicit search override them", async () => {

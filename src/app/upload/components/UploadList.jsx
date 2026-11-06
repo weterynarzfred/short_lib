@@ -60,7 +60,7 @@ export default function UploadList({
                 postId={file.mediaId}
                 value={file.tagsValue}
                 setValue={nextValue => setUploadTagsValue(file.id, nextValue)}
-                saveTags={() => saveUploadTags(file.id)}
+                saveTags={() => saveUploadTags(file)}
                 knownTags={file.knownTags}
                 inputProps={{
                   className: styles.tagInput,
@@ -72,7 +72,7 @@ export default function UploadList({
                 <button
                   type="button"
                   className={styles.tagButton}
-                  onClick={() => saveUploadTags(file.id)}
+                  onClick={() => saveUploadTags(file)}
                   disabled={file.isSavingTags || !file.tagsValue.trim()}
                 >
                   {file.isSavingTags ? "saving..." : "save tags"}
@@ -90,7 +90,7 @@ export default function UploadList({
                 onKeyDown={e => {
                   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                     e.preventDefault();
-                    saveUploadNotes(file.id);
+                    saveUploadNotes(file);
                   }
                 }}
               />
@@ -99,7 +99,7 @@ export default function UploadList({
                 <button
                   type="button"
                   className={styles.tagButton}
-                  onClick={() => saveUploadNotes(file.id)}
+                  onClick={() => saveUploadNotes(file)}
                   disabled={file.isSavingNotes}
                 >
                   {file.isSavingNotes ? "saving..." : "save notes"}

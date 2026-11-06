@@ -3,14 +3,9 @@ import classNames from "classnames";
 
 import styles from "./MediaPanel.module.scss";
 
-const TOGGLE_OPTIONS = [
-  { key: "autoplay", label: "autoplay" },
-  { key: "loop", label: "loop" },
-  { key: "slideshow", label: "slideshow" },
-  { key: "muted", label: "muted" },
-];
+const TOGGLE_OPTIONS = ["autoplay", "loop", "slideshow", "muted"];
 
-export default function MediaPanelControls({ toggles, onToggle, onClose, isMetaPanelOpen, onToggleMeta }) {
+export default function MediaPanelControls({ toggles, onToggle, onClose }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -18,7 +13,7 @@ export default function MediaPanelControls({ toggles, onToggle, onClose, isMetaP
       <button
         type="button"
         className={classNames(styles.fullscreenToggle, {
-          [styles.buttonActive]: Boolean(toggles.fullscreen),
+          [styles.buttonActive]: toggles.fullscreen,
         })}
         aria-label="Toggle fullscreen"
         onClick={() => onToggle("fullscreen")}
@@ -30,10 +25,10 @@ export default function MediaPanelControls({ toggles, onToggle, onClose, isMetaP
         <button
           type="button"
           className={classNames(styles.fullscreenToggle, {
-            [styles.buttonActive]: isMetaPanelOpen,
+            [styles.buttonActive]: toggles.info,
           })}
           aria-label="Toggle info panel"
-          onClick={onToggleMeta}
+          onClick={() => onToggle("info")}
         >
           info
         </button>
@@ -59,14 +54,14 @@ export default function MediaPanelControls({ toggles, onToggle, onClose, isMetaP
 
       {menuOpen && (
         <div className={styles.menu}>
-          {TOGGLE_OPTIONS.map(({ key, label }) => (
+          {TOGGLE_OPTIONS.map(key => (
             <label key={key}>
               <input
                 type="checkbox"
-                checked={Boolean(toggles[key])}
+                checked={toggles[key]}
                 onChange={() => onToggle(key)}
               />
-              <div className={styles.toggleButton}>{label}</div>
+              <div className={styles.toggleButton}>{key}</div>
             </label>
           ))}
         </div>

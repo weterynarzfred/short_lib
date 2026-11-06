@@ -17,6 +17,46 @@
   }
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacingQuarter;
+}
+
+.tagCounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  font-family: "Fira Code", monospace;
+  font-size: 0.75rem;
+}
+
+// Plain text that underlines on hover, like tags elsewhere, rather than a row of buttons.
+.tagCount {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  text-align: left;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.tagCountNumber {
+  @include subtleText();
+}
+
 .score {
   display: flex;
   justify-content: center;
@@ -42,6 +82,10 @@
 
 .deleteButton {
   @include buttonDanger();
+}
+
+.downloadForm {
+  display: contents;
 }
 
 .saveHint {

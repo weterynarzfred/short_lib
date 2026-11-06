@@ -10,8 +10,8 @@ const STORAGE_DIR = process.env.STORAGE_DIR;
 export default async function addMediaToDb(fileData) {
   const insert = db.prepare(`
     INSERT INTO media
-    (file_path, created_at, file_size, mime_type, width, height, duration_ms, original_filename, variants, checksum)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (file_path, created_at, file_size, mime_type, width, height, duration_ms, original_filename, variants, checksum, phash)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const selectMediaTags = db.prepare(`
     SELECT t.name, t.type
@@ -41,39 +41,23 @@ export default async function addMediaToDb(fileData) {
         metadata.duration,
         metadata.originalFilename,
         JSON.stringify(metadata.variants),
-        metadata.checksum
+        metadata.checksum,
+        metadata.phash
       );
 
-      const metaTags = [];
-
-      if (metadata.type) {
-        metaTags.push({
-          name: metadata.type,
-          type: "meta",
-        });
-      }
-
-      if (metadata.hasAudio) {
-        metaTags.push({
-          name: "has_audio",
-          type: "meta",
-        });
-      }
-
-      if (metaTags.length > 0) {
-        const mediaId = result.lastInsertRowid;
-        addTags(mediaId, metaTags);
-      }
-
       const mediaId = Number(result.lastInsertRowid);
-      const tags = selectMediaTags.all(mediaId);
+
+      const metaTags = [];
+      if (metadata.type) metaTags.push({ name: metadata.type, type: "meta" });
+      if (metadata.hasAudio) metaTags.push({ name: "has_audio", type: "meta" });
+      if (metaTags.length > 0) addTags(mediaId, metaTags);
 
       insertedMedia.push({
         id: mediaId,
         originalFilename: metadata.originalFilename,
         filePath: relativePath,
         mimeType: metadata.mimetype,
-        tags,
+        tags: selectMediaTags.all(mediaId),
       });
     }
 

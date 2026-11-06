@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import {
   CRF_MAX,
@@ -66,37 +66,33 @@ export default function MediaPanelDownload({ post }) {
   const wantsTargetSize = hasVideoOptions && rateMode === RATE_MODES.size;
   const isTargetMissing = wantsTargetSize && !(Number(targetMb) > 0);
 
-  const presets = useMemo(
-    () => getPresetsForMimeType(post.mime_type),
-    [post.mime_type]
-  );
+  const presets = getPresetsForMimeType(post.mime_type);
 
+  const isTrimmable = supportsTrim(post.mime_type);
   // Trimming re-encodes, so it cannot apply to the untouched original.
-  const canTrim = supportsTrim(post.mime_type) && preset !== "original";
+  const canTrim = isTrimmable && preset !== "original";
   const trim = canTrim ? resolveTrim(start, end) : null;
   const hasTrimInput = Boolean(start.trim() || end.trim());
   const isTrimInvalid = canTrim && hasTrimInput && !trim;
 
-  const href = useMemo(() => {
-    const params = new URLSearchParams({ id: String(post.id), preset });
-    if (trim) {
-      params.set("start", start.trim());
-      if (end.trim()) params.set("end", end.trim());
+  const params = new URLSearchParams({ id: String(post.id), preset });
+  if (trim) {
+    params.set("start", start.trim());
+    if (end.trim()) params.set("end", end.trim());
+  }
+
+  if (hasVideoOptions) {
+    if (dropAudio) params.set("noAudio", "1");
+
+    if (wantsTargetSize) {
+      params.set("mode", RATE_MODES.size);
+      params.set("targetMb", targetMb.trim());
+    } else {
+      params.set("crf", crf.trim() || String(DEFAULT_CRF));
     }
+  }
 
-    if (hasVideoOptions) {
-      if (dropAudio) params.set("noAudio", "1");
-
-      if (wantsTargetSize) {
-        params.set("mode", RATE_MODES.size);
-        params.set("targetMb", targetMb.trim());
-      } else {
-        params.set("crf", crf.trim() || String(DEFAULT_CRF));
-      }
-    }
-
-    return `/api/download/post?${params.toString()}`;
-  }, [post.id, preset, trim, start, end, hasVideoOptions, crf, dropAudio, wantsTargetSize, targetMb]);
+  const href = `/api/download/post?${params.toString()}`;
 
   return (
     <div className={styles.download}>
@@ -173,7 +169,7 @@ export default function MediaPanelDownload({ post }) {
         </div>
       ) : null}
 
-      {supportsTrim(post.mime_type) ? (
+      {isTrimmable ? (
         <div className={styles.row}>
           <input
             className={styles.timeInput}
@@ -196,7 +192,7 @@ export default function MediaPanelDownload({ post }) {
         </div>
       ) : null}
 
-      {supportsTrim(post.mime_type) && !canTrim ? (
+      {isTrimmable && !canTrim ? (
         <div className={styles.hint}>pick a format to trim</div>
       ) : null}
 

@@ -5,20 +5,13 @@ import mimetypeToType from "@/lib/mimetypeToType";
 import styles from "./MediaPreview.module.scss";
 
 export default function MediaPreview({ src, mime_type, mediaRef, settings, className, onEnded }) {
-  const mimeType = typeof mime_type === "string" ? mime_type : "";
-  const mediaType = mimetypeToType(mimeType);
+  const mediaType = mimetypeToType(mime_type);
   const [textValue, setTextValue] = useState("");
   const [textStatus, setTextStatus] = useState("idle");
 
   useEffect(() => {
     if (mediaType !== "text") {
       setTextStatus("idle");
-      setTextValue("");
-      return;
-    }
-
-    if (!src) {
-      setTextStatus("error");
       setTextValue("");
       return;
     }
@@ -80,9 +73,9 @@ export default function MediaPreview({ src, mime_type, mediaRef, settings, class
       tabIndex={0}
       className={styles.textPreview}
     >
-      {textStatus === "loading" ? "loading text..." : null}
-      {textStatus === "error" ? "failed to load text preview" : null}
-      {textStatus === "ready" ? textValue : null}
+      {textStatus === "loading" && "loading text..."}
+      {textStatus === "error" && "failed to load text preview"}
+      {textStatus === "ready" && textValue}
     </div>}
   </div>;
 }

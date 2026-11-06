@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -11,16 +11,17 @@ import {
 
 import { updateTagTypeOrderAction } from "@/lib/actions";
 import {
-  DEFAULT_TAG_TYPE_COLOR,
   mergeTagTypeColors,
   normalizeTagTypeColor,
   normalizeTagTypeColors,
   normalizeTagTypeOrder,
 } from "@/lib/tagTypeOrder";
+import SettingActions from "./SettingActions";
 import TagTypeRow from "./TagTypeRow";
 
 import styles from "../page.module.scss";
 
+// The stored order also lists types that have no tags; only the available ones are shown.
 function buildOrderedTypes(preferredOrder, availableTypes) {
   const availableSet = new Set(availableTypes);
   const ordered = [];
@@ -39,39 +40,22 @@ function buildOrderedTypes(preferredOrder, availableTypes) {
 // Compared as one string so a colour change counts as dirty just like a reorder does.
 function serializeColors(types, colorMap) {
   return types
-    .map(type => `${type}:${normalizeTagTypeColor(colorMap?.[type])}`)
+    .map(type => `${type}:${normalizeTagTypeColor(colorMap[type])}`)
     .join("|");
 }
 
-export default function TagTypeOrderSetting({
-  initialValue = "",
-  initialColors = {},
-}) {
-  const normalizedInitialOrder = useMemo(
-    () => normalizeTagTypeOrder(initialValue),
-    [initialValue]
+export default function TagTypeOrderSetting({ initialValue, initialColors }) {
+  const availableColors = normalizeTagTypeColors(initialColors);
+  const initialTypes = buildOrderedTypes(
+    normalizeTagTypeOrder(initialValue),
+    Object.keys(availableColors)
   );
-  const normalizedInitialColors = useMemo(
-    () => normalizeTagTypeColors(initialColors),
-    [initialColors]
-  );
-  const availableTypes = useMemo(
-    () => Object.keys(normalizedInitialColors),
-    [normalizedInitialColors]
-  );
-  const normalizedInitial = useMemo(
-    () => buildOrderedTypes(normalizedInitialOrder, availableTypes),
-    [normalizedInitialOrder, availableTypes]
-  );
-  const normalizedInitialPalette = useMemo(
-    () => mergeTagTypeColors(normalizedInitialColors, normalizedInitial),
-    [normalizedInitialColors, normalizedInitial]
-  );
+  const initialPalette = mergeTagTypeColors(availableColors, initialTypes);
 
-  const [value, setValue] = useState(normalizedInitial);
-  const [savedValue, setSavedValue] = useState(normalizedInitial);
-  const [colors, setColors] = useState(normalizedInitialPalette);
-  const [savedColors, setSavedColors] = useState(normalizedInitialPalette);
+  const [value, setValue] = useState(initialTypes);
+  const [savedValue, setSavedValue] = useState(initialTypes);
+  const [colors, setColors] = useState(initialPalette);
+  const [savedColors, setSavedColors] = useState(initialPalette);
   const [activeColorPickerId, setActiveColorPickerId] = useState(null);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -88,8 +72,7 @@ export default function TagTypeOrderSetting({
     })
   );
 
-  const isDirty = value.join(" ") !== savedValue.join(" ")
-    || serializeColors(value, colors) !== serializeColors(savedValue, savedColors);
+  const isDirty = serializeColors(value, colors) !== serializeColors(savedValue, savedColors);
 
   function setNextValue(nextValue) {
     setValue(nextValue);
@@ -103,40 +86,27 @@ export default function TagTypeOrderSetting({
     setError("");
   }
 
-  function handleDragEnd(event) {
-    const { active, over } = event;
+  function handleDragEnd({ active, over }) {
     if (!over || active.id === over.id) return;
 
-    const oldIndex = value.indexOf(active.id);
-    const newIndex = value.indexOf(over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-
-    setNextValue(arrayMove(value, oldIndex, newIndex));
+    setNextValue(arrayMove(value, value.indexOf(active.id), value.indexOf(over.id)));
   }
 
   function saveValue() {
-    if (!isDirty || isPending) return;
-
     setError("");
     setStatus("");
 
     startTransition(async () => {
       try {
-        const requestedColors = mergeTagTypeColors(colors, value);
-        const result = await updateTagTypeOrderAction(value.join(" "), requestedColors);
-
-        const persistedColors = mergeTagTypeColors(
-          normalizeTagTypeColors(result?.tagTypeColors ?? requestedColors),
-          value
+        const result = await updateTagTypeOrderAction(
+          value.join(" "),
+          mergeTagTypeColors(colors, value)
         );
-        const persistedTypes = buildOrderedTypes(
-          normalizeTagTypeOrder(result?.tagTypeOrderValue),
-          Object.keys(persistedColors)
-        );
-        const nextColors = mergeTagTypeColors(persistedColors, persistedTypes);
+        const nextTypes = buildOrderedTypes(normalizeTagTypeOrder(result.tagTypeOrderValue), value);
+        const nextColors = mergeTagTypeColors(result.tagTypeColors, nextTypes);
 
-        setValue(persistedTypes);
-        setSavedValue(persistedTypes);
+        setValue(nextTypes);
+        setSavedValue(nextTypes);
         setColors(nextColors);
         setSavedColors(nextColors);
         setActiveColorPickerId(null);
@@ -165,7 +135,7 @@ export default function TagTypeOrderSetting({
                 id={type}
                 index={index}
                 total={value.length}
-                color={colors[type] ?? DEFAULT_TAG_TYPE_COLOR}
+                color={colors[type]}
                 isPickerOpen={activeColorPickerId === type}
                 onOpenPicker={() => setActiveColorPickerId(type)}
                 onClosePicker={() => {
@@ -177,14 +147,8 @@ export default function TagTypeOrderSetting({
                     [type]: normalizeTagTypeColor(nextColor),
                   });
                 }}
-                onMoveUp={() => {
-                  if (index === 0) return;
-                  setNextValue(arrayMove(value, index, index - 1));
-                }}
-                onMoveDown={() => {
-                  if (index === value.length - 1) return;
-                  setNextValue(arrayMove(value, index, index + 1));
-                }}
+                onMoveUp={() => setNextValue(arrayMove(value, index, index - 1))}
+                onMoveDown={() => setNextValue(arrayMove(value, index, index + 1))}
               />
             ))}
           </ul>
@@ -193,29 +157,18 @@ export default function TagTypeOrderSetting({
         no tag types found in the database yet.
       </p>}
 
-      <div className={styles.settingActions}>
-        <button
-          type="button"
-          className={styles.settingButton}
-          disabled={!isDirty || isPending}
-          onClick={saveValue}
-        >{isPending ? "saving..." : "save"}</button>
-
-        <button
-          type="button"
-          className={styles.settingButton}
-          disabled={!isDirty || isPending}
-          onClick={() => {
-            setNextValue(savedValue);
-            setNextColors(savedColors);
-            setActiveColorPickerId(null);
-          }}
-        >reset</button>
-
-        {status ? <div className={styles.statusOk}>{status}</div> : null}
-        {error ? <div className={styles.statusError}>{error}</div> : null}
-      </div>
+      <SettingActions
+        isDirty={isDirty}
+        isPending={isPending}
+        onSave={saveValue}
+        onReset={() => {
+          setNextValue(savedValue);
+          setNextColors(savedColors);
+          setActiveColorPickerId(null);
+        }}
+        status={status}
+        error={error}
+      />
     </div>
   );
 }
-

@@ -12,19 +12,13 @@ export default function ClearDeletedStoragePanel() {
   const [status, setStatus] = useState("");
 
   const clearDeletedStorage = () => {
-    const shouldClear = window.confirm(
-      "Permanently delete all files in /storage/deleted?"
-    );
-    if (!shouldClear) return;
+    if (!window.confirm("Permanently delete all files in /storage/deleted?")) return;
 
     setStatus("");
 
     startTransition(async () => {
       try {
-        const result = await clearDeletedStorageAction();
-        const removedFiles = Number(result?.removedFiles) || 0;
-        const removedBytes = Number(result?.removedBytes) || 0;
-
+        const { removedFiles, removedBytes } = await clearDeletedStorageAction();
         setStatus(
           `Deleted ${removedFiles} file(s), freed ${formatBytes(removedBytes)}.`
         );

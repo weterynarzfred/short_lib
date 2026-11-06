@@ -2,12 +2,6 @@ import { buildTagTypeOrderSql } from "@/lib/tagTypeOrder";
 
 const TAG_ORDER_SQL = buildTagTypeOrderSql();
 
-function clampInt(value, { min, max, fallback }) {
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) return fallback;
-  return Math.min(Math.max(parsed, min), max);
-}
-
 // A comparison against a column that can be NULL is NULL, and NOT NULL is still NULL - so
 // a naive negation quietly drops rows with no value. Coalescing the comparison itself to
 // false makes negation total: `-duration:>60s` includes media with no duration at all.
@@ -80,10 +74,8 @@ function buildTermPredicate(node, params) {
     case "notes":
     case "text":
     case "filename":
+    case "similar":
       return buildResolvedIdsPredicate(node, params);
-
-    default:
-      return null;
   }
 }
 
@@ -92,31 +84,24 @@ function buildPredicate(node, params) {
 
   if (node.type === "TERM") return buildTermPredicate(node, params);
 
-  if (node.type === "AND" || node.type === "OR") {
-    const left = buildPredicate(node.left, params);
-    const right = buildPredicate(node.right, params);
+  const left = buildPredicate(node.left, params);
+  const right = buildPredicate(node.right, params);
 
-    if (!left) return right;
-    if (!right) return left;
+  if (!left) return right;
+  if (!right) return left;
 
-    return `(${left} ${node.type} ${right})`;
-  }
-
-  return null;
+  return `(${left} ${node.type} ${right})`;
 }
 
-function buildHasPredicate(hasFilter, params) {
-  const value = hasFilter?.value;
-  if (!value) return null;
-
+function buildHasPredicate({ value, negated }, params) {
   if (value === "notes") {
-    if (hasFilter.negated) return `COALESCE(TRIM(m.notes_md), '') = ''`;
+    if (negated) return `COALESCE(TRIM(m.notes_md), '') = ''`;
     return `COALESCE(TRIM(m.notes_md), '') <> ''`;
   }
 
   // 0 and unrated are the same thing, so -has:score means "score is zero".
   if (value === "score") {
-    if (hasFilter.negated) return `COALESCE(m.score, 0) = 0`;
+    if (negated) return `COALESCE(m.score, 0) = 0`;
     return `COALESCE(m.score, 0) > 0`;
   }
 
@@ -128,16 +113,16 @@ function buildHasPredicate(hasFilter, params) {
       FROM media_tags mt
       JOIN tags t ON t.id = mt.tag_id
       WHERE mt.media_id = m.id
-        AND LOWER(t.type) = ?
+        AND t.type = ?
     )
   `;
 
-  if (hasFilter.negated) return `NOT ${existsClause}`;
+  if (negated) return `NOT ${existsClause}`;
   return existsClause;
 }
 
 function buildIdsPredicate(column, ids, params, chunkSize = 900) {
-  if (!Array.isArray(ids) || ids.length === 0) return null;
+  if (!ids.length) return null;
 
   const chunks = [];
   for (let index = 0; index < ids.length; index += chunkSize) {
@@ -151,7 +136,7 @@ function buildIdsPredicate(column, ids, params, chunkSize = 900) {
   return `(${chunks.join(" OR ")})`;
 }
 
-// notes:, text: and filename: match in memory, so getPosts resolves them to ids before the
+// notes:, text:, filename: and similar: match in memory, so getPosts resolves them to ids before the
 // SQL is built. An unresolved or empty result means "matches nothing", which negates to
 // "matches everything" rather than collapsing the whole query.
 function buildResolvedIdsPredicate(node, params) {
@@ -171,7 +156,7 @@ function buildResolvedIdsPredicate(node, params) {
 const MAX_RELEVANCE_IDS = 500;
 
 function buildRelevanceOrderSql(relevanceIds) {
-  if (!Array.isArray(relevanceIds) || !relevanceIds.length) return null;
+  if (!relevanceIds?.length) return null;
 
   const ranked = relevanceIds
     .filter(id => Number.isInteger(id) && id > 0)
@@ -183,30 +168,38 @@ function buildRelevanceOrderSql(relevanceIds) {
   return `CASE m.id ${whenClauses} ELSE ${ranked.length} END`;
 }
 
+export const MAX_RANDOM_SEED = 2 ** 31;
+
+// SQLite cannot seed random(), and every "load more" is a fresh query, so the shuffle is a
+// hash of id and seed that gives the same order on each page. One LCG step alone would only
+// rotate a fixed order as the seed changes; taking the middle bits of its square breaks that.
+// Every intermediate value stays under 2^62, clear of SQLite's integer overflow to REAL.
+// Seeds within about a thousand of each other give nearly the same order, which random
+// seeds over 2^31 make a one-in-a-million event.
+function buildRandomOrderSql(seed) {
+  const safeSeed = Number.isInteger(seed) && seed >= 0 && seed < MAX_RANDOM_SEED ? seed : 0;
+  const mixed = `((m.id * 1103515245 + ${safeSeed}) % 2147483648)`;
+
+  return `((${mixed} * ${mixed}) / 65536) % 2147483648, m.id`;
+}
+
+// Limit and offset are trusted: getPostsPage validates them, and parseSearch clamps limit:.
+// Clamping again here would cut its limit+1 look-ahead row and hide the next page.
 export default function buildQuery(parsed, {
-  limit,
-  offset,
+  limit = parsed.filters.limit,
+  offset = 0,
   tagOrderSql = TAG_ORDER_SQL,
   relevanceIds = null,
+  seed = 0,
 } = {}) {
   const { filters, expression } = parsed;
-  const safeLimit = clampInt(limit ?? filters.limit, {
-    min: 1,
-    max: 500,
-    fallback: 100,
-  });
-  const safeOffset = clampInt(offset, {
-    min: 0,
-    max: Number.MAX_SAFE_INTEGER,
-    fallback: 0,
-  });
-
-  const where = [];
   const params = [];
 
+  // Every column but phash, which runs to kilobytes per video and only similar: reads.
   let sql = `
     SELECT
-      m.*,
+      m.id, m.file_path, m.created_at, m.file_size, m.mime_type, m.width, m.height,
+      m.duration_ms, m.original_filename, m.notes_md, m.variants, m.checksum, m.score,
 
       (
         SELECT COUNT(*)
@@ -236,26 +229,23 @@ export default function buildQuery(parsed, {
     FROM media m
   `;
 
-  // One walk over the whole expression, so every predicate - tag or operator - lands in
-  // the right branch of any AND/OR the user wrote.
   const predicate = buildPredicate(expression, params);
-  if (predicate) where.push(predicate);
-
-  if (where.length) {
-    sql += " WHERE " + where.join(" AND ");
-  }
+  if (predicate) sql += " WHERE " + predicate;
 
   // Relevance leads when present; the requested order still breaks ties, and rows past the
   // ranked cap fall back to it entirely.
+  const requestedOrderSql = filters.orderKey === "random"
+    ? buildRandomOrderSql(seed)
+    : filters.orderBy;
   const relevanceOrderSql = buildRelevanceOrderSql(relevanceIds);
   const orderBy = relevanceOrderSql
-    ? `${relevanceOrderSql}, ${filters.orderBy}`
-    : filters.orderBy;
+    ? `${relevanceOrderSql}, ${requestedOrderSql}`
+    : requestedOrderSql;
 
   sql += `
     ORDER BY ${orderBy}
-    LIMIT ${safeLimit}
-    OFFSET ${safeOffset}
+    LIMIT ${limit}
+    OFFSET ${offset}
   `;
 
   return { sql, params };

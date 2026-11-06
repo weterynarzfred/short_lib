@@ -9,9 +9,9 @@ A personal, local, media library built around a web UI using Next.js, React, and
 - Edit tags, notes, and filenames. Tags can be edited in bulk.
 - Read a file's own metadata in the panel: codec, bitrate, frame rate, bit depth, EXIF,
   and the generation parameters embedded in AI-made PNGs.
-- Describe an image with a local vision model, transcribing any text in it, and get the
-  result as a notes draft to edit before saving. The prompt is editable in settings.
 - Give tags aliases, descriptions, and implications (tagging `cat` can auto-add `animal`).
+- Find similar posts (`similar:<id>`): re-encodes, resized copies, and a clip next to the
+  video it was cut from.
 - Download a multi-selection as a zip.
 - Soft-delete media into a deleted bin and clear it from the UI.
 - Preview and play/slideshow the filtered list of media in fullscreen.
@@ -46,7 +46,6 @@ A personal, local, media library built around a web UI using Next.js, React, and
 
 - Limited Matroska video support.
 - No support for video features like multiple tracks, subtitles, etc.
-- Bulk download builds the whole zip in memory, so it is only practical for small selections.
 - No user accounts.
 
 ## Prerequisites
@@ -81,21 +80,14 @@ Example `.env`:
 ```env
 STORAGE_DIR=H:/short_lib/storage/
 THUMB_PIXELS=100000
-PREVIEW_PIXELS=1000000
 
 # Only needed when a tool is not on the PATH the app runs with:
 EXIFTOOL_PATH=C:/bin/exiftool.exe
 ```
-- `STORAGE_DIR`: base directory for media files and generated derivatives.
-- `THUMB_PIXELS`: target total pixels for thumbnail generation.
-- `PREVIEW_PIXELS`: target total pixels for preview generation. (Right now previews are not displayed anywhere yet)
-- All three values above are required for the upload pipeline.
+- `STORAGE_DIR` (required): base directory for media and derivatives.
+- `THUMB_PIXELS` (required): target total pixels for thumbnails and hover previews.
 - `FFMPEG_PATH`, `FFPROBE_PATH`, `EXIFTOOL_PATH`: optional, absolute paths to the external
   tools. Default to the bare command name, found on `PATH`.
-- `LLM_URL`: optional, base URL of an OpenAI-compatible vision model, used by the describe
-  button. Defaults to `http://127.0.0.1:3403`, which is where the LAN service manager
-  serves koboldcpp on demand. Without one, the button reports that the model did not
-  respond and nothing else is affected.
 
 3. Start development server:
 
@@ -105,9 +97,14 @@ npm run dev
 
 4. Open `http://localhost:3000`.
 
-## Implementation details
+5. Media uploaded before `similar:` existed needs hashing once (resumable, ~17 minutes for
+   this library):
 
-Search suggestions and `notes:` filtering use an in-memory Fuse.js index built from SQLite rows.
+```bash
+npm run backfill:similar
+```
+
+## Implementation details
 
 ### Storage layout
 
@@ -116,18 +113,19 @@ Search suggestions and `notes:` filtering use an in-memory Fuse.js index built f
 - `full/YYYY/MM/<checksum>.<ext>` - original uploaded media
 - `thumbs/YYYY/MM/<checksum>.jpg` - thumbnail derivative
 - `vprevs/YYYY/MM/<checksum>.mp4` - short silent AV1 clip, played on hover for videos
-- `prevs/YYYY/MM/<checksum>.jpg` - **no longer generated**; existing files are left in
-  place and are safe to delete
 - `tmp/` - temporary upload/transcode files
-- `deleted/` - soft-deleted files (same sub-structure as above)
-
-Deleting a post moves files into the `/deleted` folder. It can be cleared manually or using the UI.
+- `deleted/` - soft-deleted files (same sub-structure as above), cleared from the UI
+- `backups/` - automatic database copies
 
 ### Backup and migration
 
 To move or back up the full library, keep the entire `STORAGE_DIR` folder (all media + derivatives + `shortlib.db`).
 
-When restoring on another machine/path, copy `STORAGE_DIR` and update `.env` (`STORAGE_DIR=...`) if the storage location changes.
+The database also backs itself up to `backups/shortlib-YYYY-MM-DD.db` every three days,
+keeping ten. Those copies are always consistent, so point an external backup tool at them
+rather than the live database. To restore, stop the app and copy one over `shortlib.db`.
+
+On another machine, copy `STORAGE_DIR` and update `STORAGE_DIR` in `.env`.
 
 ### Architecture notes
 

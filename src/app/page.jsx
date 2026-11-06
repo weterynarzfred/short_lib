@@ -9,6 +9,16 @@ export const dynamic = "force-dynamic";
 
 export default function Home() {
   const stats = getHomeStats();
+  const statCards = [
+    ["posts", stats.media.totalPosts],
+    ["images", stats.media.imagePosts],
+    ["videos", stats.media.videoPosts],
+    ["other media", stats.media.otherPosts],
+    ["db media size", formatBytes(stats.media.totalBytes)],
+    ["active storage", formatBytes(stats.storage.active.bytes)],
+    ["deleted bin", formatBytes(stats.storage.deleted.bytes)],
+    ["active files", stats.storage.active.files],
+  ];
 
   return (
     <>
@@ -23,45 +33,12 @@ export default function Home() {
           </div>
 
           <dl className={styles.statGrid}>
-            <div className={styles.statCard}>
-              <dt className={styles.statLabel}>posts</dt>
-              <dd className={styles.statValue}>{stats.media.totalPosts}</dd>
-            </div>
-
-            <div className={styles.statCard}>
-              <dt className={styles.statLabel}>images</dt>
-              <dd className={styles.statValue}>{stats.media.imagePosts}</dd>
-            </div>
-
-            <div className={styles.statCard}>
-              <dt className={styles.statLabel}>videos</dt>
-              <dd className={styles.statValue}>{stats.media.videoPosts}</dd>
-            </div>
-
-            <div className={styles.statCard}>
-              <dt className={styles.statLabel}>other media</dt>
-              <dd className={styles.statValue}>{stats.media.otherPosts}</dd>
-            </div>
-
-            <div className={styles.statCard}>
-              <dt className={styles.statLabel}>db media size</dt>
-              <dd className={styles.statValue}>{formatBytes(stats.media.totalBytes)}</dd>
-            </div>
-
-            <div className={styles.statCard}>
-              <dt className={styles.statLabel}>active storage</dt>
-              <dd className={styles.statValue}>{formatBytes(stats.storage.active.bytes)}</dd>
-            </div>
-
-            <div className={styles.statCard}>
-              <dt className={styles.statLabel}>deleted bin</dt>
-              <dd className={styles.statValue}>{formatBytes(stats.storage.deleted.bytes)}</dd>
-            </div>
-
-            <div className={styles.statCard}>
-              <dt className={styles.statLabel}>active files</dt>
-              <dd className={styles.statValue}>{stats.storage.active.files}</dd>
-            </div>
+            {statCards.map(([label, value]) => (
+              <div key={label} className={styles.statCard}>
+                <dt className={styles.statLabel}>{label}</dt>
+                <dd className={styles.statValue}>{value}</dd>
+              </div>
+            ))}
           </dl>
 
           {!stats.storage.configured && (

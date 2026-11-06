@@ -33,4 +33,4 @@ export default function Nav() {
       >{label}</Link>
     ))}
   </nav>;
-};
+}

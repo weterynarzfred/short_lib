@@ -27,6 +27,10 @@ const ORDER_BY = Object.fromEntries(
   ]))
 );
 
+// `random` has no SQL here and no `_asc` twin: its order depends on a seed only the query
+// builder is given.
+export const ORDER_KEYS = [...Object.keys(ORDER_BY), "random"];
+
 const FILE_SIZE_UNITS = { b: 1, kb: 1024, mb: 1024 ** 2, gb: 1024 ** 3 };
 const AGE_UNITS = {
   s: 1,
@@ -80,7 +84,7 @@ function unquote(rawValue) {
   return rawValue.trim().replace(/(^"|"$)/, "");
 }
 
-function parseTagExpression(tokens = []) {
+function parseTagExpression(tokens) {
   let index = 0;
 
   const peek = () => tokens[index] ?? null;
@@ -92,8 +96,7 @@ function parseTagExpression(tokens = []) {
     if (!token) return null;
 
     // Every predicate - a tag or an operator alike - is a term, so all of them can sit on
-    // either side of an OR. Operators used to bypass this tree entirely and get AND-ed in
-    // afterwards, which silently turned `fish OR notes:"fish"` into an AND.
+    // either side of an OR.
     if (token.kind === "term") {
       consume();
       return token.node;
@@ -173,20 +176,18 @@ export default function parseSearch(searchString = "", options = {}) {
   const tokens = tokenizeSearchString(searchString);
 
   // Injected by callers that have DB access, so parsing stays pure on its own.
-  const resolveTagName = typeof options.resolveTagName === "function"
-    ? options.resolveTagName
-    : name => name;
+  const resolveTagName = options.resolveTagName ?? (name => name);
 
   const includeTags = [];
   const excludeTags = [];
   const expressionTokens = [];
   const mentionedTags = new Set();
+  let asksForSpecificPosts = false;
 
   const filters = {
     orderBy: ORDER_BY.date,
     limit: 100,
-    // Only settings live here. Every predicate is a term in `expression`, so that all of
-    // them can participate in AND/OR/negation rather than being AND-ed in afterwards.
+    // Only settings live here; every predicate is a term in `expression`.
     // `orderKey` is the base name of an explicit `order:` token, direction stripped, and
     // stays null for the default so a plain listing is distinguishable from `order:date`.
     orderKey: null,
@@ -197,7 +198,7 @@ export default function parseSearch(searchString = "", options = {}) {
   }
 
   function addTagToken(rawValue, negated) {
-    const value = resolveTagName(String(rawValue ?? "").trim());
+    const value = resolveTagName(rawValue.trim());
     if (!value) return;
 
     if (negated) excludeTags.push(value);
@@ -214,8 +215,6 @@ export default function parseSearch(searchString = "", options = {}) {
       continue;
     }
 
-    // Stripped once here rather than per operator, so every predicate can be negated -
-    // previously only `-has:` was, and `-score:5` fell through to a nonsense tag search.
     const negated = rawToken.startsWith("-");
     const token = negated ? rawToken.slice(1) : rawToken;
     const operator = splitOperator(token);
@@ -236,7 +235,10 @@ export default function parseSearch(searchString = "", options = {}) {
     }
 
     if (name === "order") {
-      if (ORDER_BY[value]) {
+      if (value === "random") {
+        filters.orderBy = null;
+        filters.orderKey = "random";
+      } else if (ORDER_BY[value]) {
         filters.orderBy = ORDER_BY[value];
         filters.orderKey = value.replace(/_asc$/, "");
       }
@@ -245,7 +247,6 @@ export default function parseSearch(searchString = "", options = {}) {
 
     if (name === "mime_type" || name === "has") {
       // Each occurrence is its own term, so repeating one means AND and matches nothing.
-      // They used to collect into an IN list, which was an implicit OR.
       const normalized = value.trim().toLowerCase();
       if (normalized) addTerm({ type: "TERM", kind: name, value: normalized, negated });
       continue;
@@ -254,6 +255,16 @@ export default function parseSearch(searchString = "", options = {}) {
     if (COMPARABLE_OPERATORS[name]) {
       const comparison = COMPARABLE_OPERATORS[name](value);
       if (comparison) addTerm({ type: "TERM", kind: name, comparison, negated });
+      continue;
+    }
+
+    // A post id rather than text, but resolved in memory the same way as the fuzzy ones.
+    if (name === "similar") {
+      const postId = Number(value);
+      if (Number.isInteger(postId) && postId > 0) {
+        addTerm({ type: "TERM", kind: "similar", query: postId, mediaIds: null, negated });
+        if (!negated) asksForSpecificPosts = true;
+      }
       continue;
     }
 
@@ -269,7 +280,11 @@ export default function parseSearch(searchString = "", options = {}) {
 
   let expression = parseTagExpression(expressionTokens);
 
-  for (const tag of options.defaultExcludedTags ?? []) {
+  // `similar:` asks about one post, which is usually open in the panel already, so hiding it
+  // and its copies behind the blacklist would answer with an empty page.
+  const defaultExcludedTags = asksForSpecificPosts ? [] : options.defaultExcludedTags ?? [];
+
+  for (const tag of defaultExcludedTags) {
     const name = resolveTagName(String(tag ?? "").trim());
     if (!name || mentionedTags.has(name)) continue;
 

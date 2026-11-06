@@ -41,115 +41,46 @@ function buildTagsIndex() {
   return { rows: allRows, fuse: new Fuse(allRows, TAG_FUSE_OPTIONS) };
 }
 
-function normalizeScore(score) {
-  return Number.isFinite(score) ? score : 1;
-}
-
 export async function searchTagSuggestions(query, { limit = 16 } = {}) {
   const safeQuery = String(query ?? "").trim();
-  if (!safeQuery) return [];
   if (!/[\p{L}\p{N}]/u.test(safeQuery)) return [];
 
-  const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 16;
   const { rows: tagRows, fuse: tagsFuse } = buildTagsIndex();
-  if (!tagRows.length) return [];
 
   const normalizedQuery = safeQuery.toLowerCase();
-  const overscan = Math.max(safeLimit * 4, 32);
+  const overscan = Math.max(limit * 4, 32);
 
   const prefixMatches = tagRows
-    .filter(row => String(row.name ?? "").toLowerCase().startsWith(normalizedQuery))
+    .filter(row => row.name.toLowerCase().startsWith(normalizedQuery))
     .map(row => ({ item: row, score: 0 }));
 
   const fuzzyMatches = tagsFuse.search(safeQuery, { limit: overscan });
 
   const ranked = [...prefixMatches, ...fuzzyMatches]
-    .sort((left, right) => {
-      const leftScore = normalizeScore(left.score);
-      const rightScore = normalizeScore(right.score);
-      if (leftScore !== rightScore) return leftScore - rightScore;
-
-      const leftPostCount = Number(left.item?.postCount) || 0;
-      const rightPostCount = Number(right.item?.postCount) || 0;
-      if (leftPostCount !== rightPostCount) return rightPostCount - leftPostCount;
-
-      return Number(left.item?.id) - Number(right.item?.id);
-    });
+    .sort((left, right) =>
+      left.score - right.score
+      || right.item.postCount - left.item.postCount
+      || left.item.id - right.item.id);
 
   const seen = new Set();
   const suggestions = [];
 
-  for (const result of ranked) {
-    const tag = result?.item;
-    const id = Number(tag?.id);
-    const name = String(tag?.name ?? "").trim();
-    if (!Number.isInteger(id) || !name || seen.has(id)) continue;
+  for (const { item: tag } of ranked) {
+    const name = tag.name.trim();
+    if (seen.has(tag.id)) continue;
 
-    seen.add(id);
-    const isAlias = tag?.isAlias === true;
+    seen.add(tag.id);
     suggestions.push({
-      id,
-      name: isAlias ? `${name} → ${tag.realName}` : name,
-      insertName: isAlias ? tag.realName : undefined,
-      matchName: isAlias ? name : undefined,
-      type: String(tag?.type ?? "general"),
-      postCount: Number(tag?.postCount) || 0,
+      id: tag.id,
+      name: tag.isAlias ? `${name} → ${tag.realName}` : name,
+      insertName: tag.isAlias ? tag.realName : undefined,
+      matchName: tag.isAlias ? name : undefined,
+      type: tag.type,
+      postCount: tag.postCount,
     });
 
-    if (suggestions.length >= safeLimit) break;
+    if (suggestions.length >= limit) break;
   }
 
   return suggestions;
-}
-
-export async function searchMediaMatchesByNotes(query, { limit = 5000 } = {}) {
-  const safeQuery = String(query ?? "").trim();
-  if (!safeQuery) return [];
-
-  const safeLimit = clampSearchLimit(limit);
-  const terms = splitTerms(safeQuery);
-  if (!terms.length) return [];
-
-  const { rows, fuse } = notesIndex.get();
-  if (!rows.length) return [];
-
-  const overscan = Math.max(rows.length, safeLimit);
-
-  return rankByAllTerms(terms, term =>
-    fuse.search(term, { limit: overscan }).map(hit => ({
-      mediaId: Number(hit?.item?.mediaId),
-      score: normalizeScore(hit?.score),
-      range: bestMatchRange(hit, term),
-    })), safeLimit).map(row => ({ ...row, field: "notes" }));
-}
-
-export async function searchMediaMatchesByFilename(query, { limit = 5000 } = {}) {
-  const safeQuery = String(query ?? "").trim();
-  if (!safeQuery) return [];
-
-  const safeLimit = clampSearchLimit(limit);
-  const terms = splitTerms(safeQuery).map(term => term.toLowerCase());
-  if (!terms.length) return [];
-
-  const { rows, fuse } = filenameIndex.get();
-  if (!rows.length) return [];
-
-  const overscan = Math.max(rows.length, safeLimit);
-
-  return rankByAllTerms(terms, term => {
-    // Digits in these filenames are ids, pasted or half-remembered exactly. Fuzzy
-    // matching them mostly finds a different number - "2026" fuzzily matched 55 files
-    // that do not contain it anywhere.
-    if (NUMERIC_TERM.test(term)) {
-      return rows
-        .map(row => ({ mediaId: row.mediaId, score: substringScore(row.searchText, term) }))
-        .filter(row => row.score !== null);
-    }
-
-    return fuse.search(term, { limit: overscan }).map(hit => ({
-      mediaId: Number(hit?.item?.mediaId),
-      score: normalizeScore(hit?.score),
-    }));
-    // No range: filenames are short enough to show whole, so there is nothing to window.
-  }, safeLimit).map(row => ({ ...row, field: "filename", ranges: [] }));
 }

@@ -1,4 +1,4 @@
-import ffprobe from "./ffprobe";
+import ffprobe from "@/lib/ffprobe";
 import mimetypeToType from "@/lib/mimetypeToType";
 import sharp from "sharp";
 import { fileTypeFromFile } from "file-type";
@@ -15,13 +15,7 @@ const GENERIC_MIME_TYPES = new Set([
 function normalizeMimeType(rawValue) {
   if (typeof rawValue !== "string") return "";
   const value = rawValue.trim().toLowerCase();
-  if (!value) return "";
-  if (!value.includes("/")) return "";
-  return value;
-}
-
-function isGenericMimeType(mimeType) {
-  return GENERIC_MIME_TYPES.has(mimeType);
+  return value.includes("/") ? value : "";
 }
 
 async function detectTextFile(filepath) {
@@ -38,24 +32,21 @@ async function detectTextFile(filepath) {
   } catch {
     return null;
   } finally {
-    if (!fileHandle) return;
-    try {
-      await fileHandle.close();
-    } catch { }
+    await fileHandle?.close().catch(() => { });
   }
 }
 
 async function resolveMimeType(filepath, fallbackMimeType, detectedMime) {
   const normalizedDetected = normalizeMimeType(detectedMime);
-  if (normalizedDetected && !isGenericMimeType(normalizedDetected))
+  if (normalizedDetected && !GENERIC_MIME_TYPES.has(normalizedDetected))
     return normalizedDetected;
 
   const extensionGuess = normalizeMimeType(lookupMimeType(filepath));
-  if (extensionGuess && !isGenericMimeType(extensionGuess))
+  if (extensionGuess && !GENERIC_MIME_TYPES.has(extensionGuess))
     return extensionGuess;
 
   const normalizedFallback = normalizeMimeType(fallbackMimeType);
-  if (normalizedFallback && !isGenericMimeType(normalizedFallback))
+  if (normalizedFallback && !GENERIC_MIME_TYPES.has(normalizedFallback))
     return normalizedFallback;
 
   const isTextFile = await detectTextFile(filepath);

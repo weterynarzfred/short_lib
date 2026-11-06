@@ -13,7 +13,7 @@ const hoisted = vi.hoisted(() => ({
   sharpMetadata: vi.fn(),
 }));
 
-vi.mock("../src/app/api/upload/ffprobe", () => ({
+vi.mock("@/lib/ffprobe", () => ({
   default: hoisted.ffprobe,
 }));
 

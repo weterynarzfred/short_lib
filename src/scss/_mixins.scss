@@ -12,13 +12,10 @@
   background: $background;
 }
 
-@mixin focusSurface($background: $colorBg2) {
+@mixin focusSurface() {
   &:focus {
     outline: none;
-
-    @if $background != null {
-      background-color: $background;
-    }
+    background-color: $colorBg2;
   }
 }
 

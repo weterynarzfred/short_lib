@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import parseTagToken from "@/lib/parseTagToken";
 import {
   DEFAULT_TAG_TYPE_ORDER,
   buildTagTypeColorsCss,
@@ -14,22 +15,11 @@ export const MEDIA_SETTINGS_DEFAULTS = {
   slideshow: false,
   muted: false,
   fullscreen: false,
+  info: true,
 };
 export const BLACKLISTED_TAGS_KEY = "listing.blacklisted_tags";
 export const TAG_TYPE_ORDER_KEY = "listing.tag_type_order";
 export const TAG_TYPE_COLORS_KEY = "listing.tag_type_colors";
-export const DESCRIBE_PROMPT_KEY = "llm.describe_prompt";
-
-// Sent with every image the describe button reads. Written to produce something worth
-// searching rather than something worth reading: prose first, then anything legible in the
-// picture, because notes are what `notes:` and `text:` match against.
-export const DEFAULT_DESCRIBE_PROMPT = `Describe this image for a searchable media library.
-
-Write two or three sentences covering the subject, the setting, the style, and anything notable about it.
-
-Then, if the image contains any readable text, add a line containing only "---" and transcribe every piece of text exactly as it appears. Leave that part out entirely when there is no text.
-
-Do not add a preamble, a title, or markdown formatting.`;
 
 const MEDIA_SETTING_KEYS = new Set(Object.keys(MEDIA_SETTINGS_DEFAULTS));
 
@@ -44,11 +34,11 @@ const getSettingStmt = db.prepare(`
   WHERE key = ?
   LIMIT 1
 `);
+// Stored lowercased and never empty, so no cleanup is needed here.
 const getTagTypesStmt = db.prepare(`
-  SELECT DISTINCT LOWER(TRIM(type)) AS type
+  SELECT DISTINCT type
   FROM tags
-  WHERE TRIM(type) <> ''
-  ORDER BY type COLLATE NOCASE ASC
+  ORDER BY type ASC
 `);
 
 const upsertSettingStmt = db.prepare(`
@@ -63,54 +53,20 @@ function isTrue(raw) {
   return raw === "1" || raw === "true";
 }
 
-function toStoredValue(value) {
-  return value ? "1" : "0";
-}
-
-function parseTagNames(raw = "") {
-  if (typeof raw !== "string") return [];
-
+function parseTagNames(raw) {
   return raw
     .split(/\s+/)
-    .map(token => token.trim())
     .filter(Boolean)
-    .map(token => {
-      const idx = token.indexOf(":");
-      if (idx > 0 && idx < token.length - 1)
-        return token.slice(idx + 1).trim();
-
-      return token;
-    })
-    .filter(Boolean);
+    .map(parseTagToken)
+    // Negated entries are dropped, not unwrapped: "-cat" must not blacklist "cat".
+    .filter(t => !t.negated && t.name)
+    .map(t => t.name);
 }
 
 function normalizeTagNames(rawValue) {
-  const normalized = [];
-  const seen = new Set();
-
-  const pushName = value => {
-    const name = String(value ?? "").trim();
-    if (!name || seen.has(name)) return;
-
-    seen.add(name);
-    normalized.push(name);
-  };
-
-  if (Array.isArray(rawValue)) {
-    for (const item of rawValue) {
-      if (typeof item !== "string") continue;
-      for (const name of parseTagNames(item))
-        pushName(name);
-    }
-    return normalized;
-  }
-
-  if (typeof rawValue !== "string") return normalized;
-
-  for (const name of parseTagNames(rawValue))
-    pushName(name);
-
-  return normalized;
+  const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+  const names = values.filter(item => typeof item === "string").flatMap(parseTagNames);
+  return [...new Set(names)];
 }
 
 // Settings are written as JSON, but rows written before that are plain strings, so both
@@ -127,26 +83,17 @@ function parseStored(rawValue, normalize) {
     return normalize(trimmed);
   }
 }
+
+// Both lists are already clean: the stored order went through normalizeTagTypeOrder, and
+// the available types come straight from the tags table.
 function mergeTagTypeOrder(preferredOrder = [], availableTypes = []) {
-  const merged = [];
-  const seen = new Set();
-
-  for (const rawType of [...preferredOrder, ...availableTypes]) {
-    const type = String(rawType ?? "").trim().toLowerCase();
-    if (!type || seen.has(type)) continue;
-    seen.add(type);
-    merged.push(type);
-  }
-
+  const merged = [...new Set([...preferredOrder, ...availableTypes])];
   return merged.length ? merged : [...DEFAULT_TAG_TYPE_ORDER];
 }
 
 function getAvailableTagTypes() {
   try {
-    return getTagTypesStmt
-      .all()
-      .map(row => row?.type)
-      .filter(type => typeof type === "string" && type.length > 0);
+    return getTagTypesStmt.all().map(row => row.type);
   } catch {
     return [];
   }
@@ -169,7 +116,7 @@ export function setMediaSettings(partialSettings) {
   const now = Date.now();
   const entries = Object.entries(partialSettings)
     .filter(([key]) => MEDIA_SETTING_KEYS.has(key))
-    .map(([key, value]) => [`media.${key}`, toStoredValue(Boolean(value)), now]);
+    .map(([key, value]) => [`media.${key}`, value ? "1" : "0", now]);
 
   if (!entries.length) return getMediaSettings();
 
@@ -251,20 +198,6 @@ export function setTagTypeColors(rawTagTypeColors) {
   );
 
   return sanitizedColors;
-}
-
-export function getDescribePrompt() {
-  const row = getSettingStmt.get(DESCRIBE_PROMPT_KEY);
-  const stored = typeof row?.value === "string" ? row.value.trim() : "";
-
-  // Blank falls back to the default, so clearing the field is how you reset it.
-  return stored || DEFAULT_DESCRIBE_PROMPT;
-}
-
-export function setDescribePrompt(rawPrompt) {
-  upsertSettingStmt.run(DESCRIBE_PROMPT_KEY, String(rawPrompt ?? "").trim(), Date.now());
-
-  return getDescribePrompt();
 }
 
 export function getTagTypeOrderSql() {

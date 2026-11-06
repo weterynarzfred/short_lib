@@ -5,7 +5,7 @@ const ESCAPABLE = new Set(["\"", "\\", "(", ")"]);
 // and ends. `inQuotes` lets callers tell that the caret is inside a quoted phrase such as
 // notes:"still typing, where whitespace does not begin a new token and tag suggestions
 // would be nonsense.
-export default function getActiveToken(value = "", cursor) {
+export default function getActiveToken(value, cursor) {
   const text = String(value ?? "");
   const pos = typeof cursor === "number"
     ? Math.max(0, Math.min(cursor, text.length))

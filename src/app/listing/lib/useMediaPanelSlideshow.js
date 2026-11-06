@@ -1,52 +1,45 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import isEditableTarget from "@/lib/isEditableTarget";
 import mimetypeToType from "@/lib/mimetypeToType";
 
 const IMAGE_SLIDESHOW_DELAY_MS = 4000;
 const RETRY_ADVANCE_DELAY_MS = 300;
 
-function isEditorFocused() {
-  if (typeof document === "undefined") return false;
-  const activeElement = document.activeElement;
-  if (!(activeElement instanceof HTMLElement)) return false;
-  return Boolean(activeElement.closest("input, textarea, select, [contenteditable='true']"));
-}
-
 export default function useMediaPanelSlideshow({ isSlideshowOn, postId, mimeType, onAdvance }) {
   const retryAdvanceTimerRef = useRef(null);
   const imageSlideshowTimerRef = useRef(null);
   const slideshowEnabledRef = useRef(isSlideshowOn);
-  const currentPostIdRef = useRef(postId ?? null);
+  const currentPostIdRef = useRef(postId);
 
-  const clearRetryAdvanceTimer = useCallback(() => {
-    if (!retryAdvanceTimerRef.current) return;
+  const clearRetryAdvanceTimer = () => {
     clearTimeout(retryAdvanceTimerRef.current);
     retryAdvanceTimerRef.current = null;
-  }, []);
+  };
 
-  const clearImageSlideshowTimer = useCallback(() => {
-    if (!imageSlideshowTimerRef.current) return;
+  const clearImageSlideshowTimer = () => {
     clearTimeout(imageSlideshowTimerRef.current);
     imageSlideshowTimerRef.current = null;
-  }, []);
+  };
 
   useEffect(() => {
     slideshowEnabledRef.current = isSlideshowOn;
   }, [isSlideshowOn]);
 
   useEffect(() => {
-    currentPostIdRef.current = postId ?? null;
+    currentPostIdRef.current = postId;
   }, [postId]);
 
-  const tryAdvance = useCallback((expectedPostId) => {
+  // Holds off while a field has focus, so the post does not change under your typing.
+  const tryAdvance = expectedPostId => {
     if (!slideshowEnabledRef.current) return true;
     if (currentPostIdRef.current !== expectedPostId) return true;
-    if (isEditorFocused()) return false;
+    if (isEditableTarget(document.activeElement)) return false;
 
     onAdvance();
     return true;
-  }, [onAdvance]);
+  };
 
-  const scheduleAdvanceRetry = useCallback((expectedPostId) => {
+  const scheduleAdvanceRetry = expectedPostId => {
     clearRetryAdvanceTimer();
 
     const tick = () => {
@@ -59,13 +52,11 @@ export default function useMediaPanelSlideshow({ isSlideshowOn, postId, mimeType
     };
 
     retryAdvanceTimerRef.current = setTimeout(tick, RETRY_ADVANCE_DELAY_MS);
-  }, [clearRetryAdvanceTimer, tryAdvance]);
+  };
 
-  const handleMediaEnded = useCallback(() => {
-    if (!isSlideshowOn) return;
-    if (postId == null) return;
-    if (!tryAdvance(postId)) scheduleAdvanceRetry(postId);
-  }, [isSlideshowOn, postId, scheduleAdvanceRetry, tryAdvance]);
+  const handleMediaEnded = () => {
+    if (isSlideshowOn && !tryAdvance(postId)) scheduleAdvanceRetry(postId);
+  };
 
   useEffect(() => {
     clearImageSlideshowTimer();
@@ -74,12 +65,9 @@ export default function useMediaPanelSlideshow({ isSlideshowOn, postId, mimeType
     if (!isSlideshowOn) return;
     const mediaType = mimetypeToType(mimeType);
     if (mediaType === "video" || mediaType === "audio") return;
-    if (postId == null) return;
-
-    const expectedPostId = postId;
 
     const tick = () => {
-      if (tryAdvance(expectedPostId)) {
+      if (tryAdvance(postId)) {
         imageSlideshowTimerRef.current = null;
         return;
       }
@@ -93,14 +81,7 @@ export default function useMediaPanelSlideshow({ isSlideshowOn, postId, mimeType
       clearImageSlideshowTimer();
       clearRetryAdvanceTimer();
     };
-  }, [
-    isSlideshowOn,
-    postId,
-    mimeType,
-    clearImageSlideshowTimer,
-    clearRetryAdvanceTimer,
-    tryAdvance,
-  ]);
+  }, [isSlideshowOn, postId, mimeType, clearImageSlideshowTimer, clearRetryAdvanceTimer, tryAdvance]);
 
   useEffect(() => () => {
     clearImageSlideshowTimer();

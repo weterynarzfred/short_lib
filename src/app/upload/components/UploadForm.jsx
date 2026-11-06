@@ -16,6 +16,10 @@ import useUploadQueue from "../lib/useUploadQueue";
 
 import styles from "./UploadForm.module.scss";
 
+// A rejection rather than a returned error means the action failed outside its own error
+// handling (or never ran), so the reason is only in the server log.
+const REQUEST_FAILED = "save failed, see the server log";
+
 export default function UploadForm() {
   const [dragDepth, setDragDepth] = useState(0);
   const [bulkTagsValue, setBulkTagsValue] = useState("");
@@ -51,56 +55,57 @@ export default function UploadForm() {
     setDragDepth(0);
   }
 
-  async function saveUploadTags(uploadId) {
-    const upload = uploads.find(item => item.id === uploadId);
-    if (!upload?.mediaId) return;
-    const rawTagsValue = upload.tagsValue;
-
-    patchUpload(uploadId, { isSavingTags: true, tagsSaveNote: "" });
+  async function saveUploadTags({ id, mediaId, tagsValue }) {
+    patchUpload(id, { isSavingTags: true, tagsSaveNote: "" });
 
     try {
-      const result = await updatePostTagsAction(upload.mediaId, rawTagsValue);
-      setUploadKnownTags(uploadId, result.tags);
-      patchUpload(uploadId, { tagsSaveNote: "saved" });
+      const result = await updatePostTagsAction(mediaId, tagsValue);
+      if (result.ok === false) {
+        patchUpload(id, { tagsSaveNote: `save failed: ${result.error}` });
+        return;
+      }
+      setUploadKnownTags(id, result.tags);
+      patchUpload(id, { tagsSaveNote: "saved" });
     } catch {
-      patchUpload(uploadId, { tagsSaveNote: "save failed" });
+      patchUpload(id, { tagsSaveNote: REQUEST_FAILED });
     } finally {
-      patchUpload(uploadId, { isSavingTags: false });
+      patchUpload(id, { isSavingTags: false });
     }
   }
 
-  async function saveUploadNotes(uploadId) {
-    const upload = uploads.find(item => item.id === uploadId);
-    if (!upload?.mediaId) return;
-    const notesValue = upload.notesValue;
-
-    patchUpload(uploadId, { isSavingNotes: true });
+  async function saveUploadNotes({ id, mediaId, notesValue }) {
+    patchUpload(id, { isSavingNotes: true });
 
     try {
-      await updatePostNotesAction(upload.mediaId, notesValue);
-      patchUpload(uploadId, { notesSaveNote: "saved" });
+      const result = await updatePostNotesAction(mediaId, notesValue);
+      patchUpload(id, {
+        notesSaveNote: result.ok === false ? `save failed: ${result.error}` : "saved",
+      });
     } catch {
-      patchUpload(uploadId, { notesSaveNote: "save failed" });
+      patchUpload(id, { notesSaveNote: REQUEST_FAILED });
     } finally {
-      patchUpload(uploadId, { isSavingNotes: false });
+      patchUpload(id, { isSavingNotes: false });
     }
   }
 
   async function saveBulkTags() {
     const mediaIds = successUploads.map(upload => upload.mediaId);
-    if (!mediaIds.length) return;
 
     setIsBulkSaving(true);
     setBulkSaveNote("");
 
     try {
-      await addPostTagsBulkAction(mediaIds, bulkTagsValue);
+      const result = await addPostTagsBulkAction(mediaIds, bulkTagsValue);
+      if (result.ok === false) {
+        setBulkSaveNote(`bulk save failed: ${result.error}`);
+        return;
+      }
       const refreshedValues = await getPostTagValuesAction(mediaIds);
       applyMediaTagValues(refreshedValues);
       setBulkTagsValue("");
       setBulkSaveNote(`saved for ${mediaIds.length} item(s)`);
     } catch {
-      setBulkSaveNote("bulk save failed");
+      setBulkSaveNote(REQUEST_FAILED);
     } finally {
       setIsBulkSaving(false);
     }
@@ -124,7 +129,7 @@ export default function UploadForm() {
           }}
           onDragOver={event => event.preventDefault()}
           onDrop={onDrop}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => inputRef.current.click()}
         >drop files here or click to upload</div>
         <input
           ref={inputRef}
@@ -132,7 +137,7 @@ export default function UploadForm() {
           multiple
           hidden
           onChange={event => {
-            uploadFiles(event.target.files || []);
+            uploadFiles(event.target.files);
             event.target.value = "";
           }}
         />

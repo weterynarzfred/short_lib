@@ -15,8 +15,9 @@ function normalizeTagName(name) {
   return next;
 }
 
+// Lowercased on write, as in addTags, so readers can take stored types as they are.
 function normalizeTagType(type) {
-  const next = String(type ?? "").trim();
+  const next = String(type ?? "").trim().toLowerCase();
   return next || "general";
 }
 
@@ -104,8 +105,7 @@ export function addTagAlias(tagId, aliasName) {
   const name = String(aliasName ?? "").trim();
   if (!name) throw new Error("Alias name is required");
 
-  const conflict = db.prepare(`SELECT id FROM tags WHERE name = ?`).get(name);
-  if (conflict) throw new Error(`"${name}" is already a tag name`);
+  if (getTagByName(name)) throw new Error(`"${name}" is already a tag name`);
 
   const existingAlias = findTagByAliasName(name);
   if (existingAlias)

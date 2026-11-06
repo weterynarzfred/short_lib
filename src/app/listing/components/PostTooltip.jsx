@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback } from "react";
 import Link from "next/link";
 import classNames from "classnames";
 
@@ -60,7 +59,7 @@ function PostTooltipBody({ post, subtitleKinds, onNavigate }) {
 export function usePostTooltip() {
   const { showTooltip, hideTooltip, cancelTooltip } = useTooltip();
 
-  const getHoverProps = useCallback((post, subtitleKinds) => ({
+  const getHoverProps = (post, subtitleKinds) => ({
     onMouseEnter: event => showTooltip({
       rect: event.currentTarget.getBoundingClientRect(),
       content: (
@@ -75,7 +74,7 @@ export function usePostTooltip() {
     // Cancels a pending hover only; an open card closes itself once the pointer has left
     // both it and the post, which is what keeps its links reachable.
     onMouseLeave: () => cancelTooltip(),
-  }), [showTooltip, hideTooltip, cancelTooltip]);
+  });
 
   return { getHoverProps, hidePostTooltip: hideTooltip };
 }

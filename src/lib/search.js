@@ -34,7 +34,7 @@ function createIndex({ read, fuseOptions }) {
 
   return {
     get() {
-      if (isDirty || !fuse) {
+      if (isDirty) {
         rows = read();
         fuse = new Fuse(rows, fuseOptions);
         isDirty = false;
@@ -60,20 +60,8 @@ function normalizeFilenameForSearch(originalFilename) {
     .toLowerCase();
 }
 
-function splitTerms(raw = "") {
-  return String(raw)
-    .trim()
-    .split(/\s+/)
-    .map(token => token.trim())
-    .filter(Boolean);
-}
-
-function normalizeScore(score) {
-  return Number.isFinite(score) ? score : 1;
-}
-
-function clampSearchLimit(limit) {
-  return Number.isInteger(limit) && limit > 0 ? Math.min(limit, 10000) : 5000;
+function splitTerms(raw) {
+  return String(raw ?? "").split(/\s+/).filter(Boolean);
 }
 
 // Fuse reports one inclusive [start, end] pair per contiguous run of matched characters,
@@ -82,21 +70,15 @@ function clampSearchLimit(limit) {
 // "f[ramerates]" for "race", because a loose run can be longer than the real word. The run
 // closest in length to the term wins, which lands on the word itself.
 function bestMatchRange(hit, term) {
-  const indices = hit?.matches?.[0]?.indices;
-  if (!Array.isArray(indices) || !indices.length) return null;
+  const indices = hit.matches[0]?.indices;
+  if (!indices?.length) return null;
 
-  const wanted = String(term ?? "").length;
   let best = null;
   let bestDistance = Infinity;
 
-  for (const pair of indices) {
-    if (!Array.isArray(pair) || pair.length < 2) continue;
-
-    const [start, end] = pair;
-    if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) continue;
-
+  for (const [start, end] of indices) {
     const length = end - start + 1;
-    const distance = Math.abs(length - wanted);
+    const distance = Math.abs(length - term.length);
     // Ties go to the longer run, which carries more context.
     if (distance < bestDistance || (distance === bestDistance && length > best.end - best.start + 1)) {
       best = { start, end };
@@ -148,8 +130,8 @@ export function markMediaFilenamesIndexDirty() {
 
 // Lower is better, matching Fuse's convention. An exact whole-value match scores 0; past
 // that, a match covering more of the filename beats a fragment buried in a long id, and an
-// earlier match breaks the tie. Without this every substring hit scored 0 and ranking fell
-// back to insertion order, so "512" put 512.jpg wherever its id happened to land.
+// earlier match breaks the tie. A flat score for every hit would rank by id, so "512" would
+// not put 512.jpg first.
 function substringScore(searchText, term) {
   const index = searchText.indexOf(term);
   if (index < 0) return null;
@@ -169,8 +151,6 @@ function rankByAllTerms(terms, searchTerm, limit) {
 
   for (const term of terms) {
     for (const { mediaId, score, range } of searchTerm(term)) {
-      if (!Number.isInteger(mediaId) || mediaId <= 0) continue;
-
       const hit = range ? [{ range, score }] : [];
       const existing = rankedById.get(mediaId);
       if (!existing) {
@@ -203,38 +183,30 @@ function rankByAllTerms(terms, searchTerm, limit) {
 // which text matched so the listing can show the right thing, and `ranges` locate the
 // matched words within it, for notes only.
 export async function searchMediaMatchesByNotes(query, { limit = 5000 } = {}) {
-  const safeQuery = String(query ?? "").trim();
-  if (!safeQuery) return [];
-
-  const safeLimit = clampSearchLimit(limit);
-  const terms = splitTerms(safeQuery);
+  const terms = splitTerms(query);
   if (!terms.length) return [];
 
   const { rows, fuse } = notesIndex.get();
   if (!rows.length) return [];
 
-  const overscan = Math.max(rows.length, safeLimit);
+  const overscan = Math.max(rows.length, limit);
 
   return rankByAllTerms(terms, term =>
     fuse.search(term, { limit: overscan }).map(hit => ({
-      mediaId: Number(hit?.item?.mediaId),
-      score: normalizeScore(hit?.score),
+      mediaId: hit.item.mediaId,
+      score: hit.score,
       range: bestMatchRange(hit, term),
-    })), safeLimit).map(row => ({ ...row, field: "notes" }));
+    })), limit).map(row => ({ ...row, field: "notes" }));
 }
 
 export async function searchMediaMatchesByFilename(query, { limit = 5000 } = {}) {
-  const safeQuery = String(query ?? "").trim();
-  if (!safeQuery) return [];
-
-  const safeLimit = clampSearchLimit(limit);
-  const terms = splitTerms(safeQuery).map(term => term.toLowerCase());
+  const terms = splitTerms(query).map(term => term.toLowerCase());
   if (!terms.length) return [];
 
   const { rows, fuse } = filenameIndex.get();
   if (!rows.length) return [];
 
-  const overscan = Math.max(rows.length, safeLimit);
+  const overscan = Math.max(rows.length, limit);
 
   return rankByAllTerms(terms, term => {
     // Digits in these filenames are ids, pasted or half-remembered exactly. Fuzzy
@@ -247,11 +219,10 @@ export async function searchMediaMatchesByFilename(query, { limit = 5000 } = {})
     }
 
     return fuse.search(term, { limit: overscan }).map(hit => ({
-      mediaId: Number(hit?.item?.mediaId),
-      score: normalizeScore(hit?.score),
+      mediaId: hit.item.mediaId,
+      score: hit.score,
     }));
-    // No range: filenames are short enough to show whole, so there is nothing to window.
-  }, safeLimit).map(row => ({ ...row, field: "filename", ranges: [] }));
+  }, limit).map(row => ({ ...row, field: "filename", ranges: [] }));
 }
 
 // A post matches when all terms are found in its notes, or all in its filename. Letting
@@ -262,11 +233,9 @@ export async function searchMediaMatchesByFilename(query, { limit = 5000 } = {})
 // other buried an exact filename match under loose note matches. Both matchers score
 // 0 (best) to 1, so the scales are comparable enough to interleave.
 export async function searchMediaMatchesByText(query, { limit = 5000 } = {}) {
-  const safeLimit = clampSearchLimit(limit);
-
   const [noteRows, filenameRows] = await Promise.all([
-    searchMediaMatchesByNotes(query, { limit: safeLimit }),
-    searchMediaMatchesByFilename(query, { limit: safeLimit }),
+    searchMediaMatchesByNotes(query, { limit }),
+    searchMediaMatchesByFilename(query, { limit }),
   ]);
 
   // Keeping the better-scoring row also keeps its field, so a post matching both shows
@@ -282,5 +251,5 @@ export async function searchMediaMatchesByText(query, { limit = 5000 } = {}) {
       if (left.score !== right.score) return left.score - right.score;
       return left.mediaId - right.mediaId;
     })
-    .slice(0, safeLimit);
+    .slice(0, limit);
 }

@@ -18,12 +18,6 @@ import styles from "./TooltipProvider.module.scss";
 
 const TooltipContext = createContext(null);
 
-const NO_PROVIDER = {
-  showTooltip: () => { },
-  hideTooltip: () => { },
-  cancelTooltip: () => { },
-};
-
 // Long enough that dragging the pointer across a row of controls does not fire a request
 // per item, short enough to feel like a hover.
 const SHOW_DELAY_MS = 300;
@@ -37,9 +31,9 @@ export const TOOLTIP_SOURCES = { hover: "hover", focus: "focus" };
 // than absolute because some anchors live inside containers that clip their overflow - the
 // tag editor's mount does - and an absolutely positioned card would be cut off.
 //
-// Content is supplied by the caller, either directly or through `load` for anything that
-// has to be fetched. The provider owns placement, timing and dismissal; it knows nothing
-// about tags, fields, or anything else it is describing.
+// Content is supplied by the caller, either directly or through `load` (cached under
+// `cacheKey`) for anything that has to be fetched. The provider owns placement, timing
+// and dismissal; it knows nothing about tags, fields, or anything else it is describing.
 export function TooltipProvider({ children }) {
   const [state, setState] = useState(null);
   const pathname = usePathname();
@@ -51,23 +45,21 @@ export function TooltipProvider({ children }) {
 
   const loadContent = useCallback(async (cacheKey, load) => {
     const cache = cacheRef.current;
-    if (cacheKey && cache.has(cacheKey)) return cache.get(cacheKey);
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
 
     const inFlight = inFlightRef.current;
-    if (cacheKey && inFlight.has(cacheKey)) return inFlight.get(cacheKey);
+    if (inFlight.has(cacheKey)) return inFlight.get(cacheKey);
 
     const request = Promise.resolve()
       .then(load)
       .then(content => {
-        if (cacheKey) cache.set(cacheKey, content);
+        cache.set(cacheKey, content);
         return content;
       })
       .catch(() => null)
-      .finally(() => {
-        if (cacheKey) inFlight.delete(cacheKey);
-      });
+      .finally(() => inFlight.delete(cacheKey));
 
-    if (cacheKey) inFlight.set(cacheKey, request);
+    inFlight.set(cacheKey, request);
     return request;
   }, []);
 
@@ -88,8 +80,7 @@ export function TooltipProvider({ children }) {
 
   // How an open card dismisses itself. It must not use `hideTooltip`: moving the pointer
   // from one anchor straight onto the next fires the old card's watcher *after* the new
-  // anchor has already scheduled its request, and a full hide would clear that timer and
-  // bump the request counter - which is why every second hover did nothing.
+  // anchor has already scheduled its request, and a full hide would cancel that request.
   const closeCard = useCallback(requestId => {
     if (requestId === requestRef.current) hideTooltip();
     else setState(null);
@@ -97,14 +88,12 @@ export function TooltipProvider({ children }) {
 
   const showTooltip = useCallback(({
     rect,
-    content = null,
-    load = null,
-    cacheKey = null,
+    content,
+    load,
+    cacheKey,
     source = TOOLTIP_SOURCES.hover,
     delay = SHOW_DELAY_MS,
   }) => {
-    if (!rect || (!content && !load)) return;
-
     clearTimeout(showTimerRef.current);
 
     const requestId = ++requestRef.current;
@@ -125,7 +114,7 @@ export function TooltipProvider({ children }) {
 
     // Keyboard focus is already a deliberate act, so it should not also wait out a delay
     // meant to filter accidental pointer passes.
-    if (source === TOOLTIP_SOURCES.focus || delay <= 0) open();
+    if (source === TOOLTIP_SOURCES.focus) open();
     else showTimerRef.current = setTimeout(open, delay);
   }, [loadContent]);
 
@@ -259,5 +248,5 @@ function TooltipCard({ content, anchor, source, onClose }) {
 }
 
 export function useTooltip() {
-  return useContext(TooltipContext) ?? NO_PROVIDER;
+  return useContext(TooltipContext);
 }

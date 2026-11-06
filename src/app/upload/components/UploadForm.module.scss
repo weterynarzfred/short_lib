@@ -18,10 +18,7 @@
     cursor: pointer;
     transition: background-color $controlTransition;
 
-    &.dropzoneDragging {
-      background-color: $colorBg2;
-    }
-
+    &.dropzoneDragging,
     &:hover {
       background-color: $colorBg2;
     }

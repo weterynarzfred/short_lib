@@ -55,6 +55,8 @@ Supported modes:
 - `pixelcount`, `pixelcount_asc`
 - `image_ratio`, `image_ratio_asc`
 - `tag_count`, `tag_count_asc`
+- `score`, `score_asc`
+- `random` - a new shuffle on every reload, the same one while scrolling through it
 
 Default is `date` (newest first).
 
@@ -118,21 +120,68 @@ Examples:
 - `image_ratio:16/9`
 - `image_ratio:>=1.5`
 
+### `score:[op]<number>`
+
+- Operators: `<=`, `>=`, `<`, `>`, `=`
+- Whole numbers only.
+
+Examples:
+
+- `score:5`
+- `score:>=3`
+
 ### `notes:<term>`
 
-Matches `media.notes_md` using in-memory Fuse search.
-Multiple `notes:` terms are combined into one full-text query.
-Use quotes for strings with spaces.
+Matches `media.notes_md` using in-memory Fuse fuzzy search.
+Quotes only let a value hold spaces; they do not make a phrase. Each word is matched on
+its own, in any order, and a post must match all of them, so typing another word narrows
+the results. Best matches sort first.
+Each `notes:` token is matched separately; repeating it means AND.
 
 Examples:
 
 - `notes:fox`
-- `notes:"quick brown"`
+- `notes:"quick brown"` -> notes containing both words, anywhere
+
+### `text:<term>`
+
+Matches notes OR filename. All terms must match within one field.
+
+Examples:
+
+- `text:fox`
+- `text:"quick brown"` -> both words in the notes, or both in the filename
+
+### `filename:<term>`
+
+Matches `media.original_filename`. Separators (`_`, `+`, `-`, `.`) count as spaces, the
+extension is ignored, and digits are matched exactly.
+
+Examples:
+
+- `filename:"koreans gaming"`
+- `filename:176287`
+
+### `similar:<post id>`
+
+Posts that look like the given one: re-encodes, resized copies, lossy vs lossless, a clip
+and the video it was cut from. Heavy crops and mirrored copies are not found, and an image
+is never matched to a longer video (a screenshot does not find its source). The post
+itself is listed first, the rest most similar first, unless an `order:` token says
+otherwise. Blacklisted tags are not hidden, since the post asked about usually carries
+them. The panel's "show similar" button opens this search.
+
+Examples:
+
+- `similar:1686`
+- `similar:1686 -meta:video` -> only the stills
 
 ### `has:<value>` and `-has:<value>`
 
 - `has:notes` -> notes field is non-empty
 - `-has:notes` -> notes field is empty
+- `has:score` -> score is above zero
+- `-has:score` -> score is zero (unrated)
 - Other values are matched against tag `type` (case-insensitive)
 
 Examples:

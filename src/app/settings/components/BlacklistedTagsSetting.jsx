@@ -1,26 +1,20 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import classNames from "classnames";
 
 import TagEditor from "@/components/TagEditor";
 import { updateBlacklistedTagsAction } from "@/lib/actions";
+import SettingActions from "./SettingActions";
 
 import styles from "../page.module.scss";
 
 function normalizeValue(value) {
-  return String(value ?? "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .join(" ");
+  return value.split(/\s+/).filter(Boolean).join(" ");
 }
 
-export default function BlacklistedTagsSetting({ initialValue = "" }) {
-  const normalizedInitial = useMemo(
-    () => normalizeValue(initialValue),
-    [initialValue]
-  );
+export default function BlacklistedTagsSetting({ initialValue }) {
+  const normalizedInitial = normalizeValue(initialValue);
 
   const [value, setValue] = useState(normalizedInitial);
   const [savedValue, setSavedValue] = useState(normalizedInitial);
@@ -30,6 +24,13 @@ export default function BlacklistedTagsSetting({ initialValue = "" }) {
 
   const isDirty = normalizeValue(value) !== savedValue;
 
+  function changeValue(nextValue) {
+    setValue(nextValue);
+    setStatus("");
+    setError("");
+  }
+
+  // Also reached through ctrl+enter in the editor, which the disabled button does not guard.
   function saveValue() {
     if (!isDirty || isPending) return;
 
@@ -39,7 +40,7 @@ export default function BlacklistedTagsSetting({ initialValue = "" }) {
     startTransition(async () => {
       try {
         const result = await updateBlacklistedTagsAction(value);
-        const nextValue = normalizeValue(result?.tagsValue);
+        const nextValue = normalizeValue(result.tagsValue);
 
         setValue(nextValue);
         setSavedValue(nextValue);
@@ -55,11 +56,7 @@ export default function BlacklistedTagsSetting({ initialValue = "" }) {
       <TagEditor
         postId="listing-blacklisted-tags"
         value={value}
-        setValue={nextValue => {
-          setValue(nextValue);
-          setStatus("");
-          setError("");
-        }}
+        setValue={changeValue}
         saveTags={saveValue}
         inputProps={{
           className: classNames(styles.blacklistInput, {
@@ -70,28 +67,14 @@ export default function BlacklistedTagsSetting({ initialValue = "" }) {
         }}
       />
 
-      <div className={styles.settingActions}>
-        <button
-          type="button"
-          className={styles.settingButton}
-          disabled={!isDirty || isPending}
-          onClick={saveValue}
-        >{isPending ? "saving..." : "save"}</button>
-
-        <button
-          type="button"
-          className={styles.settingButton}
-          disabled={!isDirty || isPending}
-          onClick={() => {
-            setValue(savedValue);
-            setStatus("");
-            setError("");
-          }}
-        >reset</button>
-
-        {status ? <div className={styles.statusOk}>{status}</div> : null}
-        {error ? <div className={styles.statusError}>{error}</div> : null}
-      </div>
+      <SettingActions
+        isDirty={isDirty}
+        isPending={isPending}
+        onSave={saveValue}
+        onReset={() => changeValue(savedValue)}
+        status={status}
+        error={error}
+      />
     </div>
   );
 }

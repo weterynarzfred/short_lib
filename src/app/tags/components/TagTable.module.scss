@@ -19,11 +19,24 @@
 
   td {
     border-bottom: 1px solid $colorBorder;
-    font-family: "Fira Code", monospace;
+    font-family: $fontMono;
     font-size: 0.75rem;
 
     a:hover {
       color: $colorContent2;
+    }
+  }
+
+  // At phone width the four columns only fit with tight padding, and with long tag names
+  // (no spaces to break on) and the action buttons allowed to wrap.
+  @media (max-width: $resPhone) {
+    th,
+    td {
+      padding: 0.1em 0.4rem;
+    }
+
+    td:first-child {
+      overflow-wrap: anywhere;
     }
   }
 }
@@ -40,6 +53,10 @@
   @include actionRow(0.35rem);
 
   width: max-content;
+
+  @media (max-width: $resPhone) {
+    width: auto;
+  }
 }
 
 .button,
@@ -82,8 +99,6 @@
 
 .chipRow {
   @include actionRow(0.25rem);
-
-  flex-wrap: wrap;
 }
 
 .chip {

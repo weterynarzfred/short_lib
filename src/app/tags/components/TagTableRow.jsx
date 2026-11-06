@@ -32,6 +32,9 @@ function AliasInput({ tagId, isPending, onAdd }) {
     onChange={e => setValue(e.target.value)}
     onKeyDown={handleKeyDown}
     placeholder="add alias..."
+    autoCapitalize="none"
+    autoCorrect="off"
+    spellCheck={false}
     className={styles.inlineInput}
     disabled={isPending}
   />;
@@ -63,7 +66,7 @@ function ImplicationInput({ tagId, isPending, onAdd }) {
   const comboboxInputProps = combobox.getInputProps();
 
   useLayoutEffect(() => {
-    if (nextCursorRef.current === null || !inputRef.current) return;
+    if (nextCursorRef.current === null) return;
 
     inputRef.current.setSelectionRange(nextCursorRef.current, nextCursorRef.current);
     setCursor(nextCursorRef.current);
@@ -103,6 +106,9 @@ function ImplicationInput({ tagId, isPending, onAdd }) {
       onKeyUp={updateCursorPos}
       onSelect={updateCursorPos}
       placeholder="add tag name..."
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck={false}
       className={styles.inlineInput}
       disabled={isPending}
       {...comboboxInputProps}
@@ -235,7 +241,7 @@ export default function TagTableRow({ tag, editor }) {
         <div className={styles.expandedSection}>
           <label>aliases</label>
           <div className={styles.chipRow}>
-            {(tag.aliases ?? []).map(alias => (
+            {tag.aliases.map(alias => (
               <span key={alias} className={styles.chip}>
                 {alias}
                 <button
@@ -252,7 +258,7 @@ export default function TagTableRow({ tag, editor }) {
         <div className={styles.expandedSection}>
           <label>implies</label>
           <div className={styles.chipRow}>
-            {(tag.implications ?? []).map(imp => (
+            {tag.implications.map(imp => (
               <span key={imp.id} className={styles.chip} {...tagHoverProps(imp.name)}>
                 {imp.name}
                 <button

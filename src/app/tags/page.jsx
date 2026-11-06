@@ -8,11 +8,11 @@ import styles from "./page.module.scss";
 
 export default async function TagStatsPage({ searchParams }) {
   const params = await searchParams;
-  const page = Number(params?.page ?? 1);
-  const limit = Number(params?.limit ?? 50);
-  const order = String(params?.order ?? "count_desc");
-  const name = String(params?.name ?? "").trim();
-  const type = String(params?.type ?? "").trim();
+  const page = Number(params.page ?? 1);
+  const limit = Number(params.limit ?? 50);
+  const order = String(params.order ?? "count_desc");
+  const name = String(params.name ?? "").trim();
+  const type = String(params.type ?? "").trim();
 
   const { rows, total } = getTagStats({ page, limit, order, name, type });
   const tagTypes = getTagTypes();
@@ -22,7 +22,7 @@ export default async function TagStatsPage({ searchParams }) {
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
 
   return (
-    <div className="page-tags">
+    <>
       <Nav />
       <main className="content content--full">
         <h1>Tag stats</h1>
@@ -40,6 +40,6 @@ export default async function TagStatsPage({ searchParams }) {
           searchParams={new URLSearchParams(params)}
         />
       </main>
-    </div >
+    </>
   );
 }

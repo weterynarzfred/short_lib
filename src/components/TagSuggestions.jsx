@@ -34,7 +34,7 @@ export default function TagSuggestions({
           {...itemProps}
           onMouseEnter={event => {
             // Must not replace the combobox handler, which tracks the active item.
-            itemProps.onMouseEnter?.(event);
+            itemProps.onMouseEnter(event);
             if (tooltipName)
               showTagTooltip(tooltipName, event.currentTarget.getBoundingClientRect());
           }}
@@ -43,7 +43,7 @@ export default function TagSuggestions({
             // Accepting a suggestion closes the dropdown, so the card would be left
             // pointing at an element that no longer exists.
             hideTagTooltip();
-            itemProps.onClick?.(event);
+            itemProps.onClick(event);
           }}
         >
           <span className={styles.tagName}>{tag.name}</span>

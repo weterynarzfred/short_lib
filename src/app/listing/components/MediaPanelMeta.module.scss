@@ -22,6 +22,11 @@
     height: 1.5rem;
 
     @include buttonBase($padding: 0, $borderColor: $colorBorder);
+
+    @media (pointer: coarse) {
+      width: 3rem;
+      height: 2.5rem;
+    }
   }
 
   @keyframes slideshowActive {
@@ -63,7 +68,18 @@
     font-style: italic;
 
     @include subtleText();
+
+    // A keyboard shortcut hint means nothing on a touch screen.
+    @media (pointer: coarse) {
+      display: none;
+    }
   }
+}
+
+.error {
+  @include subtleText();
+
+  color: $colorWarning;
 }
 
 .button {
@@ -83,10 +99,18 @@
   }
 }
 
+.linkButton {
+  @include buttonBase();
+
+  text-align: center;
+  text-decoration: none;
+}
+
 .actions {
   @include actionRow($spacingQuarter, false);
 
   .button,
+  .linkButton,
   .deleteButton {
     width: 100%;
   }

@@ -14,7 +14,7 @@ async function fetchTag(name) {
   if (!res.ok) return null;
 
   const payload = await res.json();
-  return payload?.tag ?? null;
+  return payload.tag;
 }
 
 function TagTooltipBody({ tag, onNavigate }) {
@@ -34,21 +34,21 @@ function TagTooltipBody({ tag, onNavigate }) {
         {tag.postCount} {tag.postCount === 1 ? "post" : "posts"}
       </div>
 
-      {tag.matchedAlias ? (
+      {tag.matchedAlias && (
         <div className={styles.meta}>alias: {tag.matchedAlias}</div>
-      ) : null}
+      )}
 
-      {tag.description ? (
+      {tag.description && (
         <div className={styles.description}>{tag.description}</div>
-      ) : null}
+      )}
 
-      {tag.aliases?.length ? (
+      {tag.aliases.length > 0 && (
         <div className={styles.meta}>aka {tag.aliases.join(", ")}</div>
-      ) : null}
+      )}
 
-      {tag.implications?.length ? (
+      {tag.implications.length > 0 && (
         <div className={styles.meta}>implies {tag.implications.join(", ")}</div>
-      ) : null}
+      )}
 
       <Link
         className={styles.editLink}
@@ -65,14 +65,11 @@ export function useTagTooltip() {
   const { showTooltip, hideTooltip, cancelTooltip } = useTooltip();
 
   const showTagTooltip = useCallback((name, rect) => {
-    const safeName = String(name ?? "").trim();
-    if (!safeName) return;
-
     showTooltip({
       rect,
-      cacheKey: `tag:${safeName}`,
+      cacheKey: `tag:${name}`,
       load: async () => {
-        const tag = await fetchTag(safeName);
+        const tag = await fetchTag(name);
         if (!tag) return null;
 
         return <TagTooltipBody tag={tag} onNavigate={hideTooltip} />;
@@ -83,7 +80,7 @@ export function useTagTooltip() {
   return { showTagTooltip, hideTagTooltip: hideTooltip, cancelTagTooltip: cancelTooltip };
 }
 
-// Hover and focus handlers for anything rendering a tag name.
+// Hover handlers for anything rendering a tag name.
 export function useTagHoverProps() {
   const { showTagTooltip, cancelTagTooltip } = useTagTooltip();
 

@@ -15,15 +15,12 @@ function normalizeTagType(value) {
 }
 
 function buildTagTypeClass(type) {
-  const safeType = normalizeTagType(type).replace(TAG_TYPE_CLASS_CHAR_PATTERN, "_");
-  return safeType ? `tag-type-${safeType}` : "tag-type-general";
+  return `tag-type-${normalizeTagType(type).replace(TAG_TYPE_CLASS_CHAR_PATTERN, "_")}`;
 }
 
 function registerKnownTagType(name, type) {
   const normalizedName = normalizeTagName(name);
-  const normalizedType = normalizeTagType(type);
-  if (!normalizedName) return;
-  KNOWN_TAG_TYPES.set(normalizedName, normalizedType);
+  if (normalizedName) KNOWN_TAG_TYPES.set(normalizedName, normalizeTagType(type));
 }
 
 // Only typed tokens register a type; a bare `cat` says nothing about which type it is.
@@ -52,13 +49,8 @@ export function registerKnownTags(tags = []) {
   }
 }
 
-export function registerKnownTagsFromValue(value = "") {
-  const tokens = String(value ?? "")
-    .split(/\s+/)
-    .map(token => token.trim())
-    .filter(Boolean);
-
-  registerKnownTags(tokens);
+export function registerKnownTagsFromValue(value) {
+  registerKnownTags(String(value ?? "").split(/\s+/).filter(Boolean));
 }
 
 languages["tags"] = {

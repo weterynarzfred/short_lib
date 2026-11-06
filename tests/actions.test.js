@@ -91,10 +91,11 @@ describe("server actions", () => {
     hoisted.getTagTypeOrderSql.mockReturnValue("CASE WHEN 'general' THEN 0 ELSE 1 END");
   });
 
-  it("updatePostNotesAction rejects invalid media id values", async () => {
+  it("updatePostNotesAction returns an error for invalid media id values", async () => {
     const { updatePostNotesAction } = await import("../src/lib/actions");
 
-    await expect(updatePostNotesAction("abc", "notes")).rejects.toThrow("Invalid media id");
+    expect(await updatePostNotesAction("abc", "notes"))
+      .toEqual({ ok: false, error: "Invalid media id" });
     expect(hoisted.dbPrepare).not.toHaveBeenCalled();
     expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
@@ -111,12 +112,11 @@ describe("server actions", () => {
     expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("updatePostOriginalFilenameAction rejects invalid media id values", async () => {
+  it("updatePostOriginalFilenameAction returns an error for invalid media id values", async () => {
     const { updatePostOriginalFilenameAction } = await import("../src/lib/actions");
 
-    await expect(updatePostOriginalFilenameAction("abc", "name.jpg"))
-      .rejects
-      .toThrow("Invalid media id");
+    expect(await updatePostOriginalFilenameAction("abc", "name.jpg"))
+      .toEqual({ ok: false, error: "Invalid media id" });
     expect(hoisted.dbPrepare).not.toHaveBeenCalled();
     expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
@@ -133,14 +133,38 @@ describe("server actions", () => {
     expect(hoisted.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("deletePostsBulkAction deletes only integer ids and revalidates listing", async () => {
+  // Deletes are removed from the grid locally; revalidating would reset infinite scroll.
+  it("deletePostAction deletes the post without revalidating listing", async () => {
+    const { deletePostAction } = await import("../src/lib/actions");
+    await deletePostAction(5);
+
+    expect(hoisted.deletePost).toHaveBeenCalledWith(5);
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("deletePostsBulkAction deletes only integer ids without revalidating listing", async () => {
     const { deletePostsBulkAction } = await import("../src/lib/actions");
     await deletePostsBulkAction(["1", "nope", 2, "2", 2.5]);
 
     expect(hoisted.deletePost).toHaveBeenCalledTimes(2);
     expect(hoisted.deletePost).toHaveBeenNthCalledWith(1, 1);
     expect(hoisted.deletePost).toHaveBeenNthCalledWith(2, 2);
-    expect(hoisted.revalidatePath).toHaveBeenCalledWith("/listing");
+    expect(hoisted.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("deletePostsBulkAction reports the posts deleted before a failure", async () => {
+    hoisted.deletePost.mockImplementation(async id => {
+      if (id === 2) throw new Error("EPERM: file in use");
+    });
+
+    const { deletePostsBulkAction } = await import("../src/lib/actions");
+
+    expect(await deletePostsBulkAction([1, 2, 3])).toEqual({
+      ok: false,
+      error: "EPERM: file in use",
+      deletedIds: [1],
+    });
+    expect(hoisted.deletePost).toHaveBeenCalledTimes(2);
   });
 
   it("clearDeletedStorageAction clears deleted storage and revalidates home", async () => {
@@ -190,6 +214,7 @@ describe("server actions", () => {
     );
     expect(all).toHaveBeenCalledWith(7);
     expect(result).toEqual({
+      ok: true,
       tags: [
         { id: 101, name: "cat", type: "general" },
         { id: 102, name: "bob", type: "creator" },
@@ -199,11 +224,6 @@ describe("server actions", () => {
   });
 
   it("editPostTagsBulkAction splits add/remove tokens, applies both, and skips listing revalidation", async () => {
-    hoisted.parseTagString.mockImplementation(raw => {
-      if (raw === "cat creator:bob") return [{ name: "cat" }, { name: "bob", type: "creator" }];
-      if (raw === "dog meta:video") return [{ name: "dog" }, { name: "video", type: "meta" }];
-      return [];
-    });
     const all = vi.fn(() => ([
       { mediaId: 1, id: 11, name: "cat", type: "general" },
       { mediaId: 1, id: 12, name: "bob", type: "creator" },
@@ -215,16 +235,15 @@ describe("server actions", () => {
     const { editPostTagsBulkAction } = await import("../src/lib/actions");
     const result = await editPostTagsBulkAction([1, "2", "bad", 2], "cat -dog creator:bob -meta:video");
 
-    expect(hoisted.parseTagString).toHaveBeenNthCalledWith(1, "cat creator:bob");
-    expect(hoisted.parseTagString).toHaveBeenNthCalledWith(2, "dog meta:video");
     expect(hoisted.removeTags).toHaveBeenCalledTimes(2);
-    expect(hoisted.removeTags).toHaveBeenNthCalledWith(1, 1, [{ name: "dog" }, { name: "video", type: "meta" }]);
-    expect(hoisted.removeTags).toHaveBeenNthCalledWith(2, 2, [{ name: "dog" }, { name: "video", type: "meta" }]);
+    expect(hoisted.removeTags).toHaveBeenNthCalledWith(1, 1, [{ name: "dog", type: "", negated: true }, { name: "video", type: "meta", negated: true }]);
+    expect(hoisted.removeTags).toHaveBeenNthCalledWith(2, 2, [{ name: "dog", type: "", negated: true }, { name: "video", type: "meta", negated: true }]);
     expect(hoisted.addTags).toHaveBeenCalledTimes(2);
-    expect(hoisted.addTags).toHaveBeenNthCalledWith(1, 1, [{ name: "cat" }, { name: "bob", type: "creator" }], { replace: false });
-    expect(hoisted.addTags).toHaveBeenNthCalledWith(2, 2, [{ name: "cat" }, { name: "bob", type: "creator" }], { replace: false });
+    expect(hoisted.addTags).toHaveBeenNthCalledWith(1, 1, [{ name: "cat", type: "", negated: false }, { name: "bob", type: "creator", negated: false }], { replace: false });
+    expect(hoisted.addTags).toHaveBeenNthCalledWith(2, 2, [{ name: "cat", type: "", negated: false }, { name: "bob", type: "creator", negated: false }], { replace: false });
     expect(all).toHaveBeenCalledWith(1, 2);
-    expect(result).toEqual([
+    expect(result.ok).toBe(true);
+    expect(result.updates).toEqual([
       {
         mediaId: 1,
         tags: [

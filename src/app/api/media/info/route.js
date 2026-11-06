@@ -1,11 +1,12 @@
 import fs from "fs";
-import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 
 import db from "@/lib/db";
+import ffprobe from "@/lib/ffprobe";
 import { EXIFTOOL, FFPROBE } from "@/lib/binaries";
 import mimetypeToType from "@/lib/mimetypeToType";
+import resolveStoragePath from "@/lib/resolveStoragePath";
 import { buildAvInfoRows, buildImageInfoRows } from "@/lib/mediaInfoFields";
 
 const run = promisify(execFile);
@@ -30,10 +31,8 @@ export async function GET(req) {
   const media = selectMedia.get(id);
   if (!media) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const base = path.resolve(STORAGE_DIR, "full");
-  const filePath = path.resolve(base, media.file_path);
-  if (!filePath.startsWith(base + path.sep))
-    return Response.json({ error: "Bad request" }, { status: 400 });
+  const filePath = resolveStoragePath("full", media.file_path);
+  if (!filePath) return Response.json({ error: "Bad request" }, { status: 400 });
   if (!fs.existsSync(filePath))
     return Response.json({ error: "The file is missing from storage" }, { status: 404 });
 
@@ -41,7 +40,9 @@ export async function GET(req) {
   const usesProbe = mediaType === "video" || mediaType === "audio";
 
   try {
-    const rows = usesProbe ? await readAvRows(filePath) : await readImageRows(filePath);
+    const rows = usesProbe
+      ? buildAvInfoRows(await ffprobe(filePath))
+      : await readImageRows(filePath);
     return Response.json({ rows });
   } catch (error) {
     console.error(`reading metadata for media ${id} failed:`, error.message);
@@ -56,18 +57,6 @@ export async function GET(req) {
 
     return Response.json({ error: message }, { status: 500 });
   }
-}
-
-async function readAvRows(filePath) {
-  const { stdout } = await run(FFPROBE, [
-    "-v", "error",
-    "-print_format", "json",
-    "-show_format",
-    "-show_streams",
-    filePath,
-  ], { maxBuffer: 8_000_000 });
-
-  return buildAvInfoRows(JSON.parse(stdout));
 }
 
 async function readImageRows(filePath) {

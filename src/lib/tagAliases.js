@@ -17,7 +17,5 @@ export function findTagByAliasName(name) {
 
 export function resolveTagName(name) {
   const safeName = String(name ?? "").trim();
-  if (!safeName) return safeName;
-
   return findTagByAliasName(safeName)?.name ?? safeName;
 }

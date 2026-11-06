@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import isWithinRect from "@/lib/isWithinRect";
 import parseTagToken from "@/lib/parseTagToken";
 import { useTagTooltip } from "@/components/TagTooltip";
 
@@ -27,11 +28,8 @@ export default function useTagTokenHover(containerRef, textareaRef, { enabled = 
     let hoveredSpan = null;
 
     const findTokenAt = (x, y) => {
-      for (const span of container.querySelectorAll("span.token")) {
-        const rect = span.getBoundingClientRect();
-        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom)
-          return span;
-      }
+      for (const span of container.querySelectorAll("span.token"))
+        if (isWithinRect(span.getBoundingClientRect(), x, y)) return span;
 
       return null;
     };

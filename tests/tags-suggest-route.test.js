@@ -8,7 +8,7 @@ function createDbMock({ mimeRows = [], hasRows = [] } = {}) {
     if (sql.includes("FROM media m") && sql.includes("GROUP BY LOWER(TRIM(m.mime_type))"))
       return { all: mimeAll };
 
-    if (sql.includes("FROM tags t") && sql.includes("GROUP BY LOWER(TRIM(t.type))"))
+    if (sql.includes("FROM tags t") && sql.includes("GROUP BY t.type"))
       return { all: hasAll };
 
     return { all: vi.fn(() => []) };

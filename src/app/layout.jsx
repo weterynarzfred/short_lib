@@ -16,7 +16,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        {tagTypeColorCss ? <style id="tag-type-colors">{tagTypeColorCss}</style> : null}
+        {tagTypeColorCss && <style id="tag-type-colors">{tagTypeColorCss}</style>}
         <PageResetProvider>
           <TooltipProvider>{children}</TooltipProvider>
         </PageResetProvider>

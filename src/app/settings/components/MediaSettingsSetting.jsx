@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { updateMediaSettingsAction } from "@/lib/actions";
+import SettingActions from "./SettingActions";
 
 import styles from "../page.module.scss";
 
@@ -32,39 +33,35 @@ const MEDIA_SETTING_DEFS = [
     label: "fullscreen",
     description: "open the media panel in fullscreen mode by default",
   },
+  {
+    key: "info",
+    label: "info",
+    description: "show the info panel next to fullscreen media",
+  },
 ];
 
-function normalizeSettings(raw = {}) {
+function normalizeSettings(raw) {
   const normalized = {};
 
   for (const item of MEDIA_SETTING_DEFS)
-    normalized[item.key] = Boolean(raw?.[item.key]);
+    normalized[item.key] = Boolean(raw[item.key]);
 
   return normalized;
-}
-
-function settingsEqual(a, b) {
-  return MEDIA_SETTING_DEFS.every(item => a[item.key] === b[item.key]);
 }
 
 function diffSettings(nextSettings, prevSettings) {
   const diff = {};
 
-  for (const item of MEDIA_SETTING_DEFS) {
-    const key = item.key;
-    if (nextSettings[key] === prevSettings[key]) continue;
-
-    diff[key] = nextSettings[key];
+  for (const { key } of MEDIA_SETTING_DEFS) {
+    if (nextSettings[key] !== prevSettings[key])
+      diff[key] = nextSettings[key];
   }
 
   return diff;
 }
 
-export default function MediaSettingsSetting({ initialSettings = {} }) {
-  const normalizedInitial = useMemo(
-    () => normalizeSettings(initialSettings),
-    [initialSettings]
-  );
+export default function MediaSettingsSetting({ initialSettings }) {
+  const normalizedInitial = normalizeSettings(initialSettings);
 
   const [settings, setSettings] = useState(normalizedInitial);
   const [savedSettings, setSavedSettings] = useState(normalizedInitial);
@@ -72,15 +69,12 @@ export default function MediaSettingsSetting({ initialSettings = {} }) {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const isDirty = !settingsEqual(settings, savedSettings);
+  const changes = diffSettings(settings, savedSettings);
+  const isDirty = Object.keys(changes).length > 0;
 
   function saveSettings() {
-    if (!isDirty || isPending) return;
-
     setStatus("");
     setError("");
-
-    const changes = diffSettings(settings, savedSettings);
 
     startTransition(async () => {
       try {
@@ -123,28 +117,18 @@ export default function MediaSettingsSetting({ initialSettings = {} }) {
         ))}
       </div>
 
-      <div className={styles.settingActions}>
-        <button
-          type="button"
-          className={styles.settingButton}
-          disabled={!isDirty || isPending}
-          onClick={saveSettings}
-        >{isPending ? "saving..." : "save"}</button>
-
-        <button
-          type="button"
-          className={styles.settingButton}
-          disabled={!isDirty || isPending}
-          onClick={() => {
-            setSettings(savedSettings);
-            setStatus("");
-            setError("");
-          }}
-        >reset</button>
-
-        {status ? <div className={styles.statusOk}>{status}</div> : null}
-        {error ? <div className={styles.statusError}>{error}</div> : null}
-      </div>
+      <SettingActions
+        isDirty={isDirty}
+        isPending={isPending}
+        onSave={saveSettings}
+        onReset={() => {
+          setSettings(savedSettings);
+          setStatus("");
+          setError("");
+        }}
+        status={status}
+        error={error}
+      />
     </div>
   );
 }

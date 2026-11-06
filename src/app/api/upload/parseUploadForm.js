@@ -1,12 +1,10 @@
 import { createWriteStream } from "fs";
 import fs from "fs/promises";
-import path from "path";
 import formidable from "formidable";
 import crypto from "crypto";
 import { Readable, Transform } from "stream";
 
-import extractMetadata from "./extractMetadata";
-import { getFinalPath, getTempPath } from "@/app/api/upload/path_helpers";
+import { getTempPath } from "@/app/api/upload/path_helpers";
 
 export default async function parseUploadForm(req) {
   const fileData = new Map();
@@ -23,10 +21,15 @@ export default async function parseUploadForm(req) {
       const filepath = getTempPath(file.newFilename);
       const writeStream = createWriteStream(filepath);
 
+      // 'close' settles it after the cleanup below destroys the stream.
       const finished = new Promise((resolve, reject) => {
         writeStream.on("finish", resolve);
+        writeStream.on("close", resolve);
         writeStream.on("error", reject);
       });
+      // A write error rejects this before anything awaits it; the error still reaches
+      // form.parse through the Transform's write callback.
+      finished.catch(() => {});
 
       const hashStream = new Transform({
         transform(chunk, _enc, cb) {
@@ -40,6 +43,7 @@ export default async function parseUploadForm(req) {
 
       fileData.set(file.newFilename, {
         filepath,
+        writeStream,
         originalFilename: file.originalFilename,
         mimetype: file.mimetype,
         hash,
@@ -57,39 +61,28 @@ export default async function parseUploadForm(req) {
   };
   nodeReq.method = req.method;
 
-  await form.parse(nodeReq);
-  await Promise.all([...fileData.values()].map(f => f.finished));
+  // formidable's destroy() on abort or error only destroys the Transform, so the real
+  // write stream and its temp file have to be cleaned up here.
+  try {
+    await form.parse(nodeReq);
+    await Promise.all([...fileData.values()].map(f => f.finished));
+  } catch (err) {
+    for (const f of fileData.values()) f.writeStream.destroy();
+    // Windows will not unlink a file that is still open, so wait for close first.
+    await Promise.allSettled([...fileData.values()].map(f => f.finished));
+    await Promise.all([...fileData.values()].map(f => fs.rm(f.filepath, { force: true })));
+    throw err;
+  }
 
+  // Files stay in tmp/ until the route has checked them for duplicates.
   for (const file of fileData.values()) {
     file.checksum = file.hash.digest("hex");
     file.uploadDate = new Date();
 
-    const ext = path.extname(file.filepath);
-    const finalPath = getFinalPath(file, ext);
-
-    try {
-      await fs.rename(file.filepath, finalPath);
-    } catch (err) {
-      if (err.code === "EEXIST") await fs.unlink(file.filepath);
-      else throw err;
-    }
-
-    file.filepath = finalPath;
-
-    const meta = await extractMetadata(file.filepath, {
-      fallbackMimeType: file.mimetype,
-    });
-
-    file.size = meta.size;
-    file.mimetype = meta.mimetype;
-    file.type = meta.type;
-    file.dimensions = meta.dimensions;
-    file.duration = meta.duration;
-    file.hasAudio = meta.hasAudio;
-
     delete file.hash;
     delete file.finished;
+    delete file.writeStream;
   }
 
   return fileData;
-};
+}

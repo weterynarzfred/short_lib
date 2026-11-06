@@ -7,8 +7,7 @@ import { FFMPEG, FFPROBE } from "./binaries.js";
 // not resolve the jsconfig alias.
 
 // A total-pixel budget rather than a width cap, so a tall video gets the same number of
-// pixels as a wide one. Capping width alone gave a 9:16 clip 480x854 - four times the
-// pixels of a 16:9 clip at the same setting.
+// pixels as a wide one.
 export const DEFAULT_PREVIEW_PIXELS = 100_000;
 export const PREVIEW_SEGMENTS = 4;
 export const PREVIEW_SEGMENT_SECONDS = 2.5;

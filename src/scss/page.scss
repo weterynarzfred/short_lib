@@ -5,6 +5,11 @@
   margin: 0 auto;
   padding: $spacing;
 
+  // The fixed nav is taller than the narrow-screen spacing and would cover the heading.
+  @media (max-width: $resTablet) {
+    padding-top: 2.75rem;
+  }
+
   &--full {
     max-width: none;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import TagSuggestions from "@/components/TagSuggestions";
@@ -35,7 +35,7 @@ export default function Search({ initialValue = "" }) {
   }, [initialValue]);
 
   useLayoutEffect(() => {
-    if (nextCursorRef.current !== null && inputRef.current) {
+    if (nextCursorRef.current !== null) {
       inputRef.current.setSelectionRange(nextCursorRef.current, nextCursorRef.current);
       setCursor(nextCursorRef.current);
       nextCursorRef.current = null;
@@ -62,7 +62,7 @@ export default function Search({ initialValue = "" }) {
   }, [value, router]);
 
   const updateCursorPos = () =>
-    setCursor(inputRef?.current?.selectionStart ?? 0);
+    setCursor(inputRef.current.selectionStart);
 
   const combobox = useCombobox({
     items,
@@ -86,6 +86,11 @@ export default function Search({ initialValue = "" }) {
         onClick={updateCursorPos}
         onKeyUp={updateCursorPos}
         onSelect={updateCursorPos}
+        aria-label="search"
+        placeholder="tags, -tag, notes:…, order:…"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         {...combobox.getInputProps()}
       />
 

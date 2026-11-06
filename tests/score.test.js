@@ -138,19 +138,19 @@ describe("score persistence", () => {
     const id = addMedia("a");
     const { updatePostScoreAction } = await import("@/lib/actions");
 
-    expect(await updatePostScoreAction(id, 4)).toEqual({ score: 4 });
+    expect(await updatePostScoreAction(id, 4)).toEqual({ ok: true, score: 4 });
     expect(scoreOf(id)).toBe(4);
 
-    expect(await updatePostScoreAction(id, 99)).toEqual({ score: 5 });
+    expect(await updatePostScoreAction(id, 99)).toEqual({ ok: true, score: 5 });
     expect(scoreOf(id)).toBe(5);
 
-    expect(await updatePostScoreAction(id, 0)).toEqual({ score: 0 });
+    expect(await updatePostScoreAction(id, 0)).toEqual({ ok: true, score: 0 });
     expect(scoreOf(id)).toBe(0);
   });
 
-  it("rejects an invalid media id", async () => {
+  it("returns an error for an invalid media id", async () => {
     const { updatePostScoreAction } = await import("@/lib/actions");
-    await expect(updatePostScoreAction(0, 3)).rejects.toThrow("Invalid media id");
+    expect(await updatePostScoreAction(0, 3)).toEqual({ ok: false, error: "Invalid media id" });
   });
 
   it("sets every selected post in bulk", async () => {
@@ -161,7 +161,7 @@ describe("score persistence", () => {
     const { updatePostScoreBulkAction } = await import("@/lib/actions");
     const result = await updatePostScoreBulkAction([first, second], 5);
 
-    expect(result).toEqual({ score: 5, postIds: [first, second] });
+    expect(result).toEqual({ ok: true, score: 5, postIds: [first, second] });
     expect(scoreOf(first)).toBe(5);
     expect(scoreOf(second)).toBe(5);
     expect(scoreOf(untouched)).toBe(0);
@@ -174,7 +174,7 @@ describe("score persistence", () => {
     await updatePostScoreBulkAction([id, "x", -2, null], 2);
     expect(scoreOf(id)).toBe(2);
 
-    expect(await updatePostScoreBulkAction([], 3)).toEqual({ score: 3, postIds: [] });
+    expect(await updatePostScoreBulkAction([], 3)).toEqual({ ok: true, score: 3, postIds: [] });
   });
 
   it("filters by score through the query", async () => {

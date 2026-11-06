@@ -27,7 +27,7 @@ function mockDb(initial = {}) {
         };
       }
 
-      if (sql.includes("SELECT DISTINCT LOWER(TRIM(type)) AS type")) {
+      if (sql.includes("SELECT DISTINCT type")) {
         return {
           all: () => [...store.entries()]
             .filter(([key]) => key.startsWith("__tag_type__:"))

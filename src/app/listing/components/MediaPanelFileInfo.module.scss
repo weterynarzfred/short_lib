@@ -34,6 +34,12 @@
   @include subtleText();
 }
 
+.error {
+  @include subtleText();
+
+  color: $colorWarning;
+}
+
 .filenameInput {
   @include inputBase(0.2rem 0.5rem);
 

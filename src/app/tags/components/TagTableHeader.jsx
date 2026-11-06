@@ -9,7 +9,7 @@ export default function TagTableHeader({ order, createSortHref }) {
         {TAG_TABLE_COLUMNS.map(col => {
           if (col.key === "actions") return <th key={col.key}>{col.label}</th>;
 
-          const isSort = order?.startsWith(col.key);
+          const isSort = order.startsWith(col.key);
           const isAsc = order === `${col.key}_asc`;
 
           return <th key={col.key}>

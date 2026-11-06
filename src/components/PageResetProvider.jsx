@@ -1,10 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
 const PageResetContext = createContext(null);
-
-const NO_PROVIDER = { resetToken: 0, requestPageReset: () => { } };
 
 // Clicking the nav link for the page you are already on reads as "start over", but it is
 // not a navigation, so no component unmounts and nothing clears page state by itself.
@@ -14,19 +12,15 @@ const NO_PROVIDER = { resetToken: 0, requestPageReset: () => { } };
 // search param instead and so also handles browser back/forward.
 export function PageResetProvider({ children }) {
   const [resetToken, setResetToken] = useState(0);
+  const requestPageReset = () => setResetToken(token => token + 1);
 
-  const requestPageReset = useCallback(() => {
-    setResetToken(token => token + 1);
-  }, []);
-
-  const value = useMemo(
-    () => ({ resetToken, requestPageReset }),
-    [resetToken, requestPageReset]
+  return (
+    <PageResetContext.Provider value={{ resetToken, requestPageReset }}>
+      {children}
+    </PageResetContext.Provider>
   );
-
-  return <PageResetContext.Provider value={value}>{children}</PageResetContext.Provider>;
 }
 
 export function usePageReset() {
-  return useContext(PageResetContext) ?? NO_PROVIDER;
+  return useContext(PageResetContext);
 }

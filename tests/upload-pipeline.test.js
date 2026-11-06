@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const hoisted = vi.hoisted(() => ({
   processImage: vi.fn(),
   processVideo: vi.fn(),
+  hashImage: vi.fn(),
+  hashVideo: vi.fn(),
+}));
+
+vi.mock("../src/lib/perceptualHash", () => ({
+  hashImage: hoisted.hashImage,
+  hashVideo: hoisted.hashVideo,
 }));
 
 vi.mock("../src/app/api/upload/processImage", () => ({
@@ -18,11 +25,15 @@ describe("generateMediaDerivatives", () => {
   beforeEach(() => {
     hoisted.processImage.mockReset();
     hoisted.processVideo.mockReset();
+    hoisted.hashImage.mockReset();
+    hoisted.hashVideo.mockReset();
   });
 
   it("routes image and video files to the proper processors", async () => {
     hoisted.processImage.mockResolvedValue({ thumb: "img-thumb" });
     hoisted.processVideo.mockResolvedValue({ thumb: "vid-thumb" });
+    hoisted.hashImage.mockResolvedValue(Buffer.from("imagehsh"));
+    hoisted.hashVideo.mockResolvedValue(Buffer.from("videohshvideohsh"));
 
     const { default: generateMediaDerivatives } = await import("../src/app/api/upload/generateMediaDerivatives");
 
@@ -38,6 +49,23 @@ describe("generateMediaDerivatives", () => {
     expect(image.variants).toEqual({ thumb: "img-thumb" });
     expect(video.variants).toEqual({ thumb: "vid-thumb" });
     expect(other.variants).toBeUndefined();
+    expect(image.phash).toEqual(Buffer.from("imagehsh"));
+    expect(video.phash).toEqual(Buffer.from("videohshvideohsh"));
+    expect(other.phash).toBeUndefined();
+  });
+
+  it("keeps the upload going when hashing fails", async () => {
+    hoisted.processImage.mockResolvedValue({ thumb: "img-thumb" });
+    hoisted.hashImage.mockRejectedValue(new Error("unreadable"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { default: generateMediaDerivatives } = await import("../src/app/api/upload/generateMediaDerivatives");
+
+    const image = { mimetype: "image/jpeg" };
+    await generateMediaDerivatives(new Map([["i", image]]));
+
+    expect(image.variants).toEqual({ thumb: "img-thumb" });
+    expect(image.phash).toBeUndefined();
   });
 });
 

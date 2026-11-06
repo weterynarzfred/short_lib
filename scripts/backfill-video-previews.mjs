@@ -2,8 +2,8 @@
 //
 //   npm run backfill:previews
 //
-// Resumable: a post whose preview file already exists is skipped, so an interrupted run
-// can simply be repeated. Pass --force to regenerate everything.
+// Resumable: a post is skipped only when its preview file exists and is recorded in its
+// variants, so an interrupted run can simply be repeated. Pass --force to regenerate everything.
 
 import fs from "fs";
 import path from "path";
@@ -11,6 +11,7 @@ import Database from "better-sqlite3";
 
 import resolveDbPath from "../src/lib/dbPath.js";
 import generateVideoPreview from "../src/lib/generateVideoPreview.js";
+import resolveStoragePath from "../src/lib/resolveStoragePath.js";
 
 const STORAGE_DIR = process.env.STORAGE_DIR;
 if (!STORAGE_DIR) {
@@ -59,17 +60,16 @@ for (const [index, video] of videos.entries()) {
   const name = path.basename(video.file_path);
   const outputPath = previewPathFor(video.file_path);
 
-  // Both must be true to skip. Keying on the file alone left a post stranded when a run
-  // was killed between writing the clip and recording it: the file existed, so every
-  // later run skipped it, and the row never gained its variant.
+  // Both must be true to skip: a run killed between writing the clip and recording it
+  // leaves the file without its variant, and keying on the file alone would never fix it.
   const alreadyRecorded = Boolean(parseVariants(video.variants).videoPreview);
   if (!force && alreadyRecorded && fs.existsSync(outputPath)) {
     skipped += 1;
     continue;
   }
 
-  const inputPath = path.resolve(STORAGE_DIR, "full", video.file_path);
-  if (!fs.existsSync(inputPath)) {
+  const inputPath = resolveStoragePath("full", video.file_path);
+  if (!inputPath || !fs.existsSync(inputPath)) {
     failed += 1;
     console.warn(`${position} missing source  ${name}`);
     continue;

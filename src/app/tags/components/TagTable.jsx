@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import TagTableHeader from "./TagTableHeader";
@@ -16,12 +15,12 @@ export default function TagTable({ tags, order }) {
 
   const editor = useTagTableEditor({ tags });
 
-  const createSortHref = useCallback((columnKey) => {
+  const createSortHref = columnKey => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("order", nextOrder(order, columnKey));
     params.set("page", "1");
     return `${pathname}?${params.toString()}`;
-  }, [searchParams, order, pathname]);
+  };
 
   return <>
     {editor.error && <p className={styles.error}>{editor.error}</p>}

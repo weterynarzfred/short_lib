@@ -1,5 +1,4 @@
 import fs from "fs/promises";
-import { spawn } from "child_process";
 
 import { runFfmpeg } from "@/lib/ffmpeg";
 import processImage from "./processImage";
@@ -42,8 +41,8 @@ export default async function processVideo(metadata) {
       inputPath: metadata.filepath,
       outputPath: getVideoPreviewPath(metadata),
       durationMs: metadata.duration,
-      sourceWidth: metadata.width,
-      sourceHeight: metadata.height,
+      sourceWidth: metadata.dimensions?.width,
+      sourceHeight: metadata.dimensions?.height,
     });
 
     if (videoPreview) variants.videoPreview = videoPreview;

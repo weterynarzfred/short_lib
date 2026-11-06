@@ -8,12 +8,14 @@ import {
   searchMediaMatchesByText,
 } from "@/lib/search";
 import extractSnippet from "./extractSnippet";
+import findSimilarMedia from "@/lib/similarity";
 import { resolveTagName } from "@/lib/tagAliases";
 
 const FUZZY_RESOLVERS = {
   notes: searchMediaMatchesByNotes,
   text: searchMediaMatchesByText,
   filename: searchMediaMatchesByFilename,
+  similar: findSimilarMedia,
 };
 
 // Depth-first in written order, so "the first fuzzy term" means the leftmost one the user
@@ -32,7 +34,6 @@ function collectFuzzyTerms(node, found = []) {
   return found;
 }
 
-// Built here rather than in the client so a page-long OCR note never crosses the wire.
 function attachMatchSnippets(posts, matchByMediaId) {
   if (!matchByMediaId) return;
 
@@ -53,6 +54,9 @@ function attachMatchSnippets(posts, matchByMediaId) {
       };
       continue;
     }
+
+    // similar: matches carry no text, so there is nothing to show.
+    if (match.field !== "notes") continue;
 
     const snippet = extractSnippet(post.notes_md, match.ranges);
     if (!snippet) continue;
@@ -86,7 +90,8 @@ function normalizePosts(posts) {
   });
 }
 
-export async function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, tagOrderSql } = {}) {
+// `seed` only matters for `order:random`, and must be the same for every page of a listing.
+export async function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, tagOrderSql, seed } = {}) {
   const parsed = parseSearch(search, { defaultExcludedTags, resolveTagName });
   const requestedLimit = clampInt(limit ?? parsed.filters.limit, {
     min: 1,
@@ -131,10 +136,11 @@ export async function getPostsPage(search, { offset = 0, limit, defaultExcludedT
     offset: safeOffset,
     tagOrderSql,
     relevanceIds,
+    seed,
   });
 
-  // Values are bound and orderBy comes from a whitelist, so a failure here is a
-  // bug rather than bad input - surface it instead of showing an empty library.
+  // Values are bound and orderBy comes from a whitelist, so a failure here is a bug:
+  // log the statement that caused it.
   let rows;
   try {
     rows = db.prepare(sql).all(...params);

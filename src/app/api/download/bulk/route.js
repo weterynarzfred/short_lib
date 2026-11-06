@@ -1,16 +1,18 @@
 import fs from "fs";
 import path from "path";
+import { Readable } from "stream";
+import yazl from "yazl";
 
 import db from "@/lib/db";
-import { createZip } from "@/lib/createZip";
+import resolveStoragePath from "@/lib/resolveStoragePath";
 
-const STORAGE_DIR = process.env.STORAGE_DIR;
-
+// Posted by a plain form (`postIds` as a comma list) rather than fetch, so the browser
+// streams the response straight to disk instead of holding the whole zip in memory.
 export async function POST(req) {
   let postIds;
   try {
-    const body = await req.json();
-    postIds = Array.isArray(body.postIds) ? body.postIds : [];
+    const form = await req.formData();
+    postIds = String(form.get("postIds") ?? "").split(",");
   } catch {
     return new Response("Bad request", { status: 400 });
   }
@@ -30,16 +32,16 @@ export async function POST(req) {
     WHERE id IN (${placeholders})
   `).all(...ids);
 
-  const files = [];
+  // Stored, not deflated: media is already compressed, and an uncompressed zip has a size
+  // known up front, so the browser can show real progress. yazl switches to zip64 on its
+  // own past 4 GiB.
+  const zip = new yazl.ZipFile();
   const seenNames = new Map();
+  let fileCount = 0;
 
   for (const row of rows) {
-    // file_path is relative from STORAGE_DIR/full, e.g. "2025/01/abc123.jpg"
-    const actualPath = path.resolve(STORAGE_DIR, "full", row.file_path);
-    // Prevent path traversal
-    const base = path.resolve(STORAGE_DIR, "full");
-    if (!actualPath.startsWith(base + path.sep) && actualPath !== base) continue;
-    if (!fs.existsSync(actualPath)) continue;
+    const actualPath = resolveStoragePath("full", row.file_path);
+    if (!actualPath || !fs.existsSync(actualPath)) continue;
 
     const filename = path.basename(actualPath);
     const ext = path.extname(filename);
@@ -52,21 +54,21 @@ export async function POST(req) {
     seenNames.set(baseName, count + 1);
     const uniqueName = count > 0 ? `${nameBase} (${count})${nameExt}` : baseName;
 
-    const data = fs.readFileSync(actualPath);
-    files.push({ name: uniqueName, data });
+    zip.addFile(actualPath, uniqueName, { compress: false });
+    fileCount++;
   }
 
-  if (!files.length) {
+  if (!fileCount) {
     return new Response("No files found", { status: 404 });
   }
 
-  const zip = createZip(files);
+  const finalSize = await new Promise(resolve => zip.end({}, resolve));
 
-  return new Response(zip, {
+  return new Response(Readable.toWeb(zip.outputStream), {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": "attachment; filename=\"media.zip\"",
-      "Content-Length": zip.length.toString(),
+      "Content-Length": String(finalSize),
     },
   });
 }

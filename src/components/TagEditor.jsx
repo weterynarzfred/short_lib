@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import classNames from "classnames";
 import { createEditor } from "prism-code-editor";
 import "prism-code-editor/layout.css";
 
@@ -9,7 +10,7 @@ import {
   registerKnownTagsFromValue,
 } from "@/lib/tagsLanguage";
 import TagSuggestions from "./TagSuggestions";
-import useTagSuggestions from "../lib/useTagSuggestions";
+import useTagSuggestions from "@/lib/useTagSuggestions";
 import useCombobox from "@/lib/useCombobox";
 import useTagTokenHover from "@/lib/useTagTokenHover";
 import styles from "./TagEditor.module.scss";
@@ -54,8 +55,7 @@ export default function TagEditor({
     registerKnownTagsFromValue(value);
   }, [knownTags, items, value]);
 
-  // Latest-ref pattern: always holds current handlers/state for use in
-  // stable event listeners set up in useEffect([]).
+  // Read by the listeners attached once on mount, so they always see current handlers.
   const handlersRef = useRef(null);
   handlersRef.current = {
     isOpen: combobox.isOpen,
@@ -67,7 +67,6 @@ export default function TagEditor({
     setValue,
   };
 
-  // Mount editor once on client
   useEffect(() => {
     const editor = createEditor(containerRef.current, {
       language: "tags",
@@ -140,9 +139,8 @@ export default function TagEditor({
 
   useTagTokenHover(containerRef, inputRef, { enabled: isEditorReady });
 
-  // Sync external value changes and restore cursor position.
-  // Both must happen in the same useLayoutEffect to avoid setOptions resetting the
-  // cursor before we can restore it (setOptions does textarea.selectionEnd = 0).
+  // Value sync and cursor restore share one layout effect because setOptions resets the
+  // cursor (textarea.selectionEnd = 0), so the restore has to run after it.
   useLayoutEffect(() => {
     if (!editorRef.current) return;
 
@@ -151,14 +149,13 @@ export default function TagEditor({
       editorRef.current.setOptions({ value });
     }
 
-    if (nextCursorRef.current !== null && inputRef.current) {
+    if (nextCursorRef.current !== null) {
       inputRef.current.setSelectionRange(nextCursorRef.current, nextCursorRef.current);
       setCursor(nextCursorRef.current);
       nextCursorRef.current = null;
     }
   }, [value]);
 
-  // Sync disabled -> readOnly
   useEffect(() => {
     editorRef.current?.setOptions({ readOnly: Boolean(disabled) });
   }, [disabled]);
@@ -167,7 +164,7 @@ export default function TagEditor({
     <div ref={combobox.rootRef} className={styles.tagEditor}>
       <div
         ref={containerRef}
-        className={`${styles.editorMount}${editorClassName ? ` ${editorClassName}` : ""}`}
+        className={classNames(styles.editorMount, editorClassName)}
       />
       <TagSuggestions items={items} isLoading={isLoading} combobox={combobox} />
     </div>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import addTags, { parseTagString, removeTags } from "@/lib/addTags";
 import db from "@/lib/db";
+import parseTagToken from "@/lib/parseTagToken";
 import deletePost from "@/lib/deletePost";
 import clearDeletedStorage from "@/lib/clearDeletedStorage";
 import {
@@ -18,7 +19,6 @@ import {
 import {
   getTagTypeOrderSql,
   setBlacklistedTags,
-  setDescribePrompt,
   setMediaSettings,
   setTagTypeColors,
   setTagTypeOrder,
@@ -41,8 +41,8 @@ function normalizePostId(postId) {
 }
 
 // Next redacts thrown server-action errors in production builds, leaving the client with
-// an opaque digest, so tag management failures are returned as data instead. Callers must
-// check `ok` rather than relying on a rejection.
+// an opaque digest, so failures are returned as data instead. Callers must check
+// `ok === false` rather than relying on a rejection.
 function failed(error) {
   return { ok: false, error: error?.message || "Action failed" };
 }
@@ -58,10 +58,8 @@ function normalizeTagRow(row) {
   };
 }
 
-function getTagsByMediaIds(postIds) {
-  const ids = normalizePostIds(postIds);
-  if (!ids.length) return new Map();
-
+// Takes ids already through normalizePostIds, and at least one.
+function getTagsByMediaIds(ids) {
   const placeholders = ids.map(() => "?").join(",");
   const rows = db.prepare(`
     SELECT
@@ -90,16 +88,27 @@ function getTagsByMediaIds(postIds) {
 }
 
 export async function deletePostAction(postId) {
-  await deletePost(postId);
-  revalidatePath("/listing");
+  try {
+    await deletePost(postId);
+  } catch (error) {
+    return failed(error);
+  }
+  return { ok: true };
 }
 
+// Posts are deleted one by one, so a failure part way through still reports the ones that
+// went, and the listing can drop exactly those.
 export async function deletePostsBulkAction(postIds) {
-  const ids = normalizePostIds(postIds);
-  if (!ids.length) return;
-
-  for (const postId of ids) await deletePost(postId);
-  revalidatePath("/listing");
+  const deletedIds = [];
+  try {
+    for (const postId of normalizePostIds(postIds)) {
+      await deletePost(postId);
+      deletedIds.push(postId);
+    }
+  } catch (error) {
+    return { ...failed(error), deletedIds };
+  }
+  return { ok: true, deletedIds };
 }
 
 export async function clearDeletedStorageAction() {
@@ -109,118 +118,136 @@ export async function clearDeletedStorageAction() {
 }
 
 export async function updatePostTagsAction(postId, rawTagString) {
-  const safePostId = normalizePostId(postId);
+  try {
+    const safePostId = normalizePostId(postId);
 
-  const tags = parseTagString(rawTagString);
-  addTags(safePostId, tags, { replace: true });
-  const tagsByMediaId = getTagsByMediaIds([safePostId]);
+    const tags = parseTagString(rawTagString);
+    addTags(safePostId, tags, { replace: true });
+    const tagsByMediaId = getTagsByMediaIds([safePostId]);
 
-  return {
-    tags: tagsByMediaId.get(safePostId) ?? [],
-  };
+    return {
+      ok: true,
+      tags: tagsByMediaId.get(safePostId) ?? [],
+    };
+  } catch (error) {
+    return failed(error);
+  }
 }
 
 export async function addPostTagsBulkAction(postIds, rawTagString) {
-  const tags = parseTagString(rawTagString);
-  const ids = normalizePostIds(postIds);
+  try {
+    const tags = parseTagString(rawTagString);
+    const ids = normalizePostIds(postIds);
 
-  for (const postId of ids) addTags(postId, tags, { replace: false });
+    for (const postId of ids) addTags(postId, tags, { replace: false });
+  } catch (error) {
+    return failed(error);
+  }
+
   revalidatePath("/listing");
+  return { ok: true };
 }
 
 export async function editPostTagsBulkAction(postIds, rawTagString) {
   const ids = normalizePostIds(postIds);
-  if (!ids.length) return [];
+  if (!ids.length) return { ok: true, updates: [] };
 
-  const tokens = String(rawTagString ?? "")
-    .split(/\s+/)
-    .map(token => token.trim())
-    .filter(Boolean);
+  const tokens = String(rawTagString ?? "").split(/\s+/).filter(Boolean).map(parseTagToken);
+  const tagsToAdd = tokens.filter(t => !t.negated);
+  const tagsToRemove = tokens.filter(t => t.negated);
 
-  const addTokens = [];
-  const removeTokens = [];
-
-  for (const token of tokens) {
-    if (token.startsWith("-") && token.length > 1) {
-      removeTokens.push(token.slice(1));
-      continue;
+  try {
+    for (const postId of ids) {
+      if (tagsToRemove.length) removeTags(postId, tagsToRemove);
+      if (tagsToAdd.length) addTags(postId, tagsToAdd, { replace: false });
     }
-
-    addTokens.push(token);
-  }
-
-  const tagsToAdd = parseTagString(addTokens.join(" "));
-  const tagsToRemove = parseTagString(removeTokens.join(" "));
-
-  for (const postId of ids) {
-    if (tagsToRemove.length) removeTags(postId, tagsToRemove);
-    if (tagsToAdd.length) addTags(postId, tagsToAdd, { replace: false });
+  } catch (error) {
+    return failed(error);
   }
   const tagsByMediaId = getTagsByMediaIds(ids);
 
-  return ids.map(mediaId => ({
-    mediaId,
-    tags: tagsByMediaId.get(mediaId) ?? [],
-  }));
+  return {
+    ok: true,
+    updates: ids.map(mediaId => ({
+      mediaId,
+      tags: tagsByMediaId.get(mediaId) ?? [],
+    })),
+  };
 }
 
 export async function updatePostNotesAction(postId, notesMd) {
-  const safePostId = normalizePostId(postId);
+  try {
+    const safePostId = normalizePostId(postId);
 
-  const nextNotes = typeof notesMd === "string" ? notesMd : "";
+    const nextNotes = typeof notesMd === "string" ? notesMd : "";
 
-  db.prepare(`
-    UPDATE media
-    SET notes_md = ?
-    WHERE id = ?
-  `).run(nextNotes, safePostId);
-  markMediaNotesIndexDirty();
+    db.prepare(`
+      UPDATE media
+      SET notes_md = ?
+      WHERE id = ?
+    `).run(nextNotes, safePostId);
+    markMediaNotesIndexDirty();
 
-  return { notes_md: nextNotes };
+    return { ok: true, notes_md: nextNotes };
+  } catch (error) {
+    return failed(error);
+  }
 }
 
 export async function updatePostOriginalFilenameAction(postId, originalFilename) {
-  const safePostId = normalizePostId(postId);
+  try {
+    const safePostId = normalizePostId(postId);
 
-  const nextOriginalFilename = typeof originalFilename === "string" ? originalFilename : "";
+    const nextOriginalFilename = typeof originalFilename === "string" ? originalFilename : "";
 
-  db.prepare(`
-    UPDATE media
-    SET original_filename = ?
-    WHERE id = ?
-  `).run(nextOriginalFilename, safePostId);
-  markMediaFilenamesIndexDirty();
+    db.prepare(`
+      UPDATE media
+      SET original_filename = ?
+      WHERE id = ?
+    `).run(nextOriginalFilename, safePostId);
+    markMediaFilenamesIndexDirty();
 
-  return { original_filename: nextOriginalFilename };
+    return { ok: true, original_filename: nextOriginalFilename };
+  } catch (error) {
+    return failed(error);
+  }
 }
 
 export async function updatePostScoreAction(postId, score) {
-  const safePostId = normalizePostId(postId);
-  const nextScore = clampScore(score);
+  try {
+    const safePostId = normalizePostId(postId);
+    const nextScore = clampScore(score);
 
-  db.prepare(`
-    UPDATE media
-    SET score = ?
-    WHERE id = ?
-  `).run(nextScore, safePostId);
+    db.prepare(`
+      UPDATE media
+      SET score = ?
+      WHERE id = ?
+    `).run(nextScore, safePostId);
 
-  return { score: nextScore };
+    return { ok: true, score: nextScore };
+  } catch (error) {
+    return failed(error);
+  }
 }
 
 export async function updatePostScoreBulkAction(postIds, score) {
   const ids = normalizePostIds(postIds);
-  if (!ids.length) return { score: clampScore(score), postIds: [] };
-
   const nextScore = clampScore(score);
+  if (!ids.length) return { ok: true, score: nextScore, postIds: [] };
+
   const placeholders = ids.map(() => "?").join(",");
 
-  db.prepare(`
-    UPDATE media
-    SET score = ?
-    WHERE id IN (${placeholders})
-  `).run(nextScore, ...ids);
+  try {
+    db.prepare(`
+      UPDATE media
+      SET score = ?
+      WHERE id IN (${placeholders})
+    `).run(nextScore, ...ids);
+  } catch (error) {
+    return failed(error);
+  }
 
-  return { score: nextScore, postIds: ids };
+  return { ok: true, score: nextScore, postIds: ids };
 }
 
 export async function getPostTagValuesAction(postIds) {
@@ -315,8 +342,7 @@ export async function removeTagImplicationAction(tagId, impliedTagId) {
 }
 
 export async function updateMediaSettingsAction(partialSettings) {
-  const media = setMediaSettings(partialSettings);
-  return media;
+  return setMediaSettings(partialSettings);
 }
 
 export async function updateBlacklistedTagsAction(rawTagString) {
@@ -350,8 +376,4 @@ export async function updateTagTypeOrderAction(rawTagTypeOrder, rawTagTypeColors
     result.tagTypeColors = tagTypeColors;
 
   return result;
-}
-
-export async function updateDescribePromptAction(rawPrompt) {
-  return { prompt: setDescribePrompt(rawPrompt) };
 }

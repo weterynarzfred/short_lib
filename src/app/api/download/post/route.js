@@ -1,11 +1,13 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import { PassThrough } from "stream";
+import { PassThrough, Readable } from "stream";
 import { spawn } from "child_process";
 
 import db from "@/lib/db";
+import { FFMPEG } from "@/lib/binaries";
 import { runFfmpeg, streamFfmpeg } from "@/lib/ffmpeg";
+import resolveStoragePath from "@/lib/resolveStoragePath";
 import { getTempPath } from "@/app/api/upload/path_helpers";
 import {
   CRF_MAX,
@@ -37,7 +39,7 @@ function detectAv1Encoder() {
   if (av1EncoderPromise) return av1EncoderPromise;
 
   av1EncoderPromise = new Promise(resolve => {
-    const probe = spawn("ffmpeg", ["-hide_banner", "-encoders"]);
+    const probe = spawn(FFMPEG, ["-hide_banner", "-encoders"]);
     let output = "";
 
     probe.stdout.on("data", chunk => { output += chunk.toString(); });
@@ -88,7 +90,7 @@ function streamTwoPass(firstArgs, secondArgs, passLogPath, signal, label) {
   (async () => {
     try {
       await runFfmpeg(firstArgs, { signal, label: `${label} pass 1` }).closed;
-      if (signal?.aborted) throw new Error("aborted");
+      if (signal.aborted) throw new Error("aborted");
 
       const second = runFfmpeg(secondArgs, { signal, label: `${label} pass 2` });
       second.process.stdout.pipe(output);
@@ -135,10 +137,8 @@ export async function GET(req) {
   if (trim && presetKey === "original")
     return new Response("Trimming needs a re-encoding preset", { status: 400 });
 
-  const base = path.resolve(STORAGE_DIR, "full");
-  const filePath = path.resolve(base, media.file_path);
-  if (filePath !== base && !filePath.startsWith(base + path.sep))
-    return new Response("Bad request", { status: 400 });
+  const filePath = resolveStoragePath("full", media.file_path);
+  if (!filePath) return new Response("Bad request", { status: 400 });
   if (!fs.existsSync(filePath)) return new Response("Not found", { status: 404 });
 
   const filename = buildDownloadFilename(
@@ -148,12 +148,12 @@ export async function GET(req) {
   );
 
   if (presetKey === "original") {
-    const stat = fs.statSync(filePath);
-
-    return new Response(fs.createReadStream(filePath), {
+    // Readable.toWeb rather than the Node stream itself: Response's own wrapping throws an
+    // uncaught "ReadableStream is already closed" when the client cancels mid-read.
+    return new Response(Readable.toWeb(fs.createReadStream(filePath)), {
       headers: {
         "Content-Type": media.mime_type || "application/octet-stream",
-        "Content-Length": stat.size.toString(),
+        "Content-Length": fs.statSync(filePath).size.toString(),
         "Content-Disposition": contentDisposition(filename),
       },
     });
@@ -163,11 +163,11 @@ export async function GET(req) {
     // sharp rather than ffmpeg: already a dependency, and it is the tool the upload
     // pipeline uses for stills.
     const sharp = (await import("sharp")).default;
-    const stream = sharp(filePath).jpeg({ quality: 80 }).on("error", error => {
+    const stream = sharp(filePath, { limitInputPixels: false }).jpeg({ quality: 80 }).on("error", error => {
       console.error("sharp failed while converting to jpeg:", error);
     });
 
-    return new Response(stream, {
+    return new Response(Readable.toWeb(stream), {
       headers: {
         "Content-Type": preset.contentType,
         "Content-Disposition": contentDisposition(filename),
@@ -176,7 +176,7 @@ export async function GET(req) {
   }
 
   // Length is unknown until the encode finishes, and it is streamed as it goes.
-  const encodedResponse = body => new Response(body, {
+  const encodedResponse = body => new Response(Readable.toWeb(body), {
     headers: {
       "Content-Type": preset.contentType,
       "Content-Disposition": contentDisposition(filename),

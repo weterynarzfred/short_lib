@@ -29,7 +29,7 @@ export function getTagTypes() {
     ORDER BY t.type COLLATE NOCASE ASC
   `).all();
 
-  return rows.map(row => row.type).filter(Boolean);
+  return rows.map(row => row.type);
 }
 
 export default function getTagStats({ page, limit, order, name, type } = {}) {
@@ -55,14 +55,13 @@ export default function getTagStats({ page, limit, order, name, type } = {}) {
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  const totalRow = db.prepare(`
+  const total = db.prepare(`
     SELECT COUNT(*) AS n
     FROM tags t
     ${whereSql}
-  `).get(...whereParams);
-  const total = totalRow?.n ?? 0;
+  `).get(...whereParams).n;
 
-  const stmt = db.prepare(`
+  const rows = db.prepare(`
     SELECT
       t.id,
       t.name,
@@ -73,9 +72,7 @@ export default function getTagStats({ page, limit, order, name, type } = {}) {
     ${whereSql}
     ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
-  `);
-
-  const rows = stmt.all(...whereParams, safeLimit, offset);
+  `).all(...whereParams, safeLimit, offset);
 
   if (rows.length > 0) {
     const ids = rows.map(r => r.id);
@@ -94,16 +91,15 @@ export default function getTagStats({ page, limit, order, name, type } = {}) {
     `).all(...ids);
 
     const aliasesByTagId = new Map(ids.map(id => [id, []]));
-    for (const row of aliases) aliasesByTagId.get(row.tag_id)?.push(row.name);
+    for (const row of aliases) aliasesByTagId.get(row.tag_id).push(row.name);
 
     const implicationsByTagId = new Map(ids.map(id => [id, []]));
-    for (const row of implications) {
-      implicationsByTagId.get(row.tag_id)?.push({ id: row.implied_id, name: row.implied_name });
-    }
+    for (const row of implications)
+      implicationsByTagId.get(row.tag_id).push({ id: row.implied_id, name: row.implied_name });
 
     for (const row of rows) {
-      row.aliases = aliasesByTagId.get(row.id) ?? [];
-      row.implications = implicationsByTagId.get(row.id) ?? [];
+      row.aliases = aliasesByTagId.get(row.id);
+      row.implications = implicationsByTagId.get(row.id);
     }
   }
 

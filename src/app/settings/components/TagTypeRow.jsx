@@ -13,7 +13,7 @@ import styles from "../page.module.scss";
 const HEX_COLOR_PATTERN = /^#?[0-9a-fA-F]{3,6}$/;
 
 function isHexColor(value) {
-  return typeof value === "string" && HEX_COLOR_PATTERN.test(value.trim());
+  return HEX_COLOR_PATTERN.test(value.trim());
 }
 
 // One draggable row: the tag type, its colour, and the up/down buttons that do the same job
@@ -118,7 +118,7 @@ export default function TagTypeRow({
           }}
         />
 
-        {isPickerOpen ? <div className={styles.tagTypeColorPopup}>
+        {isPickerOpen && <div className={styles.tagTypeColorPopup}>
           <div className={styles.tagTypeColorPicker}>
             <HexColorPicker
               color={color}
@@ -129,7 +129,7 @@ export default function TagTypeRow({
               }}
             />
           </div>
-        </div> : null}
+        </div>}
       </div>
 
       <div className={styles.tagTypeOrderItemActions}>

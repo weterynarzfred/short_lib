@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import chooseComboboxTag from "../lib/chooseComboboxTag";
+import chooseComboboxTag from "@/lib/chooseComboboxTag";
 
 export default function useCombobox({
   items,
@@ -14,9 +14,9 @@ export default function useCombobox({
   const listId = useMemo(() => `cb-${Math.random().toString(36).slice(2)}`, []);
   const hasUserTypedRef = useRef(false);
 
-  const onFocus = useCallback(() => {
+  const onFocus = () => {
     if (items.length > 0) setIsOpen(true);
-  }, [items.length]);
+  };
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -24,15 +24,11 @@ export default function useCombobox({
     hasUserTypedRef.current = false;
   }, []);
 
+  // Emptying the list is handled by the clamp effect below, which closes.
   useEffect(() => {
-    if (items.length > 0) {
-      if (hasUserTypedRef.current) {
-        setIsOpen(true);
-        setActiveIndex(0);
-      }
-    } else {
-      setIsOpen(false);
-      setActiveIndex(-1);
+    if (items.length > 0 && hasUserTypedRef.current) {
+      setIsOpen(true);
+      setActiveIndex(0);
     }
   }, [items]);
 
@@ -45,7 +41,7 @@ export default function useCombobox({
     return () => document.removeEventListener("mousedown", handleDocumentClick);
   }, [close]);
 
-  const onKeyDown = useCallback(event => {
+  const onKeyDown = event => {
     if (["ArrowLeft", "ArrowRight"].includes(event.key))
       event.stopPropagation();
 
@@ -79,7 +75,7 @@ export default function useCombobox({
       event.stopPropagation();
       close();
     }
-  }, [isOpen, items, activeIndex, chooseTag, close]);
+  };
 
   function chooseTag(tag) {
     setValue(prev => {
@@ -92,7 +88,7 @@ export default function useCombobox({
     // rather than making the user reopen the dropdown to find out what is allowed. Staying
     // open is only safe for operators that actually have values - the rest fall through to
     // a tag search on a query like "file_size:", which is noise.
-    if (tag?.hasValues) {
+    if (tag.hasValues) {
       // The effect watching `items` opens the list once the values arrive; this is the
       // flag it checks. The stale operator list stays until then, so nothing is
       // highlighted in the meantime.

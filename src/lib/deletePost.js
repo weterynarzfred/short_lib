@@ -10,11 +10,10 @@ function parseStoredMediaPath(filePath) {
   const normalized = String(filePath ?? "").trim().replace(/\\/g, "/");
   if (!normalized) throw new Error("Invalid media file path");
 
-  if (normalized.startsWith("/") || normalized.startsWith("//") || DRIVE_PATH_RE.test(normalized))
+  if (normalized.startsWith("/") || DRIVE_PATH_RE.test(normalized))
     throw new Error("Invalid media file path");
 
   const segments = normalized.split("/").filter(Boolean);
-  if (!segments.length) throw new Error("Invalid media file path");
   if (segments.some(segment => segment === "." || segment === ".."))
     throw new Error("Invalid media file path");
 
@@ -47,13 +46,20 @@ export default async function deletePost(id) {
     return fullPath;
   };
 
+  // The row is already gone when this runs, so a failed move must not throw: the post has
+  // to disappear from the listing either way. On Windows a file another process holds open
+  // (ffmpeg remuxing or encoding it) cannot be renamed, and stays behind as an orphan.
   const moveIfExists = pathElements => {
     const src = resolveStoragePath(pathElements);
     if (!fs.existsSync(src)) return;
 
     const dst = resolveStoragePath(["deleted", ...pathElements]);
-    fs.mkdirSync(path.dirname(dst), { recursive: true });
-    fs.renameSync(src, dst);
+    try {
+      fs.mkdirSync(path.dirname(dst), { recursive: true });
+      fs.renameSync(src, dst);
+    } catch (error) {
+      console.error("Could not move deleted media file", { src, error });
+    }
   };
 
   const getMediaTagIds = db.prepare(`
@@ -74,16 +80,18 @@ export default async function deletePost(id) {
   const tx = db.transaction(() => {
     const linkedTags = getMediaTagIds.all(id);
     for (const row of linkedTags) decrementTagPostCount.run(row.tag_id);
-
-    // Every derivative folder has to be listed here. One left out is not moved into
-    // deleted/, so clearDeletedStorage can never reach it and the file leaks forever.
-    moveIfExists(["full", yearMonthDir, `${checksum}${ext}`]);
-    moveIfExists(["thumbs", yearMonthDir, `${checksum}.jpg`]);
-    moveIfExists(["vprevs", yearMonthDir, `${checksum}.mp4`]);
-
     db.prepare("DELETE FROM media WHERE id = ?").run(id);
   });
 
+  // Files move only after the row is gone. Renames cannot be rolled back, so a failed
+  // move leaves an orphan in full/ or thumbs/ rather than a live row pointing at deleted/.
   tx();
+
+  // Every derivative folder has to be listed here. One left out is not moved into
+  // deleted/, so clearDeletedStorage can never reach it and the file leaks forever.
+  moveIfExists(["full", yearMonthDir, `${checksum}${ext}`]);
+  moveIfExists(["thumbs", yearMonthDir, `${checksum}.jpg`]);
+  moveIfExists(["vprevs", yearMonthDir, `${checksum}.mp4`]);
+
   markMediaNotesIndexDirty();
 }

@@ -11,13 +11,14 @@ import styles from "./PostItem.module.scss";
 
 export default function PostItem({
   post,
-  subtitleKinds = [],
-  isSelected = false,
-  isMultiSelectEnabled = false,
+  subtitleKinds,
+  isSelected,
+  isActive,
+  isMultiSelectEnabled,
   onInteractPost,
 }) {
-  const thumb = post?.variants?.thumb;
-  const videoPreview = post?.variants?.videoPreview;
+  const thumb = post.variants?.thumb;
+  const videoPreview = post.variants?.videoPreview;
   const badgeLabel = getPostBadgeLabel(post);
   const subtitles = getPostSubtitles(post, subtitleKinds);
 
@@ -31,15 +32,30 @@ export default function PostItem({
   const tooltipHoverProps = getHoverProps(post, subtitleKinds);
 
   return <div
-    // Lets the listing find this card to scroll to when the panel navigates onto it.
+    // Lets the listing scroll to and refocus this card when the panel navigates or closes.
     data-post-id={post.id}
     className={classNames(styles.card, {
       [styles.selected]: isSelected,
+      [styles.active]: isActive,
       [styles.selectionMode]: isMultiSelectEnabled,
     })}
+    aria-current={isActive || undefined}
+    // Tab reaches each card and Enter or Space acts as a click, modifiers included, so
+    // ctrl/shift still multi-select.
+    role="button"
+    tabIndex={0}
+    aria-label={post.original_filename || `post ${post.id}`}
     onClick={event => {
       // The panel opens over the same area the card sits in, so a lingering tooltip would
       // end up floating on top of it.
+      hidePostTooltip();
+      onInteractPost(post.id, event);
+    }}
+    onKeyDown={event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      // Space would otherwise scroll the page.
+      event.preventDefault();
+      if (event.repeat) return;
       hidePostTooltip();
       onInteractPost(post.id, event);
     }}
@@ -52,9 +68,7 @@ export default function PostItem({
       tooltipHoverProps.onMouseLeave();
     }}
   >
-    {isMultiSelectEnabled ?
-      <div className={styles.selectIndicator}>{isSelected ? "x" : ""}</div> :
-      null}
+    {isMultiSelectEnabled && <div className={styles.selectIndicator}>{isSelected ? "x" : ""}</div>}
 
     <div className={styles.imageContainer}>
       {thumb ? <img // thumbnails are already sized at upload, so no next/image here
