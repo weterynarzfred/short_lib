@@ -11,6 +11,8 @@ const ADDED_COLUMNS = [
   { table: "tags", column: "description", definition: "TEXT" },
   { table: "media", column: "score", definition: "INTEGER NOT NULL DEFAULT 0" },
   { table: "media", column: "phash", definition: "BLOB" },
+  { table: "media", column: "parent_id", definition: "INTEGER REFERENCES media(id) ON DELETE SET NULL" },
+  { table: "media", column: "child_position", definition: "INTEGER" },
 ];
 
 // Tables no longer part of the schema. Dropped on startup so every copy of the
@@ -36,7 +38,10 @@ function createTables(db) {
       score INTEGER NOT NULL DEFAULT 0,
       -- Perceptual hashes, 8 bytes per frame (one for an image). NULL means not hashed yet,
       -- empty means hashed with nothing usable, such as a blank image.
-      phash BLOB
+      phash BLOB,
+      -- One level only: a post with children is never a child itself.
+      parent_id INTEGER REFERENCES media(id) ON DELETE SET NULL,
+      child_position INTEGER
     );
   `);
 
@@ -107,6 +112,7 @@ function createIndexes(db) {
     CREATE INDEX IF NOT EXISTS idx_media_duration ON media(duration_ms);
     CREATE INDEX IF NOT EXISTS idx_media_checksum ON media(checksum);
     CREATE INDEX IF NOT EXISTS idx_media_score ON media(score);
+    CREATE INDEX IF NOT EXISTS idx_media_parent ON media(parent_id);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_media_checksum_unique ON media(checksum) WHERE checksum IS NOT NULL AND checksum <> '';
     CREATE INDEX IF NOT EXISTS idx_media_tags_media ON media_tags(media_id);
     CREATE INDEX IF NOT EXISTS idx_media_tags_tag ON media_tags(tag_id);

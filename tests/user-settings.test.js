@@ -52,11 +52,11 @@ describe("userSettings blacklist", () => {
     const { db, store } = mockDb();
     vi.doMock("@/lib/db", () => ({ default: db }));
 
-    const { BLACKLISTED_TAGS_KEY, setBlacklistedTags } = await import("../src/lib/userSettings");
-    const tags = setBlacklistedTags("meta:nsfw spoiler meta:nsfw");
+    const { BLACKLIST_KEY, setBlacklist } = await import("../src/lib/userSettings");
+    const tags = setBlacklist("meta:nsfw spoiler meta:nsfw");
 
     expect(tags).toEqual(["nsfw", "spoiler"]);
-    expect(store.get(BLACKLISTED_TAGS_KEY)).toBe("[\"nsfw\",\"spoiler\"]");
+    expect(store.get(BLACKLIST_KEY)).toBe("[\"nsfw\",\"spoiler\"]");
   });
 
   it("reads blacklist tags from JSON values", async () => {
@@ -65,8 +65,8 @@ describe("userSettings blacklist", () => {
     });
     vi.doMock("@/lib/db", () => ({ default: db }));
 
-    const { getBlacklistedTags } = await import("../src/lib/userSettings");
-    expect(getBlacklistedTags()).toEqual(["nsfw", "spoiler"]);
+    const { getBlacklist } = await import("../src/lib/userSettings");
+    expect(getBlacklist()).toEqual(["nsfw", "spoiler"]);
   });
 
   it("supports legacy plain-string storage format", async () => {
@@ -75,8 +75,17 @@ describe("userSettings blacklist", () => {
     });
     vi.doMock("@/lib/db", () => ({ default: db }));
 
-    const { getBlacklistedTags } = await import("../src/lib/userSettings");
-    expect(getBlacklistedTags()).toEqual(["nsfw", "spoiler"]);
+    const { getBlacklist } = await import("../src/lib/userSettings");
+    expect(getBlacklist()).toEqual(["nsfw", "spoiler"]);
+  });
+
+  it("keeps search operators whole and drops negated entries", async () => {
+    const { db } = mockDb();
+    vi.doMock("@/lib/db", () => ({ default: db }));
+
+    const { setBlacklist } = await import("../src/lib/userSettings");
+    expect(setBlacklist("has:parent meta:nsfw -cat score:<2 has:parent"))
+      .toEqual(["has:parent", "nsfw", "score:<2"]);
   });
 });
 

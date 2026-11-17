@@ -71,6 +71,10 @@ function buildTermPredicate(node, params) {
     case "has":
       return buildHasPredicate(node, params);
 
+    case "parent":
+      params.push(node.query, node.query);
+      return negatable("(m.id = ? OR m.parent_id = ?)", node.negated);
+
     case "notes":
     case "text":
     case "filename":
@@ -97,6 +101,13 @@ function buildHasPredicate({ value, negated }, params) {
   if (value === "notes") {
     if (negated) return `COALESCE(TRIM(m.notes_md), '') = ''`;
     return `COALESCE(TRIM(m.notes_md), '') <> ''`;
+  }
+
+  if (value === "parent") return negated ? "m.parent_id IS NULL" : "m.parent_id IS NOT NULL";
+
+  if (value === "children") {
+    const exists = "EXISTS (SELECT 1 FROM media c WHERE c.parent_id = m.id)";
+    return negated ? `NOT ${exists}` : exists;
   }
 
   // 0 and unrated are the same thing, so -has:score means "score is zero".
@@ -200,6 +211,7 @@ export default function buildQuery(parsed, {
     SELECT
       m.id, m.file_path, m.created_at, m.file_size, m.mime_type, m.width, m.height,
       m.duration_ms, m.original_filename, m.notes_md, m.variants, m.checksum, m.score,
+      m.parent_id,
 
       (
         SELECT COUNT(*)
@@ -224,7 +236,20 @@ export default function buildQuery(parsed, {
             ${tagOrderSql},
             t.name COLLATE NOCASE
         ) t
-      ), '[]') AS tags
+      ), '[]') AS tags,
+
+      -- Just enough for the panel to show each child's thumbnail.
+      COALESCE((
+        SELECT json_group_array(
+          json_object('id', c.id, 'file_path', c.file_path, 'thumb', c.variants -> '$.thumb')
+        )
+        FROM (
+          SELECT id, file_path, variants
+          FROM media
+          WHERE parent_id = m.id
+          ORDER BY child_position, id
+        ) c
+      ), '[]') AS children
 
     FROM media m
   `;

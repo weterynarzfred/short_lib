@@ -6,6 +6,7 @@ import addTags, { parseTagString, removeTags } from "@/lib/addTags";
 import db from "@/lib/db";
 import parseTagToken from "@/lib/parseTagToken";
 import deletePost from "@/lib/deletePost";
+import setPostChildren from "@/lib/postChildren";
 import clearDeletedStorage from "@/lib/clearDeletedStorage";
 import {
   deleteTagById,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/manageTag";
 import {
   getTagTypeOrderSql,
-  setBlacklistedTags,
+  setBlacklist,
   setMediaSettings,
   setTagTypeColors,
   setTagTypeOrder,
@@ -194,6 +195,16 @@ export async function updatePostNotesAction(postId, notesMd) {
   }
 }
 
+// `rawChildIds` is whatever was pasted, so any run of digits counts as an id.
+export async function setPostChildrenAction(postId, rawChildIds, { reassign = false } = {}) {
+  try {
+    const childIds = [...new Set((String(rawChildIds).match(/\d+/g) ?? []).map(Number))];
+    return { ok: true, ...setPostChildren(normalizePostId(postId), childIds, { reassign }) };
+  } catch (error) {
+    return failed(error);
+  }
+}
+
 export async function updatePostOriginalFilenameAction(postId, originalFilename) {
   try {
     const safePostId = normalizePostId(postId);
@@ -345,15 +356,12 @@ export async function updateMediaSettingsAction(partialSettings) {
   return setMediaSettings(partialSettings);
 }
 
-export async function updateBlacklistedTagsAction(rawTagString) {
-  const tags = setBlacklistedTags(rawTagString);
+export async function updateBlacklistAction(rawValue) {
+  const entries = setBlacklist(rawValue);
 
   revalidatePath("/listing");
 
-  return {
-    tags,
-    tagsValue: tags.join(" "),
-  };
+  return { value: entries.join(" ") };
 }
 
 export async function updateTagTypeOrderAction(rawTagTypeOrder, rawTagTypeColors) {

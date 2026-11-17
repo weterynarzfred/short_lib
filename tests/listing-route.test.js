@@ -8,11 +8,11 @@ describe("listing route", () => {
 
   it("returns 400 when offset is invalid", async () => {
     const getPostsPage = vi.fn(() => ({ posts: [], hasMore: false, nextOffset: 0 }));
-    const getBlacklistedTags = vi.fn(() => ["nsfw"]);
+    const getBlacklist = vi.fn(() => ["nsfw"]);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
     vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklist, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = await GET(new Request("http://localhost/api/listing?offset=-1"));
@@ -25,11 +25,11 @@ describe("listing route", () => {
 
   it("returns 400 when limit is out of bounds", async () => {
     const getPostsPage = vi.fn(() => ({ posts: [], hasMore: false, nextOffset: 0 }));
-    const getBlacklistedTags = vi.fn(() => []);
+    const getBlacklist = vi.fn(() => []);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
     vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklist, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = await GET(new Request("http://localhost/api/listing?limit=999"));
@@ -47,22 +47,22 @@ describe("listing route", () => {
       nextOffset: 51,
     };
     const getPostsPage = vi.fn(() => result);
-    const getBlacklistedTags = vi.fn(() => ["nsfw", "spoiler"]);
+    const getBlacklist = vi.fn(() => ["nsfw", "spoiler"]);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'meta' THEN 0 ELSE 1 END");
 
     vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklist, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = await GET(new Request("http://localhost/api/listing?search=cat&offset=50&limit=25&seed=4242"));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(getBlacklistedTags).toHaveBeenCalled();
+    expect(getBlacklist).toHaveBeenCalled();
     expect(getPostsPage).toHaveBeenCalledWith("cat", {
       offset: 50,
       limit: 25,
-      defaultExcludedTags: ["nsfw", "spoiler"],
+      blacklist: ["nsfw", "spoiler"],
       tagOrderSql: "CASE WHEN 'meta' THEN 0 ELSE 1 END",
       seed: 4242,
     });
@@ -72,11 +72,11 @@ describe("listing route", () => {
   it("uses fallback offset when omitted", async () => {
     const result = { posts: [], hasMore: false, nextOffset: 0 };
     const getPostsPage = vi.fn(() => result);
-    const getBlacklistedTags = vi.fn(() => []);
+    const getBlacklist = vi.fn(() => []);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
     vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklist, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = await GET(new Request("http://localhost/api/listing"));
@@ -86,7 +86,7 @@ describe("listing route", () => {
     expect(getPostsPage).toHaveBeenCalledWith("", {
       offset: 0,
       limit: undefined,
-      defaultExcludedTags: [],
+      blacklist: [],
       tagOrderSql: "CASE WHEN 'general' THEN 0 ELSE 1 END",
       seed: 0,
     });
@@ -95,11 +95,11 @@ describe("listing route", () => {
 
   it("returns 400 when the seed is out of range", async () => {
     const getPostsPage = vi.fn(() => ({ posts: [], hasMore: false, nextOffset: 0 }));
-    const getBlacklistedTags = vi.fn(() => []);
+    const getBlacklist = vi.fn(() => []);
     const getTagTypeOrderSql = vi.fn(() => "CASE WHEN 'general' THEN 0 ELSE 1 END");
 
     vi.doMock("@/lib/listingQuery/getPosts", () => ({ getPostsPage }));
-    vi.doMock("@/lib/userSettings", () => ({ getBlacklistedTags, getTagTypeOrderSql }));
+    vi.doMock("@/lib/userSettings", () => ({ getBlacklist, getTagTypeOrderSql }));
 
     const { GET } = await import("../src/app/api/listing/route");
     const res = await GET(new Request(`http://localhost/api/listing?seed=${2 ** 31}`));

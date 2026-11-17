@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import classNames from "classnames";
 
 import TagEditor from "@/components/TagEditor";
-import { updateBlacklistedTagsAction } from "@/lib/actions";
+import { updateBlacklistAction } from "@/lib/actions";
 import SettingActions from "./SettingActions";
 
 import styles from "../page.module.scss";
@@ -13,7 +13,7 @@ function normalizeValue(value) {
   return value.split(/\s+/).filter(Boolean).join(" ");
 }
 
-export default function BlacklistedTagsSetting({ initialValue }) {
+export default function BlacklistSetting({ initialValue }) {
   const normalizedInitial = normalizeValue(initialValue);
 
   const [value, setValue] = useState(normalizedInitial);
@@ -39,11 +39,10 @@ export default function BlacklistedTagsSetting({ initialValue }) {
 
     startTransition(async () => {
       try {
-        const result = await updateBlacklistedTagsAction(value);
-        const nextValue = normalizeValue(result.tagsValue);
+        const { value: savedEntries } = await updateBlacklistAction(value);
 
-        setValue(nextValue);
-        setSavedValue(nextValue);
+        setValue(savedEntries);
+        setSavedValue(savedEntries);
         setStatus("saved");
       } catch {
         setError("failed to save setting");
@@ -62,8 +61,8 @@ export default function BlacklistedTagsSetting({ initialValue }) {
           className: classNames(styles.blacklistInput, {
             [styles.blacklistInputDirty]: isDirty,
           }),
-          placeholder: "tags hidden by default in listing",
-          "aria-label": "blacklisted tags",
+          placeholder: "tags or terms hidden by default in listing",
+          "aria-label": "blacklist",
         }}
       />
 

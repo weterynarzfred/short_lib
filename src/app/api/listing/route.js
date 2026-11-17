@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPostsPage } from "@/lib/listingQuery/getPosts";
 import { MAX_RANDOM_SEED } from "@/lib/listingQuery/buildQuery";
-import { getBlacklistedTags, getTagTypeOrderSql } from "@/lib/userSettings";
+import { getBlacklist, getTagTypeOrderSql } from "@/lib/userSettings";
 
 function parseIntParam(value, { min, max, fallback }) {
   if (value == null || value === "") return fallback;
@@ -38,7 +38,7 @@ export async function GET(req) {
   const result = await getPostsPage(search, {
     offset,
     limit,
-    defaultExcludedTags: getBlacklistedTags(),
+    blacklist: getBlacklist(),
     tagOrderSql: getTagTypeOrderSql(),
     seed,
   });

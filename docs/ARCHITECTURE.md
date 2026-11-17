@@ -32,7 +32,8 @@ Columns are detected by introspection, not `user_version`: some databases were a
 hand.
 
 - `media` - file path, created (ms), size, MIME, dimensions, duration, `original_filename`,
-  `notes_md`, `variants` (JSON), `checksum`, `phash`, `score` 0-5 (0 = unrated)
+  `notes_md`, `variants` (JSON), `checksum`, `phash`, `score` 0-5 (0 = unrated),
+  `parent_id` + `child_position` (see Child Posts)
 - `tags` - unique `name`, `type`, `post_count` (cached), `description`
 - `tag_aliases` - alias `name` -> `tag_id`, one hop; `tags.name` is always canonical
 - `tag_implications` - (`tag_id`, `implied_tag_id`)
@@ -164,6 +165,17 @@ only - removing `cat` later keeps `animal`.
 action errors in production, so actions return `{ ok: false, error }` instead of throwing,
 and callers check `ok`. A failed action skips `revalidatePath`. The lib functions below
 still throw; the conversion happens only here.
+
+## Child Posts
+
+`src/lib/postChildren.js`. A post has at most one parent, and sets are one level deep: a
+parent can't be a child, a child can't have children. Deleting a parent frees its children
+(`ON DELETE SET NULL`). Taking a child from another parent needs `reassign`; without it the
+conflicts come back for the panel to confirm. The listing query returns `parent_id` and a
+`children` array (id, path, thumb) per post; the action returns the same fields for every
+post it changed, so the panel patches them in place.
+
+Hiding children is not built in: a `has:parent` blacklist entry does it.
 
 ## Delete and Storage
 

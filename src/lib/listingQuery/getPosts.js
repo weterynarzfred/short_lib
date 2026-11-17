@@ -84,6 +84,7 @@ function normalizePosts(posts) {
   posts.forEach(post => {
     post.variants = parseJsonWithFallback(post.variants, null);
     post.tags = parseJsonWithFallback(post.tags, []);
+    post.children = parseJsonWithFallback(post.children, []);
     post.mime_type = typeof post.mime_type === "string"
       ? post.mime_type.trim().toLowerCase()
       : "";
@@ -91,8 +92,8 @@ function normalizePosts(posts) {
 }
 
 // `seed` only matters for `order:random`, and must be the same for every page of a listing.
-export async function getPostsPage(search, { offset = 0, limit, defaultExcludedTags, tagOrderSql, seed } = {}) {
-  const parsed = parseSearch(search, { defaultExcludedTags, resolveTagName });
+export async function getPostsPage(search, { offset = 0, limit, blacklist, tagOrderSql, seed } = {}) {
+  const parsed = parseSearch(search, { blacklist, resolveTagName });
   const requestedLimit = clampInt(limit ?? parsed.filters.limit, {
     min: 1,
     max: 500,

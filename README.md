@@ -12,6 +12,8 @@ A personal, local, media library built around a web UI using Next.js, React, and
 - Give tags aliases, descriptions, and implications (tagging `cat` can auto-add `animal`).
 - Find similar posts (`similar:<id>`): re-encodes, resized copies, and a clip next to the
   video it was cut from.
+- Group versions or pages under a parent post (`parent:<id>`); add `has:parent` to the
+  blacklist to show only parents.
 - Download a multi-selection as a zip.
 - Soft-delete media into a deleted bin and clear it from the UI.
 - Preview and play/slideshow the filtered list of media in fullscreen.

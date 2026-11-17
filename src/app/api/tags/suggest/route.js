@@ -53,6 +53,9 @@ const OPERATORS = [
     key: "similar",
   },
   {
+    key: "parent",
+  },
+  {
     key: "image_ratio",
   },
   {
@@ -89,7 +92,7 @@ function getOperatorValues(operator) {
 
   if (operator.key === "has") {
     const types = hasTypeValuesStmt.all().map(row => row.value);
-    return [...new Set(["notes", "score", ...types])];
+    return [...new Set(["notes", "score", "parent", "children", ...types])];
   }
 
   return [];

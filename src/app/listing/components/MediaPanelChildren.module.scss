@@ -1,0 +1,93 @@
+@use "/src/scss/variables" as *;
+@use "/src/scss/mixins" as *;
+
+.children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+  gap: $spacingQuarter;
+}
+
+.child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid $colorBorder;
+  background-color: $colorBg2;
+  font-family: $fontMono;
+  font-size: 0.8rem;
+  color: $colorContent2;
+  text-decoration: none;
+
+  &:hover {
+    border-color: $colorContent;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.parentLink {
+  @include buttonBase();
+
+  text-align: center;
+  text-decoration: none;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: $colorContent2;
+}
+
+.input {
+  @include textareaBase($minHeight: 3rem, $padding: 0.4rem 0.5rem);
+
+  margin-top: 0.5rem;
+
+  &.inputDirty {
+    border-color: $colorBorder2;
+  }
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.note {
+  @include subtleText();
+}
+
+.buttonList {
+  @include actionRow();
+
+  margin-top: 0.5rem;
+}
+
+.button {
+  @include buttonBase($disabledOpacity: 0.5);
+}
+
+.error {
+  @include subtleText();
+
+  color: $colorWarning;
+}

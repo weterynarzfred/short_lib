@@ -11,6 +11,7 @@ import isEditableTarget from "@/lib/isEditableTarget";
 import mimetypeToType from "@/lib/mimetypeToType";
 import ScoreInput from "@/components/ScoreInput";
 import TagEditor from "@/components/TagEditor";
+import MediaPanelChildren from "./MediaPanelChildren";
 import MediaPanelDownload from "./MediaPanelDownload";
 import MediaPanelFileInfo from "./MediaPanelFileInfo";
 import MediaPanelNotesEditor from "./MediaPanelNotesEditor";
@@ -204,6 +205,8 @@ export default function MediaPanelMeta({
         onPatchPost={onPatchPost}
         focusRef={notesFocusRef}
       />
+
+      <MediaPanelChildren key={`children-${post.id}`} post={post} onPatchPost={onPatchPost} />
 
       <MediaPanelFileInfo post={post} onPatchPost={onPatchPost} />
 

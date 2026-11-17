@@ -7,6 +7,7 @@ const hoisted = vi.hoisted(() => ({
   parseTagString: vi.fn(),
   dbPrepare: vi.fn(),
   deletePost: vi.fn(),
+  setPostChildren: vi.fn(),
   clearDeletedStorage: vi.fn(),
   updateTagById: vi.fn(),
   deleteTagById: vi.fn(),
@@ -15,7 +16,7 @@ const hoisted = vi.hoisted(() => ({
   removeTagAlias: vi.fn(),
   addTagImplicationByName: vi.fn(),
   removeTagImplication: vi.fn(),
-  setBlacklistedTags: vi.fn(),
+  setBlacklist: vi.fn(),
   setMediaSettings: vi.fn(),
   setTagTypeColors: vi.fn(),
   setTagTypeOrder: vi.fn(),
@@ -42,6 +43,10 @@ vi.mock("@/lib/deletePost", () => ({
   default: hoisted.deletePost,
 }));
 
+vi.mock("@/lib/postChildren", () => ({
+  default: hoisted.setPostChildren,
+}));
+
 vi.mock("@/lib/clearDeletedStorage", () => ({
   default: hoisted.clearDeletedStorage,
 }));
@@ -57,7 +62,7 @@ vi.mock("@/lib/manageTag", () => ({
 }));
 
 vi.mock("@/lib/userSettings", () => ({
-  setBlacklistedTags: hoisted.setBlacklistedTags,
+  setBlacklist: hoisted.setBlacklist,
   setMediaSettings: hoisted.setMediaSettings,
   setTagTypeColors: hoisted.setTagTypeColors,
   setTagTypeOrder: hoisted.setTagTypeOrder,
@@ -83,7 +88,7 @@ describe("server actions", () => {
     hoisted.removeTagAlias.mockReset();
     hoisted.addTagImplicationByName.mockReset();
     hoisted.removeTagImplication.mockReset();
-    hoisted.setBlacklistedTags.mockReset();
+    hoisted.setBlacklist.mockReset();
     hoisted.setMediaSettings.mockReset();
     hoisted.setTagTypeColors.mockReset();
     hoisted.setTagTypeOrder.mockReset();
@@ -140,6 +145,16 @@ describe("server actions", () => {
 
     expect(hoisted.deletePost).toHaveBeenCalledWith(5);
     expect(hoisted.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("setPostChildrenAction reads ids from pasted text, keeping order and dropping repeats", async () => {
+    hoisted.setPostChildren.mockReturnValue({ conflicts: [], updates: [] });
+    const { setPostChildrenAction } = await import("../src/lib/actions");
+
+    const result = await setPostChildrenAction(5, "12, 7\n#12 3", { reassign: true });
+
+    expect(hoisted.setPostChildren).toHaveBeenCalledWith(5, [12, 7, 3], { reassign: true });
+    expect(result).toEqual({ ok: true, conflicts: [], updates: [] });
   });
 
   it("deletePostsBulkAction deletes only integer ids without revalidating listing", async () => {

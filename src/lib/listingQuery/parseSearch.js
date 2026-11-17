@@ -172,6 +172,90 @@ function parseTagExpression(tokens) {
   return expression;
 }
 
+// Operators that take a post id. similar: is resolved in memory like the fuzzy ones;
+// parent: is plain SQL.
+const POST_ID_OPERATORS = new Set(["similar", "parent"]);
+
+const TERM_OPERATORS = new Set([
+  "mime_type",
+  "has",
+  ...Object.keys(COMPARABLE_OPERATORS),
+  ...FUZZY_OPERATORS,
+  ...POST_ID_OPERATORS,
+]);
+
+// A set opened with parent: reads in order, parent first. Grouping by the parent keeps
+// `parent:1 OR parent:2` as two runs rather than interleaving them.
+const FAMILY_ORDER_BY = "COALESCE(m.parent_id, m.id), m.parent_id IS NOT NULL, m.child_position, m.id";
+
+export function isTermOperator(token) {
+  return TERM_OPERATORS.has(splitOperator(token)?.name);
+}
+
+function applySetting(token, filters) {
+  const operator = splitOperator(token.replace(/^-/, ""));
+  if (!operator) return false;
+
+  const { name, value } = operator;
+
+  if (name === "limit") {
+    const parsedLimit = Number(value);
+    filters.limit = Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(Math.floor(parsedLimit), 500)
+      : 100;
+    return true;
+  }
+
+  if (name === "order") {
+    if (value === "random") {
+      filters.orderBy = null;
+      filters.orderKey = "random";
+    } else if (ORDER_BY[value]) {
+      filters.orderBy = ORDER_BY[value];
+      filters.orderKey = value.replace(/_asc$/, "");
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// Returns the term node and a key naming what it asks about regardless of negation, which
+// is how a blacklist entry tells that the query already mentions it.
+function parseTerm(rawToken, resolveTagName) {
+  const negated = rawToken.startsWith("-");
+  const token = negated ? rawToken.slice(1) : rawToken;
+  const { name, value } = splitOperator(token) ?? {};
+  const key = `${name}:${value?.trim().toLowerCase()}`;
+
+  if (name === "mime_type" || name === "has") {
+    // Each occurrence is its own term, so repeating one means AND and matches nothing.
+    const normalized = value.trim().toLowerCase();
+    return normalized ? { key, node: { type: "TERM", kind: name, value: normalized, negated } } : null;
+  }
+
+  if (COMPARABLE_OPERATORS[name]) {
+    const comparison = COMPARABLE_OPERATORS[name](value);
+    return comparison ? { key, node: { type: "TERM", kind: name, comparison, negated } } : null;
+  }
+
+  if (POST_ID_OPERATORS.has(name)) {
+    const postId = Number(value);
+    if (!Number.isInteger(postId) || postId <= 0) return null;
+
+    return { key, node: { type: "TERM", kind: name, query: postId, negated } };
+  }
+
+  if (FUZZY_OPERATORS.has(name)) {
+    const query = unquote(value);
+    return query ? { key, node: { type: "TERM", kind: name, query, mediaIds: null, negated } } : null;
+  }
+
+  // A plain tag, or not an operator after all - `series:one` is a typed tag.
+  const tagName = resolveTagName(token.trim());
+  return tagName ? { key: `tag:${tagName}`, node: { type: "TERM", kind: "tag", name: tagName, negated } } : null;
+}
+
 export default function parseSearch(searchString = "", options = {}) {
   const tokens = tokenizeSearchString(searchString);
 
@@ -181,8 +265,9 @@ export default function parseSearch(searchString = "", options = {}) {
   const includeTags = [];
   const excludeTags = [];
   const expressionTokens = [];
-  const mentionedTags = new Set();
+  const mentionedKeys = new Set();
   let asksForSpecificPosts = false;
+  let asksForFamily = false;
 
   const filters = {
     orderBy: ORDER_BY.date,
@@ -193,21 +278,6 @@ export default function parseSearch(searchString = "", options = {}) {
     orderKey: null,
   };
 
-  function addTerm(node) {
-    expressionTokens.push({ kind: "term", node });
-  }
-
-  function addTagToken(rawValue, negated) {
-    const value = resolveTagName(rawValue.trim());
-    if (!value) return;
-
-    if (negated) excludeTags.push(value);
-    else includeTags.push(value);
-
-    mentionedTags.add(value);
-    addTerm({ type: "TERM", kind: "tag", name: value, negated });
-  }
-
   for (const rawToken of tokens) {
     const expressionKind = EXPRESSION_TOKENS[rawToken];
     if (expressionKind) {
@@ -215,88 +285,40 @@ export default function parseSearch(searchString = "", options = {}) {
       continue;
     }
 
-    const negated = rawToken.startsWith("-");
-    const token = negated ? rawToken.slice(1) : rawToken;
-    const operator = splitOperator(token);
+    if (applySetting(rawToken, filters)) continue;
 
-    if (!operator) {
-      addTagToken(token, negated);
-      continue;
-    }
+    const term = parseTerm(rawToken, resolveTagName);
+    if (!term) continue;
 
-    const { name, value } = operator;
+    const { node } = term;
+    mentionedKeys.add(term.key);
+    expressionTokens.push({ kind: "term", node });
 
-    if (name === "limit") {
-      const parsedLimit = Number(value);
-      filters.limit = Number.isFinite(parsedLimit) && parsedLimit > 0
-        ? Math.min(Math.floor(parsedLimit), 500)
-        : 100;
-      continue;
-    }
-
-    if (name === "order") {
-      if (value === "random") {
-        filters.orderBy = null;
-        filters.orderKey = "random";
-      } else if (ORDER_BY[value]) {
-        filters.orderBy = ORDER_BY[value];
-        filters.orderKey = value.replace(/_asc$/, "");
-      }
-      continue;
-    }
-
-    if (name === "mime_type" || name === "has") {
-      // Each occurrence is its own term, so repeating one means AND and matches nothing.
-      const normalized = value.trim().toLowerCase();
-      if (normalized) addTerm({ type: "TERM", kind: name, value: normalized, negated });
-      continue;
-    }
-
-    if (COMPARABLE_OPERATORS[name]) {
-      const comparison = COMPARABLE_OPERATORS[name](value);
-      if (comparison) addTerm({ type: "TERM", kind: name, comparison, negated });
-      continue;
-    }
-
-    // A post id rather than text, but resolved in memory the same way as the fuzzy ones.
-    if (name === "similar") {
-      const postId = Number(value);
-      if (Number.isInteger(postId) && postId > 0) {
-        addTerm({ type: "TERM", kind: "similar", query: postId, mediaIds: null, negated });
-        if (!negated) asksForSpecificPosts = true;
-      }
-      continue;
-    }
-
-    if (FUZZY_OPERATORS.has(name)) {
-      const query = unquote(value);
-      if (query) addTerm({ type: "TERM", kind: name, query, mediaIds: null, negated });
-      continue;
-    }
-
-    // Not an operator after all - `series:one` is a typed tag.
-    addTagToken(token, negated);
+    if (node.kind === "tag") (node.negated ? excludeTags : includeTags).push(node.name);
+    if (POST_ID_OPERATORS.has(node.kind) && !node.negated) asksForSpecificPosts = true;
+    if (node.kind === "parent" && !node.negated) asksForFamily = true;
   }
+
+  if (asksForFamily && !filters.orderKey) filters.orderBy = FAMILY_ORDER_BY;
 
   let expression = parseTagExpression(expressionTokens);
 
-  // `similar:` asks about one post, which is usually open in the panel already, so hiding it
-  // and its copies behind the blacklist would answer with an empty page.
-  const defaultExcludedTags = asksForSpecificPosts ? [] : options.defaultExcludedTags ?? [];
+  // similar: and parent: ask about particular posts, usually the one open in the panel, so
+  // hiding them behind the blacklist would answer with an empty page.
+  const blacklist = asksForSpecificPosts ? [] : options.blacklist ?? [];
 
-  for (const tag of defaultExcludedTags) {
-    const name = resolveTagName(String(tag ?? "").trim());
-    if (!name || mentionedTags.has(name)) continue;
+  for (const entry of blacklist) {
+    const term = parseTerm(entry, resolveTagName);
+    if (!term || mentionedKeys.has(term.key)) continue;
 
-    excludeTags.push(name);
-    mentionedTags.add(name);
+    const { node } = term;
+    node.negated = true;
+    mentionedKeys.add(term.key);
+    if (node.kind === "tag") excludeTags.push(node.name);
 
     // AND-ed at the top level, so a blacklist entry narrows the whole query rather than
     // binding to whichever branch happens to be last.
-    const defaultNode = { type: "TERM", kind: "tag", name, negated: true };
-    expression = expression
-      ? { type: "AND", left: expression, right: defaultNode }
-      : defaultNode;
+    expression = expression ? { type: "AND", left: expression, right: node } : node;
   }
 
   return {

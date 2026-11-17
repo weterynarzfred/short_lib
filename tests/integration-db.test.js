@@ -144,11 +144,11 @@ describe("integration: addTags + getPosts", () => {
     db.prepare(`INSERT INTO tag_aliases (name, tag_id) VALUES (?, ?)`).run("felines", catId);
 
     // Blacklisting the alias must exclude the tag it points at.
-    const blacklisted = await getPostsPage("", { defaultExcludedTags: ["felines"] });
+    const blacklisted = await getPostsPage("", { blacklist: ["felines"] });
     expect(blacklisted.posts).toEqual([]);
 
     // Searching the tag explicitly still wins over the blacklisted alias.
-    const explicit = await getPostsPage("cat", { defaultExcludedTags: ["felines"] });
+    const explicit = await getPostsPage("cat", { blacklist: ["felines"] });
     expect(explicit.posts.map(post => post.id)).toEqual([mediaId]);
   });
 

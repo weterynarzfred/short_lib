@@ -168,13 +168,19 @@ Posts that look like the given one: re-encodes, resized copies, lossy vs lossles
 and the video it was cut from. Heavy crops and mirrored copies are not found, and an image
 is never matched to a longer video (a screenshot does not find its source). The post
 itself is listed first, the rest most similar first, unless an `order:` token says
-otherwise. Blacklisted tags are not hidden, since the post asked about usually carries
-them. The panel's "show similar" button opens this search.
+otherwise. The blacklist is not applied, since the post asked about usually matches
+it. The panel's "show similar" button opens this search.
 
 Examples:
 
 - `similar:1686`
 - `similar:1686 -meta:video` -> only the stills
+
+### `parent:<post id>`
+
+The post and its children, parent first, then the children in the order set in the panel,
+unless an `order:` token says otherwise. Like `similar:`, the blacklist is not applied.
+Clicking a child in the panel opens this search.
 
 ### `has:<value>` and `-has:<value>`
 
@@ -182,6 +188,8 @@ Examples:
 - `-has:notes` -> notes field is empty
 - `has:score` -> score is above zero
 - `-has:score` -> score is zero (unrated)
+- `has:parent` -> post is a child of another post
+- `has:children` -> post has children
 - Other values are matched against tag `type` (case-insensitive)
 
 Examples:
@@ -189,15 +197,13 @@ Examples:
 - `has:character`
 - `-has:creator`
 
-## Default Blacklisted Tags
+## Blacklist
 
-Listing uses user settings (`listing.blacklisted_tags`) as default exclusions.
-Each default blacklisted tag is appended as a negated tag filter unless it was explicitly added to the query.
+Entries from the settings page are tags or search terms. Each is AND-ed to every query as
+a negated term, unless the query mentions the same term itself.
 
-Example:
-
-- Blacklist contains `nsfw`
-- Query `cat` behaves like `cat -nsfw`
-- Query `nsfw` disables that default exclusion for `nsfw`
+- Blacklist contains `nsfw has:parent`
+- Query `cat` behaves like `cat -nsfw -has:parent`
+- Query `nsfw` or `-nsfw` drops the `nsfw` entry; `has:parent` drops the other
 
 

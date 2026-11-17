@@ -28,7 +28,7 @@ describe("search parser and query builder", () => {
 
   it("applies default excluded tags unless query already mentions them", () => {
     const parsed = parseSearch("cat -bird", {
-      defaultExcludedTags: ["nsfw", "cat", "bird", "nsfw"],
+      blacklist: ["nsfw", "cat", "bird", "nsfw"],
     });
 
     expect(parsed.includeTags).toEqual(["cat"]);
@@ -37,7 +37,7 @@ describe("search parser and query builder", () => {
 
   it("allows explicit include tags to override blacklist defaults", () => {
     const parsed = parseSearch("nsfw", {
-      defaultExcludedTags: ["nsfw", "spoiler"],
+      blacklist: ["nsfw", "spoiler"],
     });
 
     expect(parsed.includeTags).toEqual(["nsfw"]);
@@ -198,10 +198,27 @@ describe("search parser and query builder", () => {
   });
 
   it("drops the default blacklist for similar:, but not for -similar:", () => {
-    const options = { defaultExcludedTags: ["nsfw"] };
+    const options = { blacklist: ["nsfw"] };
 
     expect(parseSearch("similar:42", options).excludeTags).toEqual([]);
     expect(parseSearch("cat -similar:42", options).excludeTags).toEqual(["nsfw"]);
+  });
+
+  it("applies operator blacklist entries unless the query mentions the same term", () => {
+    const options = { blacklist: ["has:parent"] };
+    const hasTerm = parsed => findTerms(parsed.expression, "has").map(term => [term.value, term.negated]);
+
+    expect(hasTerm(parseSearch("cat", options))).toEqual([["parent", true]]);
+    expect(hasTerm(parseSearch("has:parent", options))).toEqual([["parent", false]]);
+    expect(hasTerm(parseSearch("-HAS:Parent", options))).toEqual([["parent", true]]);
+    expect(hasTerm(parseSearch("has:notes", options))).toEqual([["notes", false], ["parent", true]]);
+    expect(findTerms(parseSearch("parent:3", options).expression, "has")).toEqual([]);
+  });
+
+  it("orders a parent: listing as a set unless order: is given", () => {
+    expect(parseSearch("parent:3").filters.orderBy).toContain("m.child_position");
+    expect(parseSearch("-parent:3").filters.orderBy).toBe(parseSearch("").filters.orderBy);
+    expect(parseSearch("parent:3 order:score").filters.orderBy).toBe(parseSearch("order:score").filters.orderBy);
   });
 
   it("keeps notes, text and filename as independent terms", () => {

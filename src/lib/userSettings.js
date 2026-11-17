@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import parseTagToken from "@/lib/parseTagToken";
+import { isTermOperator } from "@/lib/listingQuery/parseSearch";
 import {
   DEFAULT_TAG_TYPE_ORDER,
   buildTagTypeColorsCss,
@@ -17,7 +18,7 @@ export const MEDIA_SETTINGS_DEFAULTS = {
   fullscreen: false,
   info: true,
 };
-export const BLACKLISTED_TAGS_KEY = "listing.blacklisted_tags";
+export const BLACKLIST_KEY = "listing.blacklisted_tags";
 export const TAG_TYPE_ORDER_KEY = "listing.tag_type_order";
 export const TAG_TYPE_COLORS_KEY = "listing.tag_type_colors";
 
@@ -53,20 +54,20 @@ function isTrue(raw) {
   return raw === "1" || raw === "true";
 }
 
-function parseTagNames(raw) {
+// Entries are search terms. Operators such as `has:parent` are kept whole; anything else is
+// a tag, stored by name so `meta:nsfw` and `nsfw` are one entry. Negated entries are
+// dropped, not unwrapped: "-cat" must not blacklist "cat".
+function parseBlacklistEntries(raw) {
   return raw
     .split(/\s+/)
-    .filter(Boolean)
-    .map(parseTagToken)
-    // Negated entries are dropped, not unwrapped: "-cat" must not blacklist "cat".
-    .filter(t => !t.negated && t.name)
-    .map(t => t.name);
+    .filter(token => token && !token.startsWith("-"))
+    .map(token => isTermOperator(token) ? token : parseTagToken(token).name);
 }
 
-function normalizeTagNames(rawValue) {
+function normalizeBlacklist(rawValue) {
   const values = Array.isArray(rawValue) ? rawValue : [rawValue];
-  const names = values.filter(item => typeof item === "string").flatMap(parseTagNames);
-  return [...new Set(names)];
+  const entries = values.filter(item => typeof item === "string").flatMap(parseBlacklistEntries);
+  return [...new Set(entries)];
 }
 
 // Settings are written as JSON, but rows written before that are plain strings, so both
@@ -128,25 +129,25 @@ export function setMediaSettings(partialSettings) {
   return getMediaSettings();
 }
 
-export function getBlacklistedTags() {
+export function getBlacklist() {
   try {
-    const row = getSettingStmt.get(BLACKLISTED_TAGS_KEY);
-    return parseStored(row?.value, normalizeTagNames);
+    const row = getSettingStmt.get(BLACKLIST_KEY);
+    return parseStored(row?.value, normalizeBlacklist);
   } catch {
     return [];
   }
 }
 
-export function setBlacklistedTags(rawTagString) {
-  const tags = normalizeTagNames(rawTagString);
+export function setBlacklist(rawValue) {
+  const entries = normalizeBlacklist(rawValue);
 
   upsertSettingStmt.run(
-    BLACKLISTED_TAGS_KEY,
-    JSON.stringify(tags),
+    BLACKLIST_KEY,
+    JSON.stringify(entries),
     Date.now()
   );
 
-  return tags;
+  return entries;
 }
 
 export function getTagTypeOrder() {
